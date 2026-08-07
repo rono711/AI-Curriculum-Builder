@@ -1,0 +1,264 @@
+services:
+
+  curriculum-normalizer:
+    image: curriculum-builder-py312-test
+    container_name: curriculum-normalizer
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/curriculum_normalizer
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8001"
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+
+  build-app:
+    image: curriculum-builder-py312-test
+    container_name: build-app
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/build-app
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8002"
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+
+
+  lesson-package-builder:
+    image: curriculum-builder-py312-test
+    container_name: lesson-package-builder
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/lesson_package_builder
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8003"
+    ports:
+      - "8003:8003"
+    restart: unless-stopped
+
+
+  pipeline-engine:
+    image: curriculum-builder-py312-test
+    container_name: pipeline-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/pipeline_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8004"
+    ports:
+      - "8004:8004"
+    restart: unless-stopped
+
+
+  prompt-engine:
+    image: curriculum-builder-py312-test
+    container_name: prompt-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/prompts
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8005"
+    ports:
+      - "8005:8005"
+    restart: unless-stopped
+
+
+  content-engine:
+    image: curriculum-builder-py312-test
+    container_name: content-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/content_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8006"
+    ports:
+      - "8006:8006"
+    restart: unless-stopped
+
+
+  gamma-engine:
+    image: curriculum-builder-py312-test
+    container_name: gamma-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/gamma_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8007"
+    ports:
+      - "8007:8007"
+    restart: unless-stopped
+
+
+  activities-engine:
+    image: curriculum-builder-py312-test
+    container_name: activities-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/activities_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8008"
+    ports:
+      - "8008:8008"
+    restart: unless-stopped
+
+
+  quiz-engine:
+    image: curriculum-builder-py312-test
+    container_name: quiz-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/quiz_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8009"
+    ports:
+      - "8009:8009"
+    restart: unless-stopped
+
+
+  recap-engine:
+    image: curriculum-builder-py312-test
+    container_name: recap-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/recap_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8010"
+    ports:
+      - "8010:8010"
+    restart: unless-stopped
+
+
+  workbook-service:
+    image: curriculum-builder-py312-test
+    container_name: workbook-service
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/workbook_service
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8011"
+    ports:
+      - "8011:8011"
+    restart: unless-stopped
+
+
+  publisher-engine:
+    image: curriculum-builder-py312-test
+    container_name: publisher-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/publisher_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8012"
+    ports:
+      - "8012:8012"
+    restart: unless-stopped

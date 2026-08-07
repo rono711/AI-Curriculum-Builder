@@ -27,7 +27,7 @@ from shared.markdown_converter import MarkdownConverter
 
 load_dotenv(
 
-    "/volume1/docker/curriculum-builder/activities_engine/.env"
+    "/volume1/docker/curriculum-builder/.env"
 
 )
 

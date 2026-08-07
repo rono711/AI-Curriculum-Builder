@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv(
 
-    "/volume1/docker/curriculum-builder/publisher_engine/.env"
+    "/volume1/docker/curriculum-builder/.env"
 
 )
 

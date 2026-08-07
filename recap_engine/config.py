@@ -21,8 +21,6 @@ load_dotenv(
 
     PROJECT_ROOT
 
-    / "recap_engine"
-
     / ".env"
 
 )

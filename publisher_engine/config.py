@@ -17,9 +17,7 @@ load_dotenv(
 
     PROJECT_ROOT
 
-    / "publisher_engine"
-
-    / ".env"
+    /  ".env"
 
 )
 

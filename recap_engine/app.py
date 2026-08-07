@@ -104,9 +104,8 @@ def health():
 
     return {
 
-        "status":
-
-            "OK"
+        "status": "OK",
+        "service": "Recap Engine"
 
     }
 

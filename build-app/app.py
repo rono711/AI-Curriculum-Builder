@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -50,15 +50,13 @@ reader = WorkbookReader()
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-
     return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
+        request=request,
+        name="index.html",
+        context={
             "title": "Rono AI Curriculum Builder"
         }
     )
-
 
 # ==========================================================
 # Health Check
@@ -68,9 +66,9 @@ async def home(request: Request):
 async def health():
 
     return {
-        "status": "running"
+        "status": "OK",
+        "service": "Build App"
     }
-
 
 # ==========================================================
 # Year Levels

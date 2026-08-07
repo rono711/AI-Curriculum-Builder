@@ -18,13 +18,7 @@ PROJECT_ROOT = Path(
 #
 
 load_dotenv(
-
-    PROJECT_ROOT
-
-    / "gamma_engine"
-
-    / ".env"
-
+    PROJECT_ROOT / ".env"
 )
 
 # ==========================================================

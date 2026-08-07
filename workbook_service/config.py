@@ -14,7 +14,7 @@ PROJECT_ROOT = Path("/volume1/docker/curriculum-builder")
 
 load_dotenv(
 
-    PROJECT_ROOT / "workbook_service" / ".env"
+    PROJECT_ROOT / ".env"
 
 )
 
@@ -73,7 +73,7 @@ WORKSHEETS = {
 
     SHEET_LESSON_CONTENT,
 
-    SHEET_GOOGLE_SLIDES,
+    SHEET_GAMMA_SLIDES,
 
     SHEET_QUIZ,
 

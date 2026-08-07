@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv(
 
-    "/volume1/docker/curriculum-builder/quiz_engine/.env"
+    "/volume1/docker/curriculum-builder/.env"
 
 )
 

@@ -21,8 +21,6 @@ load_dotenv(
 
     PROJECT_ROOT
 
-    / "quiz_engine"
-
     / ".env"
 
 )

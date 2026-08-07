@@ -47,25 +47,30 @@ class MasterDB:
         self.reload()
 
     # =====================================================
+    # Clean Dropdown Values
+    # =====================================================
+
+    @staticmethod
+    def _clean_values(series):
+
+        return sorted(
+            series
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .loc[lambda s: s != ""]
+            .unique()
+            .tolist()
+        )
+
+    # =====================================================
     # Learning Areas
     # =====================================================
 
     def learning_areas(self):
-        values = sorted(
-
+        return self._clean_values(
             self.df["Learning Area"]
-
-            .astype(str)
-
-            .str.strip()
-
-            .unique()
-
-            .tolist()
-
         )
-
-        return values
 
     # =====================================================
     # Subjects
@@ -78,21 +83,12 @@ class MasterDB:
 
             ]
 
-        values = sorted(
-
+        values = self._clean_values(
             df["Subject"]
-
-            .astype(str)
-
-            .str.strip()
-
-            .unique()
-
-            .tolist()
-
         )
 
         return values
+
 
     # =====================================================
     # Year Levels
@@ -109,18 +105,8 @@ class MasterDB:
 
             ]
 
-        values = (
-
+        values = self._clean_values(
             df["Year Level"]
-
-            .astype(str)
-
-            .str.strip()
-
-            .unique()
-
-            .tolist()
-
         )
 
         return values
@@ -154,18 +140,8 @@ class MasterDB:
 
             ]
 
-        values = sorted(
-
+        values = self._clean_values(
             df["Strand"]
-
-            .astype(str)
-
-            .str.strip()
-
-            .unique()
-
-            .tolist()
-
         )
 
         return values

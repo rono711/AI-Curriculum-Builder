@@ -4,7 +4,7 @@ import requests
 
 from dotenv import load_dotenv
 
-load_dotenv("/volume1/docker/curriculum-builder/gamma_engine/.env")
+load_dotenv("/volume1/docker/curriculum-builder/.env")
 
 
 # ==========================================================

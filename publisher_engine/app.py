@@ -100,9 +100,8 @@ def health():
 
     return {
 
-        "status":
-
-            "OK"
+        "status":"OK",
+        "service": "Publisher Engine"
 
     }
 

@@ -60,22 +60,15 @@ def header_map(sheet):
 # ==========================================================
 
 def read_master_db():
+
     df = pd.read_excel(
-
-        MASTER_LESSON_DB
-
+        MASTER_LESSON_DB,
+        dtype=object
     )
 
-    df.fillna(
-
-        "",
-
-        inplace=True
-
-    )
+    df = df.fillna("")
 
     return df
-
 
 # ==========================================================
 # Selected Lessons

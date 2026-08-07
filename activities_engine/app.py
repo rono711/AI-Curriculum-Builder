@@ -92,8 +92,8 @@ def health():
 
     return {
 
-        "status":"OK"
-
+        "status":"OK",
+        "service": "Activities Engine"
     }
 
 # ==========================================================
