@@ -1,0 +1,35 @@
+# ==========================================================
+# AI Curriculum Builder
+# Unified Python 3.12 Test Environment
+# ==========================================================
+
+# Web / API
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+jinja2
+
+# HTTP
+requests
+httpx
+
+# Configuration
+python-dotenv
+PyYAML
+
+# Workbook / Data
+openpyxl
+pandas
+
+# AI
+openai
+
+# Markdown
+markdown
+
+# Google APIs
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
