@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+openpyxl
+openai
+python-dotenv
+markdown
+requests
+pydantic

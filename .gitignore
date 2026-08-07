@@ -1,0 +1,54 @@
+# Secrets / credentials
+.env
+.env.*
+token.txt
+token copy.txt
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Synology
+@eaDir/
+**/@eaDir/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Generated/runtime output
+builds/
+output/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*~
+
+# Testing/cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Google OAuth credentials and tokens
+google/python-google_token.json
+google/python-google_credentials_desktop.json
+google/n8n_credentials_web.json
+
+# General credential/token files
+*_token.json
+*_credentials*.json

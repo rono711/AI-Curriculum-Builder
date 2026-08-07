@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<XMLDB
+    PATH="local/rono_curriculumbuilder/db"
+    VERSION="2026071501"
+    COMMENT="Rono Curriculum Builder">
+
+    <TABLES>
+
+        <!-- ===================================================== -->
+        <!-- Lesson → Moodle Page Mapping                          -->
+        <!-- ===================================================== -->
+
+        <TABLE
+            NAME="local_rono_page_map"
+            COMMENT="Maps lesson packages to Moodle pages">
+
+            <FIELDS>
+
+                <FIELD
+                    NAME="id"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="true"/>
+
+                <FIELD
+                    NAME="lesson_package_id"
+                    TYPE="char"
+                    LENGTH="100"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Lesson Package ID"/>
+
+                <FIELD
+                    NAME="activity_type"
+                    TYPE="char"
+                    LENGTH="30"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Activity Type (MISSION, ACTIVITIES, RECAP)"/>
+
+                <FIELD
+                    NAME="pageid"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Moodle Page ID"/>
+
+                <FIELD
+                    NAME="cmid"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Course Module ID"/>
+
+                <FIELD
+                    NAME="timecreated"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Creation Timestamp"/>
+
+                <FIELD
+                    NAME="timemodified"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Modification Timestamp"/>
+
+            </FIELDS>
+
+            <KEYS>
+
+                <KEY
+                    NAME="primary"
+                    TYPE="primary"
+                    FIELDS="id"
+                    COMMENT="Primary Key"/>
+
+            </KEYS>
+
+            <INDEXES>
+
+                <INDEX
+                    NAME="lesson_activity"
+                    UNIQUE="true"
+                    FIELDS="lesson_package_id, activity_type"
+                    COMMENT="Lesson Package + Activity lookup"/>
+
+            </INDEXES>
+
+        </TABLE>
+
+        <!-- ===================================================== -->
+        <!-- Lesson → Moodle Quiz Mapping                          -->
+        <!-- ===================================================== -->
+
+        <TABLE
+            NAME="local_rono_quiz_map"
+            COMMENT="Maps lesson packages to Moodle quizzes">
+
+            <FIELDS>
+
+                <FIELD
+                    NAME="id"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="true"/>
+
+                <FIELD
+                    NAME="lesson_package_id"
+                    TYPE="char"
+                    LENGTH="100"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Lesson Package ID"/>
+
+                <FIELD
+                    NAME="quizid"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Moodle Quiz ID"/>
+
+                <FIELD
+                    NAME="cmid"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Course Module ID"/>
+
+                <FIELD
+                    NAME="timecreated"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Creation Timestamp"/>
+
+                <FIELD
+                    NAME="timemodified"
+                    TYPE="int"
+                    LENGTH="10"
+                    NOTNULL="true"
+                    SEQUENCE="false"
+                    COMMENT="Modification Timestamp"/>
+
+            </FIELDS>
+
+            <KEYS>
+
+                <KEY
+                    NAME="primary"
+                    TYPE="primary"
+                    FIELDS="id"
+                    COMMENT="Primary Key"/>
+
+            </KEYS>
+
+            <INDEXES>
+
+                <INDEX
+                    NAME="lesson"
+                    UNIQUE="true"
+                    FIELDS="lesson_package_id"
+                    COMMENT="Lesson Package lookup"/>
+
+            </INDEXES>
+
+        </TABLE>
+
+    </TABLES>
+
+</XMLDB>

@@ -1,0 +1,1159 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <link rel="icon"
+          type="image/png"
+          href="/static/RS favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Rono's School AI Curriculum Builder</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+
+            margin: 0;
+
+            background: #f3f5f8;
+
+            font-family: Arial, Helvetica, sans-serif;
+
+        }
+
+        .container {
+
+            width: 820px;
+
+            margin: 35px auto;
+
+
+            background: white;
+
+            border-radius: 18px;
+
+            overflow: hidden;
+
+            box-shadow: 0 12px 30px rgba(0, 0, 0, .15);
+
+        }
+
+        .header {
+
+            text-align: center;
+
+            padding: 35px;
+
+            border-bottom: 8px solid #d71920;
+
+        }
+
+        .logo {
+
+            width: 520px;
+
+            max-width: 100%;
+
+        }
+
+        .title {
+
+            margin-top: 20px;
+
+            font-size: 44px;
+
+            color: #d71920;
+
+            font-weight: bold;
+
+        }
+
+        .subtitle {
+
+            margin-top: 10px;
+
+            font-size: 24px;
+
+            color: #003366;
+
+        }
+
+        .content {
+
+            padding: 45px;
+
+        }
+
+        label {
+
+            display: block;
+
+            margin-top: 22px;
+
+            margin-bottom: 8px;
+
+            font-size: 22px;
+
+            color: #003366;
+
+            font-weight: bold;
+
+        }
+
+        .required {
+
+            color: #d71920;
+
+        }
+
+        input,
+        select {
+
+            width: 100%;
+
+            padding: 14px;
+
+            border-radius: 8px;
+
+            border: 1px solid #cccccc;
+
+            font-size: 20px;
+
+        }
+
+        input:focus,
+        select:focus {
+
+            outline: none;
+
+            border-color: #003366;
+
+        }
+
+        #lessons {
+
+            margin-top: 12px;
+
+            padding: 18px;
+
+            border: 1px solid #dddddd;
+
+            border-radius: 8px;
+
+            background: #fafafa;
+
+        }
+
+        .lesson {
+
+            margin-bottom: 10px;
+
+            font-size: 18px;
+
+        }
+
+        button {
+
+            width: 100%;
+
+            margin-top: 40px;
+
+            padding: 18px;
+
+            background: #14853b;
+
+            color: white;
+
+            border: none;
+
+            border-radius: 8px;
+
+            font-size: 24px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+        }
+
+        button:hover {
+
+            background: #0f6b2f;
+
+        }
+
+        .footer {
+
+            padding: 25px;
+
+            text-align: center;
+
+            color: #888;
+
+            font-size: 15px;
+
+        }
+
+        #status {
+
+            display: none;
+
+            margin-top: 30px;
+
+            padding: 20px;
+
+            border-radius: 8px;
+
+            background: #eef7ff;
+
+            border-left: 6px solid #14853b;
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+
+        <img src="/static/RS.png" class="logo">
+
+        <div class="title">
+
+            AI Curriculum Builder
+
+        </div>
+
+        <div class="subtitle">
+
+            Build complete AI lesson packages directly into Moodle
+
+        </div>
+
+    </div>
+
+    <div class="content">
+
+        <form id="buildForm">
+
+            <label>
+
+                Teacher Email
+
+                <span class="required">*</span>
+
+            </label>
+
+            <input
+                    type="email"
+                    id="requested_by"
+                    placeholder="teacher@school.edu.au"
+                    required>
+
+            <label>
+
+                Learning Area
+
+                <span class="required">*</span>
+
+            </label>
+
+            <select id="learning_area" required>
+
+                <option value="">Loading Learning Areas...</option>
+
+            </select>
+
+            <label>
+
+                Subject
+
+                <span class="required">*</span>
+
+            </label>
+
+            <select id="subject" required>
+
+                <option value="">Select Learning Area</option>
+
+            </select>
+
+            <label>
+
+                Year Level
+
+                <span class="required">*</span>
+
+            </label>
+
+            <select id="year_level" required>
+
+                <option value="">Select Subject</option>
+
+            </select>
+
+            <label>
+
+                Strand
+
+                <span class="required">*</span>
+
+            </label>
+
+            <select id="strand" required>
+
+                <option value="">Select Year Level</option>
+
+            </select>
+
+            <label>
+
+                <label>
+
+                    Sub-Strand
+
+                    <span class="required">*</span>
+
+                </label>
+
+                <select id="sub_strand" required>
+
+                    <option value="">
+
+                        Select Strand
+
+                    </option>
+
+                </select>
+
+                Curriculum Topic
+
+                <span class="required">*</span>
+
+            </label>
+
+            <select id="topic" required>
+
+                <option value="">Select Strand</option>
+
+            </select>
+
+            <label>
+
+                Lessons
+
+                <span class="required">*</span>
+
+            </label>
+
+            <div style="margin-bottom:15px;">
+
+                <button
+                        type="button"
+                        id="select_all"
+                        style="width:48%;margin-right:2%;padding:10px;font-size:16px;">
+
+                    Select All
+
+                </button>
+
+                <button
+                        type="button"
+                        id="clear_all"
+                        style="width:48%;padding:10px;font-size:16px;">
+
+                    Clear All
+
+                </button>
+
+            </div>
+
+            <div id="lessons">
+
+                <div class="lesson">
+
+                    Waiting for Curriculum Topic...
+
+                </div>
+
+            </div>
+
+            <button type="submit">
+
+                🎓 BUILD LESSON PACKAGE
+
+            </button>
+
+        </form>
+
+        <div id="status"></div>
+
+    </div>
+
+    <div class="footer">
+
+        Rono's School AI Curriculum Builder © 2026
+
+    </div>
+
+</div>
+
+<script>
+    const API_BASE = "https://api.ronosschool.com";
+
+    /* =====================================================
+       Learning Areas
+    ===================================================== */
+
+    async function loadLearningAreas() {
+
+        try {
+
+            console.log("Loading Learning Areas...");
+
+            const response = await fetch(
+                API_BASE + "/learning-areas"
+            );
+             console.log("Response:", response);
+             console.log("Status:", response.status);
+            console.log(response);
+
+            const areas = await response.json();
+            console.log("Areas:", areas);
+            console.log(areas);
+
+            const select =
+
+                document.getElementById("learning_area");
+
+            select.innerHTML =
+
+                '<option value="">Select Learning Area</option>';
+
+            areas.forEach(area => {
+
+                if (
+
+                    area === null ||
+
+                    area === "" ||
+
+                    String(area).toLowerCase() === "nan"
+
+                ) {
+
+                    return;
+
+                }
+
+                const option =
+
+                    document.createElement("option");
+
+                option.value = area;
+
+                option.textContent = area;
+
+                select.appendChild(option);
+
+            });
+
+        } catch (err) {
+
+            console.error("Learning Areas Error:", err);
+
+        }
+
+    }
+
+    /* =====================================================
+       Subjects
+    ===================================================== */
+
+    async function loadSubjects() {
+
+        const learningArea =
+            document.getElementById("learning_area").value;
+
+        document.getElementById("subject").innerHTML =
+            '<option>Loading Subjects...</option>';
+
+        document.getElementById("year_level").innerHTML =
+            '<option>Select Subject</option>';
+
+        document.getElementById("strand").innerHTML =
+            '<option>Select Year Level</option>';
+
+        document.getElementById("topic").innerHTML =
+            '<option>Select Strand</option>';
+
+        document.getElementById("lessons").innerHTML =
+            "Waiting for Curriculum Topic...";
+
+        const response = await fetch(
+            API_BASE +
+
+            "/subjects?learning_area=" +
+
+            encodeURIComponent(learningArea)
+        );
+
+        const subjects = await response.json();
+
+        const select =
+            document.getElementById("subject");
+
+        select.innerHTML =
+            '<option value="">Select Subject</option>';
+
+        subjects.forEach(subject => {
+
+            const option = document.createElement("option");
+
+            option.value = subject;
+            option.textContent = subject;
+
+            select.appendChild(option);
+
+        });
+
+    }
+
+    /* =====================================================
+       Year Levels
+    ===================================================== */
+
+    async function loadYearLevels() {
+
+        const learningArea =
+            document.getElementById("learning_area").value;
+
+        const subject =
+            document.getElementById("subject").value;
+
+        document.getElementById("year_level").innerHTML =
+            '<option>Loading Year Levels...</option>';
+
+        document.getElementById("strand").innerHTML =
+            '<option>Select Year Level</option>';
+
+        document.getElementById("topic").innerHTML =
+            '<option>Select Strand</option>';
+
+        document.getElementById("lessons").innerHTML =
+            "Waiting for Curriculum Topic...";
+
+        const response = await fetch(
+            API_BASE +
+
+            "/year-levels?" +
+
+            "learning_area=" +
+
+            encodeURIComponent(learningArea)
+
+            +
+
+            "&subject=" +
+
+            encodeURIComponent(subject)
+        );
+
+        const years = await response.json();
+
+        const select =
+            document.getElementById("year_level");
+
+        select.innerHTML =
+            '<option value="">Select Year Level</option>';
+
+        years.forEach(year => {
+
+            const option = document.createElement("option");
+
+            option.value = year;
+            option.textContent = year;
+
+            select.appendChild(option);
+
+        });
+
+    }
+
+    /* =====================================================
+       Strands
+    ===================================================== */
+
+    async function loadStrands() {
+
+        const learningArea =
+            document.getElementById("learning_area").value;
+
+        const subject =
+            document.getElementById("subject").value;
+
+        const yearLevel =
+            document.getElementById("year_level").value;
+
+        document.getElementById("strand").innerHTML =
+            '<option>Loading Strands...</option>';
+
+        document.getElementById("topic").innerHTML =
+            '<option>Select Strand</option>';
+
+        document.getElementById("lessons").innerHTML =
+            "Waiting for Curriculum Topic...";
+
+        const response = await fetch(
+            API_BASE +
+
+            "/strands?" +
+
+            "learning_area=" +
+
+            encodeURIComponent(learningArea)
+
+            +
+
+            "&subject=" +
+
+            encodeURIComponent(subject)
+
+            +
+
+            "&year_level=" +
+
+            encodeURIComponent(yearLevel)
+        );
+
+        const strands = await response.json();
+
+        const select =
+            document.getElementById("strand");
+
+        select.innerHTML =
+            '<option value="">Select Strand</option>';
+
+        strands.forEach(strand => {
+
+            const option = document.createElement("option");
+
+            option.value = strand;
+            option.textContent = strand;
+
+            select.appendChild(option);
+
+        });
+
+    }
+
+    /* =====================================================
+      Sub-Strands
+   ===================================================== */
+
+    async function loadSubStrands() {
+
+        const learningArea =
+            document.getElementById("learning_area").value;
+
+        const subject =
+            document.getElementById("subject").value;
+
+        const yearLevel =
+            document.getElementById("year_level").value;
+
+        const strand =
+            document.getElementById("strand").value;
+
+        document.getElementById("sub_strand").innerHTML =
+            "<option>Loading Sub-Strands...</option>";
+
+        document.getElementById("sub_strand").innerHTML =
+            '<option>Select Strand</option>';
+
+        document.getElementById("topic").innerHTML =
+            '<option>Select Sub-Strand</option>';
+
+        const response = await fetch(
+            API_BASE +
+
+            "/sub-strands?" +
+
+            "learning_area=" +
+
+            encodeURIComponent(learningArea)
+
+            +
+
+            "&subject=" +
+
+            encodeURIComponent(subject)
+
+            +
+
+            "&year_level=" +
+
+            encodeURIComponent(yearLevel)
+
+            +
+
+            "&strand=" +
+
+            encodeURIComponent(strand)
+        );
+
+        const data = await response.json();
+
+        const subStrandRow =
+            document.getElementById("sub_strand").parentElement;
+
+        const select =
+            document.getElementById("sub_strand");
+
+//
+// No Sub-Strands
+//
+
+        if (data.length === 0) {
+
+            subStrandRow.style.display = "none";
+
+            document.getElementById("sub_strand").value = "";
+
+            loadTopics();
+
+            return;
+
+        }
+
+//
+// Show dropdown
+//
+
+        subStrandRow.style.display = "block";
+
+        select.innerHTML =
+            '<option value="">Select Sub-Strand</option>';
+
+        data.forEach(item => {
+
+            const option =
+                document.createElement("option");
+
+            option.value = item;
+
+            option.textContent = item;
+
+            select.appendChild(option);
+
+        });
+
+    }
+
+    /* =====================================================
+       Curriculum Topics
+    ===================================================== */
+
+    async function loadTopics() {
+
+        const learningArea =
+            document.getElementById("learning_area").value;
+
+        const subject =
+            document.getElementById("subject").value;
+
+        const yearLevel =
+            document.getElementById("year_level").value;
+
+        const strand =
+            document.getElementById("strand").value;
+
+        const subStrand =
+            document.getElementById("sub_strand").value;
+
+
+        document.getElementById("topic").innerHTML =
+            '<option>Loading Topics...</option>';
+
+        document.getElementById("lessons").innerHTML =
+            "Waiting for Curriculum Topic...";
+        let url =
+
+            API_BASE +
+
+            "/topics?" +
+
+            "learning_area=" +
+            encodeURIComponent(learningArea)
+
+            +
+
+            "&subject=" +
+            encodeURIComponent(subject)
+
+            +
+
+            "&year_level=" +
+            encodeURIComponent(yearLevel)
+
+            +
+
+            "&strand=" +
+            encodeURIComponent(strand);
+
+        if (subStrand !== "") {
+
+            url +=
+
+                "&sub_strand=" +
+
+                encodeURIComponent(subStrand);
+
+        }
+
+
+        const response = await fetch(url);
+
+
+        const topics = await response.json();
+
+        const select = document.getElementById("topic");
+
+        select.innerHTML =
+            '<option value="">Select Curriculum Topic</option>';
+
+        topics.forEach(topic => {
+
+            const option = document.createElement("option");
+
+            option.value = topic.parent_code;
+
+            option.textContent =
+                topic.topic +
+                " (" +
+                topic.parent_code +
+                ")";
+
+            select.appendChild(option);
+
+        });
+
+    }
+/* =====================================================
+   Page Load
+===================================================== */
+
+window.addEventListener("DOMContentLoaded", () => {
+
+    loadLearningAreas();
+
+});
+
+document
+    .getElementById("learning_area")
+    .addEventListener("change", loadSubjects);
+
+document
+    .getElementById("subject")
+    .addEventListener("change", loadYearLevels);
+
+document
+    .getElementById("year_level")
+    .addEventListener("change", loadStrands);
+
+document
+    .getElementById("strand")
+    .addEventListener("change", loadSubStrands);
+
+document
+    .getElementById("sub_strand")
+    .addEventListener("change", loadTopics);
+
+document
+    .getElementById("topic")
+    .addEventListener("change", loadLessons);
+	
+    /* =====================================================
+       Lessons
+    ===================================================== */
+
+    async function loadLessons() {
+
+        const parentCode =
+            document.getElementById("topic").value;
+
+        if (!parentCode) return;
+
+        const container =
+            document.getElementById("lessons");
+
+        container.innerHTML =
+            "<div>Loading Lessons...</div>";
+
+        const response = await fetch(
+            API_BASE +
+
+            "/lessons?parent_code=" +
+
+            encodeURIComponent(parentCode)
+        );
+
+        const lessons =
+            await response.json();
+
+        container.innerHTML = "";
+
+        lessons.forEach(lesson => {
+
+            const div =
+                document.createElement("div");
+
+            div.className = "lesson";
+
+            div.innerHTML = `
+
+<label>
+
+<input
+type="checkbox"
+value="${lesson.lesson_number}"
+data-topic="${lesson.topic_id}">
+
+<strong>
+Lesson ${lesson.lesson_number}
+</strong>
+
+<br>
+
+${lesson.lesson}
+
+</label>
+
+`;
+
+            container.appendChild(div);
+
+        });
+
+    }
+
+    /* =====================================================
+       Topic Changed
+    ===================================================== */
+
+    document
+
+        .getElementById("topic")
+
+        .addEventListener(
+            "change",
+
+            loadLessons
+        );
+
+    /* =====================================================
+       Select All
+    ===================================================== */
+
+    document
+
+        .getElementById("select_all")
+
+        .addEventListener(
+            "click",
+
+            function () {
+
+                document
+
+                    .querySelectorAll(
+                        "#lessons input[type=checkbox]"
+                    )
+
+                    .forEach(
+                        checkbox =>
+
+                            checkbox.checked = true
+                    );
+
+            }
+        );
+
+    /* =====================================================
+       Clear All
+    ===================================================== */
+
+    document
+
+        .getElementById("clear_all")
+
+        .addEventListener(
+            "click",
+
+            function () {
+
+                document
+
+                    .querySelectorAll(
+                        "#lessons input[type=checkbox]"
+                    )
+
+                    .forEach(
+                        checkbox =>
+
+                            checkbox.checked = false
+                    );
+
+            }
+        );
+
+    /* =====================================================
+       Submit
+    ===================================================== */
+
+    document
+
+        .getElementById("buildForm")
+
+        .addEventListener(
+            "submit",
+
+            async function (e) {
+
+                e.preventDefault();
+
+                let lessons = [];
+
+                document
+
+                    .querySelectorAll(
+                        "#lessons input:checked"
+                    )
+
+                    .forEach(
+                        checkbox => {
+
+                            lessons.push(
+                                parseInt(
+                                    checkbox.value
+                                )
+                            );
+
+                        }
+                    );
+
+                if (
+
+                    lessons.length === 0
+
+                ) {
+
+                    alert(
+                        "Please select at least one lesson."
+                    );
+
+                    return;
+
+                }
+
+                const payload = {
+
+                    requested_by:
+
+                    document.getElementById(
+                        "requested_by"
+                    ).value,
+
+                    learning_area:
+
+                    document.getElementById(
+                        "learning_area"
+                    ).value,
+
+                    subject:
+
+                    document.getElementById(
+                        "subject"
+                    ).value,
+
+                    year_level:
+
+                    document.getElementById(
+                        "year_level"
+                    ).value,
+
+                    strand:
+
+                    document.getElementById(
+                        "strand"
+                    ).value,
+
+                    sub_strand:
+
+                    document.getElementById(
+                        "sub_strand"
+                    ).value,
+
+                    parent_code:
+
+                    document.getElementById(
+                        "topic"
+                    ).value,
+                    topic_id:
+                    document
+                        .querySelector(
+                            "#lessons input:checked"
+                        )
+                        .dataset.topic,
+                    lesson_numbers:
+
+                    lessons
+
+                };
+
+                try {
+
+                    const response = await fetch("/api/build", {
+
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+
+                        body: JSON.stringify(payload)
+
+                    });
+
+                    const result = await response.json();
+
+                    console.log(result);
+
+                    alert("Build request submitted successfully.");
+
+                } catch (err) {
+
+                    console.error(err);
+
+                    alert("Unable to contact Build API.");
+
+                }
+
+            }
+        );
+
+</script>
+
+</body>
+
+</html>
