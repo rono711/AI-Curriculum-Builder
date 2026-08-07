@@ -14,7 +14,7 @@ PROJECT_ROOT = Path("/volume1/docker/curriculum-builder")
 
 load_dotenv(
 
-    PROJECT_ROOT / "content_engine" / ".env"
+    PROJECT_ROOT / ".env"
 
 )
 # ==========================================================
@@ -24,26 +24,32 @@ load_dotenv(
 SHARED_FOLDER = PROJECT_ROOT / "shared"
 
 # ==========================================================
-# AI Engine
+# CONTENT Engine
 # ==========================================================
 
 CONTENT_ENGINE_FOLDER = PROJECT_ROOT / "content_engine"
 
-LOG_FOLDER = AI_ENGINE_FOLDER / "logs"
+LOG_FOLDER = CONTENT_ENGINE_FOLDER / "logs"
+OUTPUT_FOLDER = CONTENT_ENGINE_FOLDER / "output"
 
-OUTPUT_FOLDER = AI_ENGINE_FOLDER / "output"
 
 # ==========================================================
 # Prompt Engine
 # ==========================================================
 
-PROMPT_ENGINE_URL = "http://127.0.0.1:8005/prompt"
+PROMPT_ENGINE_URL = os.getenv(
+    "PROMPT_ENGINE_URL",
+    "http://192.168.1.108:8005/prompt"
+)
 
 # ==========================================================
 # Gamma Engine
 # ==========================================================
 
-GAMMA_ENGINE_URL = "http://127.0.0.1:8006/generate"
+GAMMA_ENGINE_URL = os.getenv(
+    "GAMMA_ENGINE_URL",
+    "http://192.168.1.108:8007/generate"
+)
 
 # ==========================================================
 # Future AI Engines

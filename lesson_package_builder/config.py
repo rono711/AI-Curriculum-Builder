@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 
 # ==========================================================
@@ -102,29 +103,49 @@ SHEET_INSTRUCTIONS = "Instructions"
 # ==========================================================
 
 
-PROMPT_ENGINE_URL = "http://127.0.0.1:8005/prompt"
+PROMPT_ENGINE_URL = os.getenv(
+    "PROMPT_ENGINE_URL",
+    "http://192.168.1.108:8005/prompt"
+)
 
-GAMMA_ENGINE_URL = "http://localhost:8006/generate"
+GAMMA_ENGINE_URL = os.getenv(
+    "GAMMA_ENGINE_URL",
+    "http://192.168.1.108:8007/generate"
+)
 
-QUIZ_ENGINE_URL = "http://localhost:8002/generate"
+QUIZ_ENGINE_URL = os.getenv(
+    "QUIZ_ENGINE_URL",
+    "http://192.168.1.108:8009/generate"
+)
 
-ACTIVITIES_ENGINE_URL = "http://localhost:8010/generate"
+ACTIVITIES_ENGINE_URL = os.getenv(
+    "ACTIVITIES_ENGINE_URL",
+    "http://192.168.1.108:8008/generate"
+)
 
-RECAP_ENGINE_URL = "http://localhost:8011/generate"
+RECAP_ENGINE_URL = os.getenv(
+    "RECAP_ENGINE_URL",
+    "http://192.168.1.108:8010/generate"
+)
 
-PUBLISHER_ENGINE_URL = "http://localhost:8012/publish"
+PUBLISHER_ENGINE_URL = os.getenv(
+    "PUBLISHER_ENGINE_URL",
+    "http://192.168.1.108:8012/publish"
+)
 
-PIPELINE_ENGINE_URL = "http://localhost:8013/run"
-
+PIPELINE_ENGINE_URL = os.getenv(
+    "PIPELINE_ENGINE_URL",
+    "http://192.168.1.108:8004/run"
+)
 # ==========================================================
 # Build Status
 # ==========================================================
 
 STATUS_CREATED = "CREATED"
 
-STATUS_AI_PENDING = "AI_PENDING"
+STATUS_CONTENT_PENDING = "CONTENT_PENDING"
 
-STATUS_AI_COMPLETED = "AI_COMPLETED"
+STATUS_CONTENT_COMPLETED = "CONTENT_COMPLETED"
 
 STATUS_REVIEW_PENDING = "REVIEW_PENDING"
 

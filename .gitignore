@@ -52,3 +52,4 @@ google/n8n_credentials_web.json
 # General credential/token files
 *_token.json
 *_credentials*.json
+*.pre-py312

@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -5,6 +6,15 @@ from fastapi.templating import Jinja2Templates
 from api.workbook_reader import WorkbookReader
 import httpx
 from fastapi.responses import FileResponse
+
+# ==========================================================
+# Service URLs
+# ==========================================================
+
+LESSON_PACKAGE_BUILDER_URL = os.getenv(
+    "LESSON_PACKAGE_BUILDER_URL",
+    "http://192.168.1.108:8003/build"
+)
 
 # ==========================================================
 # FastAPI App
@@ -74,7 +84,6 @@ async def get_year_levels():
     return reader.get_year_levels()
 
 
-
 # ==========================================================
 # Build Request
 # ==========================================================
@@ -92,7 +101,7 @@ async def build(request: Request):
     async with httpx.AsyncClient() as client:
 
         response = await client.post(
-            "http://localhost:8004/build",
+            LESSON_PACKAGE_BUILDER_URL,
             json=payload,
             timeout=300
         )

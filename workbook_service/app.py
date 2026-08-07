@@ -1,4 +1,35 @@
-import requests
+import os
+import json
+
+PROMPT_ENGINE_URL = os.getenv(
+    "PROMPT_ENGINE_URL",
+    "http://192.168.1.108:8005/prompt"
+)
+
+GAMMA_ENGINE_URL = os.getenv(
+    "GAMMA_ENGINE_URL",
+    "http://192.168.1.108:8007/generate"
+)
+
+QUIZ_ENGINE_URL = os.getenv(
+    "QUIZ_ENGINE_URL",
+    "http://192.168.1.108:8009/generate"
+)
+
+ACTIVITIES_ENGINE_URL = os.getenv(
+    "ACTIVITIES_ENGINE_URL",
+    "http://192.168.1.108:8008/generate"
+)
+
+RECAP_ENGINE_URL = os.getenv(
+    "RECAP_ENGINE_URL",
+    "http://192.168.1.108:8010/generate"
+)
+
+PUBLISHER_ENGINE_URL = os.getenv(
+    "PUBLISHER_ENGINE_URL",
+    "http://192.168.1.108:8012/publish"
+)
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +39,7 @@ from workbook_reader import WorkbookReader
 from workbook_updater import WorkbookUpdater
 
 from fastapi.responses import JSONResponse
-import json
+
 from pathlib import Path
 
 # ==========================================================
@@ -35,9 +66,9 @@ app.add_middleware(
 
         "https://build.ronosschool.com",
 
-        "http://localhost:8001",
+        "http://localhost:8002",
 
-        "http://192.168.1.108:8001"
+        "http://192.168.1.108:8002"
 
     ],
 
@@ -335,7 +366,7 @@ def update_markdown(
 
         prompt_response = requests.post(
 
-            "http://127.0.0.1:8005/prompt",
+            PROMPT_ENGINE_URL,
 
             json={
 
@@ -387,7 +418,7 @@ def update_markdown(
 
         gamma_response = requests.post(
 
-            "http://127.0.0.1:8006/generate",
+            GAMMA_ENGINE_URL,
 
             json={
 
@@ -421,7 +452,7 @@ def update_markdown(
 
         quiz_prompt = requests.post(
 
-            "http://127.0.0.1:8005/prompt",
+            PROMPT_ENGINE_URL,
 
             json={
 
@@ -455,7 +486,7 @@ def update_markdown(
 
         quiz_response = requests.post(
 
-            "http://127.0.0.1:8002/generate",
+            QUIZ_ENGINE_URL,
 
             json={
 
@@ -493,7 +524,7 @@ def update_markdown(
 
         activities_prompt = requests.post(
 
-            "http://127.0.0.1:8005/prompt",
+            PROMPT_ENGINE_URL,
 
             json={
 
@@ -526,7 +557,7 @@ def update_markdown(
 
         lets_do_it_prompt = requests.post(
 
-            "http://127.0.0.1:8005/prompt",
+            PROMPT_ENGINE_URL,
 
             json={
 
@@ -554,7 +585,7 @@ def update_markdown(
 
         activities_response = requests.post(
 
-            "http://127.0.0.1:8010/generate",
+            ACTIVITIES_ENGINE_URL,
 
             json={
 
@@ -588,7 +619,7 @@ def update_markdown(
 
         recap_prompt = requests.post(
 
-            "http://127.0.0.1:8005/prompt",
+            PROMPT_ENGINE_URL,
 
             json={
 
@@ -622,7 +653,7 @@ def update_markdown(
 
         recap_response = requests.post(
 
-            "http://127.0.0.1:8011/generate",
+            RECAP_ENGINE_URL,
 
             json={
 
@@ -658,7 +689,7 @@ def update_markdown(
 
         publisher_response = requests.post(
 
-            "http://127.0.0.1:8012/publish",
+            PUBLISHER_ENGINE_URL,
 
             json={
 

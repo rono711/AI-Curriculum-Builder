@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 # ==========================================================
 # Project Root
@@ -27,10 +28,13 @@ TEMPLATES_FOLDER = PROMPT_ENGINE_FOLDER / "templates"
 OUTPUT_PROMPTS_FOLDER = PROMPT_ENGINE_FOLDER / "output"
 
 # ==========================================================
-# AI Engine
+# CONTENT Engine
 # ==========================================================
 
-CONTENT_ENGINE_URL = "http://127.0.0.1:8007/generate"
+CONTENT_ENGINE_URL = os.getenv(
+    "CONTENT_ENGINE_URL",
+    "http://192.168.1.108:8006/generate"
+)
 
 # ==========================================================
 # Workbook Worksheets

@@ -30,9 +30,9 @@ app.add_middleware(
 
         "https://build.ronosschool.com",
 
-        "http://localhost:8001",
+        "http://localhost:8002",
 
-        "http://192.168.1.108:8001"
+        "http://192.168.1.108:8002"
 
     ],
 
