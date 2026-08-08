@@ -4,9 +4,15 @@
  *
  * Coordinates publishing of curriculum content into Moodle.
  *
- * This initial version is intentionally a structural-test version.
- * Question Bank and Quiz publishing will be added after the Moodle
- * Section -> Subsection -> activities hierarchy has been verified.
+ * Current development stage:
+ *
+ * - Strand Section: enabled.
+ * - Sub-strand Subsection: enabled.
+ * - Content Description: enabled.
+ * - Lesson Pages: enabled.
+ * - Question Bank category: enabled.
+ * - Question import: enabled for testing.
+ * - Quiz creation: NOT YET enabled.
  *
  * @package     local_rono_publisher
  * @copyright   2026 Rono's School
@@ -29,36 +35,47 @@ class publisher {
      *
      * @var section_service
      */
-   /**
- * Section service.
- *
- * @var section_service
- */
-private $sections;
+    private $sections;
 
-/**
- * Page service.
- *
- * @var page_service
- */
-private $pages;
+    /**
+     * Page service.
+     *
+     * @var page_service
+     */
+    private $pages;
 
-/**
- * Lesson service.
- *
- * @var lesson_service
- */
-private $lessons;
+    /**
+     * Lesson service.
+     *
+     * @var lesson_service
+     */
+    private $lessons;
+
+    /**
+     * Question Bank service.
+     *
+     * @var question_service
+     */
+    private $questions;
+
+    /**
+     * Constructor.
+     */
     public function __construct() {
+
         $this->sections = new section_service();
+
         $this->pages = new page_service();
+
         $this->lessons = new lesson_service();
+
+        $this->questions = new question_service();
     }
 
     /**
-     * Publish the structural components of one lesson.
+     * Publish one lesson structure and import its questions.
      *
-     * Current structure:
+     * Current publishing order:
      *
      * Section: Strand
      *
@@ -67,12 +84,17 @@ private $lessons;
      *     Text & Media: Content Description
      *
      *     Lesson Content                  indent 0
-     *         Did You Know?               indent 1
-     *         Let's Do It                 indent 1
-     *         What We Discovered          indent 1
      *
-     * The quiz will later be inserted between Did You Know?
-     * and Let's Do It.
+     *         Did You Know?               indent 1
+     *
+     *         Question Bank Category
+     *         Question Import
+     *
+     *         [Quiz will be created here later]
+     *
+     *         Let's Do It                 indent 1
+     *
+     *         What We Discovered          indent 1
      *
      * @param int $courseid Moodle course ID.
      * @param string $strand Curriculum strand.
@@ -91,9 +113,9 @@ private $lessons;
         global $DB;
 
         /*
-         * ---------------------------------------------------------
-         * Validate basic input.
-         * ---------------------------------------------------------
+         * =========================================================
+         * BASIC VALIDATION
+         * =========================================================
          */
 
         if ($courseid <= 0) {
@@ -127,36 +149,44 @@ private $lessons;
         }
 
         /*
-         * Confirm course exists before starting.
+         * For the Question Bank test, quiz content is now required.
          */
+        if (empty($lesson['quizcontent'])) {
+            throw new moodle_exception(
+                'Quiz question content cannot be empty.'
+            );
+        }
+
+        /*
+         * =========================================================
+         * VERIFY COURSE
+         * =========================================================
+         */
+
         $course = $DB->get_record(
             'course',
-            ['id' => $courseid],
+            [
+                'id' => $courseid,
+            ],
             '*',
             MUST_EXIST
         );
 
         /*
-         * ---------------------------------------------------------
-         * Start Moodle database transaction.
-         * ---------------------------------------------------------
-         *
-         * If an exception is thrown during publishing, Moodle will
-         * roll back the database changes made in this transaction.
+         * =========================================================
+         * START TRANSACTION
+         * =========================================================
          */
 
-        $transaction = $DB->start_delegated_transaction();
+        $transaction =
+            $DB->start_delegated_transaction();
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 1
          *
-         * Find or create Strand SECTION.
-         *
-         * Example:
-         *
-         * Language
-         * ---------------------------------------------------------
+         * STRAND -> Moodle Section
+         * =========================================================
          */
 
         $strandsection =
@@ -166,15 +196,11 @@ private $lessons;
             );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 2
          *
-         * Find or create real Moodle SUBSECTION.
-         *
-         * Example:
-         *
-         * Language for interacting with others
-         * ---------------------------------------------------------
+         * SUB-STRAND -> real Moodle Subsection
+         * =========================================================
          */
 
         $subsection =
@@ -191,39 +217,38 @@ private $lessons;
         }
 
         /*
-         * This is the delegated Moodle course section belonging
-         * to mod_subsection.
-         *
-         * All Content Description and lesson activities go here.
+         * Activities belonging to this curriculum sub-strand
+         * are published into the delegated subsection section.
          */
-        $lessonsection = $subsection['section'];
+        $lessonsection =
+            $subsection['section'];
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 3
          *
-         * Find or create Content Description.
-         *
-         * This is a Moodle Text & Media activity and should be the
-         * first curriculum item inside the subsection.
-         * ---------------------------------------------------------
+         * CONTENT DESCRIPTION -> Text & Media
+         * =========================================================
          */
 
         $contentdescriptioncm =
-            $this->pages->find_or_create_content_description(
-                $course->id,
-                $lessonsection,
-                $contentdescription
-            );
+            $this->pages
+                ->find_or_create_content_description(
+                    $course->id,
+                    $lessonsection,
+                    $contentdescription
+                );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 4
          *
-         * Create main Lesson Content / Mission page.
+         * LESSON / ELABORATION
+         *
+         * Lesson Content / Mission of the Day
          *
          * indent = 0
-         * ---------------------------------------------------------
+         * =========================================================
          */
 
         $lessoncontent =
@@ -231,93 +256,151 @@ private $lessons;
                 $course->id,
                 $lessonsection,
                 $lesson['title'],
-                $lesson['lessoncontent'] ?? '',
-                $lesson['lessondescription'] ?? ''
+                isset($lesson['lessoncontent'])
+                    ? $lesson['lessoncontent']
+                    : '',
+                isset($lesson['lessondescription'])
+                    ? $lesson['lessondescription']
+                    : ''
             );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 5
          *
-         * Create Did You Know? / Gamma page.
+         * DID YOU KNOW? / GAMMA
          *
          * indent = 1
-         * ---------------------------------------------------------
+         * =========================================================
          */
 
         $didyouknow =
             $this->lessons->create_did_you_know(
                 $course->id,
                 $lessonsection,
-                $lesson['didyouknow'] ?? '',
-                $lesson['didyouknowdescription'] ?? ''
+                isset($lesson['didyouknow'])
+                    ? $lesson['didyouknow']
+                    : '',
+                isset($lesson['didyouknowdescription'])
+                    ? $lesson['didyouknowdescription']
+                    : ''
             );
 
         /*
          * =========================================================
+         * STEP 6
+         *
+         * QUESTION BANK TEST
+         * =========================================================
+         *
+         * This is the new part.
+         *
+         * For every lesson:
+         *
+         * Lesson title
+         *      |
+         *      v
+         * Dedicated Question Bank category
+         *      |
+         *      v
+         * Import GIFT/XML
+         *      |
+         *      v
+         * Return Question Bank entry IDs
+         *
+         * NO QUIZ IS CREATED YET.
+         * =========================================================
+         */
+
+        $questionresult =
+            $this->questions->prepare_lesson_questions(
+                $course->id,
+
+                $lesson['title'],
+
+                isset($lesson['quizformat'])
+                    ? $lesson['quizformat']
+                    : 'gift',
+
+                $lesson['quizcontent']
+            );
+
+        /*
+         * =========================================================
+         * FUTURE STEP 7
+         *
          * QUIZ WILL GO HERE.
          * =========================================================
          *
-         * Final version:
+         * $quiz = $this->quizzes->create_quiz(...);
          *
-         * Question Bank category
-         *        ↓
-         * Import GIFT/XML
-         *        ↓
-         * Obtain question references
-         *        ↓
-         * Create Checking Your Thinking quiz
-         *        ↓
-         * Attach questions
-         *        ↓
-         * indent = 1
+         * It will receive the Question Bank entries produced above.
          *
-         * We deliberately do NOT implement that yet.
+         * Final visual ordering:
+         *
+         * Lesson Content
+         *
+         *     Did You Know?
+         *
+         *     Checking Your Thinking
+         *
+         *     Let's Do It
+         *
+         *     What We Discovered
+         *
          * =========================================================
          */
 
         /*
-         * ---------------------------------------------------------
-         * STEP 6
+         * =========================================================
+         * STEP 7 - CURRENT
          *
-         * Create Let's Do It.
+         * LET'S DO IT
          *
          * indent = 1
-         * ---------------------------------------------------------
+         * =========================================================
          */
 
         $activities =
             $this->lessons->create_activities(
                 $course->id,
                 $lessonsection,
-                $lesson['activities'] ?? '',
-                $lesson['activitiesdescription'] ?? ''
+                isset($lesson['activities'])
+                    ? $lesson['activities']
+                    : '',
+                isset($lesson['activitiesdescription'])
+                    ? $lesson['activitiesdescription']
+                    : ''
             );
 
         /*
-         * ---------------------------------------------------------
-         * STEP 7
+         * =========================================================
+         * STEP 8
          *
-         * Create What We Discovered.
+         * WHAT WE DISCOVERED
          *
          * indent = 1
-         * ---------------------------------------------------------
+         * =========================================================
          */
 
         $recap =
             $this->lessons->create_recap(
                 $course->id,
                 $lessonsection,
-                $lesson['recap'] ?? '',
-                $lesson['recapdescription'] ?? ''
+                isset($lesson['recap'])
+                    ? $lesson['recap']
+                    : '',
+                isset($lesson['recapdescription'])
+                    ? $lesson['recapdescription']
+                    : ''
             );
 
         /*
-         * ---------------------------------------------------------
-         * STEP 8
+         * =========================================================
+         * STEP 9
          *
-         * Rebuild course cache after course structure changes.
-         * ---------------------------------------------------------
+         * REBUILD COURSE CACHE
+         * =========================================================
          */
 
         rebuild_course_cache(
@@ -326,23 +409,25 @@ private $lessons;
         );
 
         /*
-         * ---------------------------------------------------------
-         * STEP 9
+         * =========================================================
+         * STEP 10
          *
-         * Commit transaction.
-         * ---------------------------------------------------------
+         * COMMIT
+         * =========================================================
          */
 
         $transaction->allow_commit();
 
         /*
-         * ---------------------------------------------------------
-         * Return identifiers.
-         * ---------------------------------------------------------
+         * =========================================================
+         * RESPONSE
+         * =========================================================
          */
 
         return [
-            'courseid' => (int)$course->id,
+
+            'courseid' =>
+                (int)$course->id,
 
             'strandsectionid' =>
                 (int)$strandsection->id,
@@ -361,6 +446,19 @@ private $lessons;
 
             'didyouknowcmid' =>
                 (int)$didyouknow->id,
+
+            /*
+             * New Question Bank information.
+             */
+
+            'questioncategoryid' =>
+                (int)$questionresult['categoryid'],
+
+            'questioncount' =>
+                (int)$questionresult['questioncount'],
+
+            'questionbankentryids' =>
+                $questionresult['questionbankentryids'],
 
             'activitiescmid' =>
                 (int)$activities->id,

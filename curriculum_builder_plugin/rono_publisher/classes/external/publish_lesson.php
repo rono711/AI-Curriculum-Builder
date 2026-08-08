@@ -2,6 +2,12 @@
 /**
  * External API for publishing a curriculum lesson.
  *
+ * Current development stage:
+ *
+ * - Course structure publishing: enabled.
+ * - Question Bank import: enabled for testing.
+ * - Quiz activity creation: not yet enabled.
+ *
  * @package     local_rono_publisher
  * @copyright   2026 Rono's School
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -14,6 +20,7 @@ defined('MOODLE_INTERNAL') || die();
 use context_course;
 use core_external\external_api;
 use core_external\external_function_parameters;
+use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
 use local_rono_publisher\service\publisher;
@@ -73,7 +80,7 @@ class publish_lesson extends external_api {
 
                 'didyouknow' => new external_value(
                     PARAM_RAW,
-                    'Did You Know page content, including Gamma embed HTML'
+                    'Did You Know page content including Gamma embed HTML'
                 ),
 
                 'didyouknowdescription' => new external_value(
@@ -84,12 +91,10 @@ class publish_lesson extends external_api {
                 ),
 
                 /*
-                 * Quiz fields are accepted now so that the external API
-                 * contract does not need to change when Question Bank
-                 * publishing is added.
+                 * Question Bank / Quiz data.
                  *
-                 * They are NOT processed by the current structural-test
-                 * publisher.
+                 * During this development stage quizcontent is imported
+                 * into the Question Bank, but no Quiz activity is created.
                  */
 
                 'quiztitle' => new external_value(
@@ -108,16 +113,14 @@ class publish_lesson extends external_api {
 
                 'quizformat' => new external_value(
                     PARAM_ALPHA,
-                    'Question format: gift or xml',
+                    'Question import format: gift or xml',
                     VALUE_DEFAULT,
                     'gift'
                 ),
 
                 'quizcontent' => new external_value(
                     PARAM_RAW,
-                    'GIFT or Moodle XML question content',
-                    VALUE_DEFAULT,
-                    ''
+                    'GIFT or Moodle XML question content'
                 ),
 
                 'activities' => new external_value(
@@ -150,10 +153,12 @@ class publish_lesson extends external_api {
     /**
      * Publish one curriculum lesson.
      *
-     * Current version publishes the Moodle course structure only.
+     * Current version:
      *
-     * Question Bank import and Quiz creation will be connected after
-     * the structure has been verified on Moodle 5.2.
+     * 1. Publishes course structure.
+     * 2. Creates/fetches lesson Question Bank category.
+     * 3. Imports GIFT/XML questions.
+     * 4. Does NOT create the Quiz activity yet.
      *
      * @param int $courseid
      * @param string $strand
@@ -172,11 +177,11 @@ class publish_lesson extends external_api {
         global $DB;
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 1
          *
-         * Validate all incoming Web Service parameters.
-         * ---------------------------------------------------------
+         * Validate Web Service parameters.
+         * =========================================================
          */
 
         $params = self::validate_parameters(
@@ -191,40 +196,44 @@ class publish_lesson extends external_api {
         );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 2
          *
-         * Confirm target course exists.
-         * ---------------------------------------------------------
+         * Confirm target Moodle course exists.
+         * =========================================================
          */
 
         $course = $DB->get_record(
             'course',
-            ['id' => $params['courseid']],
+            [
+                'id' => $params['courseid'],
+            ],
             '*',
             MUST_EXIST
         );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 3
          *
-         * Validate Moodle course context.
-         * ---------------------------------------------------------
+         * Validate course context.
+         * =========================================================
          */
 
         $context = context_course::instance(
             $course->id
         );
 
-        self::validate_context($context);
+        self::validate_context(
+            $context
+        );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 4
          *
-         * Require Rono Publisher permission.
-         * ---------------------------------------------------------
+         * Require Rono Publisher capability.
+         * =========================================================
          */
 
         require_capability(
@@ -233,14 +242,11 @@ class publish_lesson extends external_api {
         );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 5
          *
-         * Call the internal Publisher service.
-         *
-         * The external API does not contain Moodle publishing
-         * implementation details.
-         * ---------------------------------------------------------
+         * Run internal publisher.
+         * =========================================================
          */
 
         $publisher = new publisher();
@@ -254,18 +260,20 @@ class publish_lesson extends external_api {
         );
 
         /*
-         * ---------------------------------------------------------
+         * =========================================================
          * STEP 6
          *
-         * Return Moodle identifiers to the Pipeline Engine.
-         * ---------------------------------------------------------
+         * Return structure + Question Bank results.
+         * =========================================================
          */
 
         return [
-            'status' => 'success',
+
+            'status' =>
+                'success',
 
             'message' =>
-                'Lesson structure published successfully. Quiz publishing is not enabled in this structural-test version.',
+                'Lesson structure and Question Bank questions published successfully. Quiz activity creation is not yet enabled.',
 
             'courseid' =>
                 (int)$result['courseid'],
@@ -287,6 +295,24 @@ class publish_lesson extends external_api {
 
             'didyouknowcmid' =>
                 (int)$result['didyouknowcmid'],
+
+            /*
+             * Question Bank results.
+             */
+
+            'questioncategoryid' =>
+                (int)$result['questioncategoryid'],
+
+            'questioncount' =>
+                (int)$result['questioncount'],
+
+            'questionbankentryids' =>
+                array_values(
+                    array_map(
+                        'intval',
+                        $result['questionbankentryids']
+                    )
+                ),
 
             'activitiescmid' =>
                 (int)$result['activitiescmid'],
@@ -349,6 +375,28 @@ class publish_lesson extends external_api {
                 PARAM_INT,
                 'Course module ID of the Did You Know page'
             ),
+
+            /*
+             * Question Bank return values.
+             */
+
+            'questioncategoryid' => new external_value(
+                PARAM_INT,
+                'Question Bank category ID for this lesson'
+            ),
+
+            'questioncount' => new external_value(
+                PARAM_INT,
+                'Number of Question Bank entries imported'
+            ),
+
+            'questionbankentryids' =>
+                new external_multiple_structure(
+                    new external_value(
+                        PARAM_INT,
+                        'Question Bank entry ID'
+                    )
+                ),
 
             'activitiescmid' => new external_value(
                 PARAM_INT,
