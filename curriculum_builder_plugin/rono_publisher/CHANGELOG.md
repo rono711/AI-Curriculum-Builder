@@ -1,205 +1,276 @@
 # Changelog
 
-All notable changes to the Rono Curriculum Builder plugin.
+All notable changes to the Rono Publisher Moodle plugin.
 
----
+------------------------------------------------------------------------
 
-# Version 4.0.0
+# New Rono Publisher Architecture
 
-Release Date
+## Component
 
-```
-2026-07-15
-```
-
----
-
-## Complete Architecture Freeze
-
-The plugin has been redesigned to work with the Rono's School AI Platform.
-
-The Publisher Engine now owns all publishing orchestration.
-
-The Moodle plugin has become a lightweight publishing layer.
-
----
-
-## New Architecture
-
-```
-Teacher
-
-↓
-
-Build App
-
-↓
-
-Lesson Package Builder
-
-↓
-
-Prompt Engine
-
-↓
-
-AI Engine
-
-↓
-
-Gamma Engine
-
-↓
-
-Quiz Engine
-
-↓
-
-Activities Engine
-
-↓
-
-Recap Engine
-
-↓
-
-Workbook
-
-↓
-
-Publisher Engine
-
-↓
-
-Rono Curriculum Builder Plugin
-
-↓
-
-Moodle
+``` text
+local_rono_publisher
 ```
 
----
+The Moodle publishing plugin is being rebuilt around a lesson-level
+publishing architecture designed for the Rono's School AI Curriculum
+Platform.
 
-## New Features
+------------------------------------------------------------------------
 
-### External Web Services
+## Architecture Change
 
-Added
+The publishing model is now based on one complete curriculum
+lesson/elaboration rather than independent page and quiz publishing
+operations.
 
-```
-publish_course
-```
+Primary external function:
 
-```
-publish_section
-```
-
-```
-publish_page
+``` text
+local_rono_publisher_publish_lesson
 ```
 
-```
-publish_quiz
-```
+The external endpoint delegates Moodle implementation work to focused
+internal services.
 
-Improved
+------------------------------------------------------------------------
 
-```
-publish_lesson
-```
+## Moodle Curriculum Hierarchy
 
-```
-health
-```
+The agreed publishing hierarchy is:
 
-```
-ping
-```
-
----
-
-### Repository Layer
-
-Added
-
-```
-page_repository.php
-```
-
-```
-quiz_repository.php
-```
-
----
-
-### Database
-
-Added
-
-```
-local_rono_page_map
+``` text
+Course
+|
++-- Section
+|   Strand
+|
++-- Subsection
+    Sub-strand
+    |
+    +-- Text & Media
+    |   Content Description
+    |
+    +-- Lesson Content Page
+        Mission of the Day
+        |
+        +-- Did You Know? Page
+        |   Gamma content
+        |
+        +-- Checking Your Thinking
+        |   Quiz Activity
+        |
+        +-- Let's Do It Page
+        |   Activities
+        |
+        +-- What We Discovered Page
+            Recap
 ```
 
+Did You Know?, Checking Your Thinking, Let's Do It, and What We
+Discovered are visually indented beneath the corresponding Lesson
+Content activity.
+
+------------------------------------------------------------------------
+
+## New Service Architecture
+
+Added/refactored:
+
+``` text
+classes/external/publish_lesson.php
+
+classes/service/publisher.php
+classes/service/section_service.php
+classes/service/page_service.php
+classes/service/lesson_service.php
+classes/service/question_service.php
+classes/service/quiz_service.php
+classes/service/cache_service.php
 ```
-local_rono_quiz_map
+
+### Publisher Service
+
+Coordinates the complete lesson publishing operation.
+
+### Section Service
+
+Handles:
+
+-   Strand Sections;
+-   real Moodle Subsections for Sub-strands;
+-   delegated subsection section resolution.
+
+### Page Service
+
+Handles:
+
+-   Text & Media Content Description;
+-   Moodle Page activities;
+-   indentation.
+
+### Lesson Service
+
+Handles:
+
+-   Lesson Content / Mission of the Day;
+-   Did You Know?;
+-   Let's Do It;
+-   What We Discovered.
+
+### Question Service
+
+Reserved for Moodle 5.2 Question Bank integration.
+
+It will own:
+
+-   lesson Question Bank categories;
+-   GIFT/XML import;
+-   question validation;
+-   question references returned to the Quiz service.
+
+### Quiz Service
+
+Reserved for Moodle 5.2 Quiz integration.
+
+It will own:
+
+-   Checking Your Thinking Quiz creation;
+-   question attachment;
+-   Quiz positioning and indentation.
+
+### Cache Service
+
+Handles course cache rebuilding.
+
+------------------------------------------------------------------------
+
+## External Web Service
+
+Added:
+
+``` text
+local_rono_publisher_publish_lesson
 ```
 
----
+The endpoint accepts one lesson/elaboration package containing:
 
-### Publishing
+-   course;
+-   strand;
+-   sub-strand;
+-   content description;
+-   lesson title/content;
+-   Did You Know? content;
+-   Quiz data;
+-   activities;
+-   recap.
 
-Supports
+The external class validates the course context and requires:
 
-- Mission of the Day
-- Check Your Thinking
-- Your Turn
-- What We Discovered
+``` text
+local/rono_publisher:publishlesson
+```
 
-Automatic
+------------------------------------------------------------------------
 
-- Create
-- Update
-- Republishing
+## Structural Publishing Stage
 
----
+Implemented/design completed for:
 
-### Security
+-   Section from Strand;
+-   Moodle Subsection from Sub-strand;
+-   Text & Media from Content Description;
+-   Lesson Content Page;
+-   Did You Know? Page;
+-   Let's Do It Page;
+-   What We Discovered Page;
+-   activity indentation;
+-   course cache rebuilding.
 
-Updated capabilities.
+The structure must be verified on Moodle before enabling Question Bank
+and Quiz publishing.
 
-Improved context validation.
+------------------------------------------------------------------------
 
-Improved service validation.
+## Question Bank / Quiz Redesign
 
----
+The previous quiz publishing approach is being replaced.
 
-### Settings
+New intended flow:
 
-Added
+``` text
+Lesson
+   |
+   v
+Dedicated Question Bank Category
+   |
+   v
+Import GIFT / Moodle XML
+   |
+   v
+Validate Imported Questions
+   |
+   v
+Create Checking Your Thinking Quiz
+   |
+   v
+Attach Imported Questions
+```
 
-- Publisher Engine URL
-- Publisher Timeout
-- Default Course Category
+Question importing and Quiz assembly are intentionally separate
+responsibilities.
 
----
+Each lesson/elaboration will have its own Question Bank category.
 
-## Architecture Status
+The Moodle 5.2 Question Bank implementation remains the next integration
+stage and must be validated against Moodle 5.2 before production use.
 
-Frozen
+------------------------------------------------------------------------
 
-No further structural redesign planned.
+## Plugin Cleanup
 
-Future work will focus on
+Component naming standardized to:
 
-- Integration testing
-- Moodle implementation
-- Bug fixing
-- Production deployment
+``` text
+local_rono_publisher
+```
 
----
+Language file standardized to:
+
+``` text
+lang/en/local_rono_publisher.php
+```
+
+Old `local_rono_curriculumbuilder` dependencies are being removed from
+the new plugin.
+
+`lib.php` and `settings.php` have been reduced to clean plugin-specific
+implementations.
+
+The plugin status page has been redesigned for Rono Publisher.
+
+------------------------------------------------------------------------
+
+## Current Status
+
+Structural plugin build in progress.
+
+Next milestones:
+
+1.  Install structural-test plugin in Moodle.
+2.  Verify Section and real Subsection creation.
+3.  Verify Content Description placement.
+4.  Verify lesson activity ordering and indentation.
+5.  Implement Moodle 5.2 Question Bank service.
+6.  Implement Quiz service.
+7.  Test one complete lesson.
+8.  Test multiple elaborations under one Content Description.
+9.  Connect the working plugin to the Publisher Engine.
+
+------------------------------------------------------------------------
 
 # Copyright
 
 Rono's School
 
-Mohammad Hassan
+Copyright © Mohammad Hassan

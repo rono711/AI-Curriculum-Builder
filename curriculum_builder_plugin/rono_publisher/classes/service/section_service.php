@@ -1,320 +1,377 @@
 <?php
 /**
- * ============================================================================
- * Rono Curriculum Builder
+ * Section service for Rono Publisher.
  *
- * Quiz Repository
+ * Creates and locates:
+ * - Strand sections.
+ * - Sub-strand subsections.
  *
- * Version 4.0
- * ============================================================================
+ * @package     local_rono_publisher
+ * @copyright   2026 Rono's School
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-namespace local_rono_curriculumbuilder\repository;
+namespace local_rono_publisher\service;
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot . '/mod/quiz/lib.php');
+use moodle_exception;
+use stdClass;
 
-class quiz_repository {
+/**
+ * Service responsible for Moodle course sections and subsections.
+ */
+class section_service {
 
     /**
-     * ======================================================
-     * Publish
-     * ======================================================
+     * Find an existing strand section or create a new one.
+     *
+     * Example:
+     * Language
+     * Literature
+     * Literacy
+     *
+     * @param int $courseid Moodle course ID.
+     * @param string $strand Strand name.
+     * @return stdClass Moodle course_sections record.
      */
-
-    public function publish(
-
-        string $lessonpackageid,
-
+    public function find_or_create_strand(
         int $courseid,
+        string $strand
+    ): stdClass {
+        global $DB;
 
-        int $section,
+        $strand = trim($strand);
 
-        string $title,
-
-        string $description,
-
-        string $giftfile
-
-    ): array {
-
-        $mapping = $this->find_mapping(
-
-            $lessonpackageid
-
-        );
-
-        if ($mapping) {
-
-            return $this->update(
-
-                $mapping,
-
-                $title,
-
-                $description,
-
-                $giftfile
-
+        if ($strand === '') {
+            throw new moodle_exception(
+                'Strand name cannot be empty.'
             );
-
         }
 
-        return $this->create(
-
-            $lessonpackageid,
-
-            $courseid,
-
-            $section,
-
-            $title,
-
-            $description,
-
-            $giftfile
-
+        // Look only for normal top-level course sections.
+        $sections = $DB->get_records(
+            'course_sections',
+            [
+                'course' => $courseid,
+            ],
+            'section ASC'
         );
 
+        foreach ($sections as $section) {
+
+            // Delegated sections belong to activities such as subsection.
+            // They must not be treated as top-level strand sections.
+            if (!empty($section->component)) {
+                continue;
+            }
+
+            if (
+                trim((string)$section->name) === $strand
+            ) {
+                return $section;
+            }
+        }
+
+        return $this->create_strand(
+            $courseid,
+            $strand
+        );
     }
 
     /**
-     * ======================================================
-     * Mapping
-     * ======================================================
+     * Create a new top-level Moodle section for a strand.
+     *
+     * @param int $courseid Moodle course ID.
+     * @param string $strand Strand name.
+     * @return stdClass
      */
-
-    protected function find_mapping(
-
-        string $lessonpackageid
-
-    ) {
-
+    private function create_strand(
+        int $courseid,
+        string $strand
+    ): stdClass {
         global $DB;
+
+        $course = $DB->get_record(
+            'course',
+            ['id' => $courseid],
+            '*',
+            MUST_EXIST
+        );
+
+        /*
+         * course_create_section() is Moodle's course API helper.
+         * Do not INSERT directly into course_sections.
+         */
+        $section = course_create_section(
+            $course->id
+        );
+
+        if (!$section) {
+            throw new moodle_exception(
+                'Unable to create strand section.'
+            );
+        }
+
+        // Give the newly-created section the curriculum strand name.
+        $updatedata = new stdClass();
+        $updatedata->id = $section->id;
+        $updatedata->name = $strand;
+        $updatedata->timemodified = time();
+
+        $DB->update_record(
+            'course_sections',
+            $updatedata
+        );
+
+        rebuild_course_cache(
+            $course->id,
+            true
+        );
 
         return $DB->get_record(
-
-            "local_rono_quiz_map",
-
-            [
-
-                "lesson_package_id"=>$lessonpackageid
-
-            ]
-
+            'course_sections',
+            ['id' => $section->id],
+            '*',
+            MUST_EXIST
         );
-
     }
 
     /**
-     * ======================================================
-     * Create
-     * ======================================================
+     * Find an existing Moodle subsection under a strand.
+     *
+     * If one does not exist, create it.
+     *
+     * Example:
+     *
+     * Language
+     *   └── Language for interacting with others
+     *
+     * @param int $courseid Moodle course ID.
+     * @param stdClass $strandsection Parent strand section.
+     * @param string $substrand Sub-strand name.
+     * @return array
      */
-
-    protected function create(
-
-        string $lessonpackageid,
-
+    public function find_or_create_subsection(
         int $courseid,
-
-        int $section,
-
-        string $title,
-
-        string $description,
-
-        string $giftfile
-
+        stdClass $strandsection,
+        string $substrand
     ): array {
-
-        //
-        // Version 4
-        //
-        // Moodle Quiz Creation
-        // will be implemented here.
-        //
-
-        $quizid = 0;
-
-        $cmid = 0;
-
-        //
-        // Import GIFT
-        //
-
-        $this->import_gift(
-
-            $quizid,
-
-            $giftfile
-
-        );
-
-        //
-        // Mapping
-        //
-
-        $this->save_mapping(
-
-            $lessonpackageid,
-
-            $quizid,
-
-            $cmid
-
-        );
-
-        return [
-
-            "status"=>"SUCCESS",
-
-            "quizid"=>$quizid,
-
-            "cmid"=>$cmid,
-
-            "url"=>""
-
-        ];
-
-    }
-
-    /**
-     * ======================================================
-     * Update
-     * ======================================================
-     */
-
-    protected function update(
-
-        $mapping,
-
-        string $title,
-
-        string $description,
-
-        string $giftfile
-
-    ): array {
-
-        //
-        // Replace Questions
-        //
-
-        $this->replace_questions(
-
-            $mapping->quizid,
-
-            $giftfile
-
-        );
-
-        return [
-
-            "status"=>"SUCCESS",
-
-            "quizid"=>$mapping->quizid,
-
-            "cmid"=>$mapping->cmid,
-
-            "url"=>""
-
-        ];
-
-    }
-
-    /**
-     * ======================================================
-     * Import GIFT
-     * ======================================================
-     */
-
-    protected function import_gift(
-
-        int $quizid,
-
-        string $giftfile
-
-    ) {
-
-        //
-        // Moodle Question Bank
-        // implementation.
-        //
-
-    }
-
-    /**
-     * ======================================================
-     * Replace Questions
-     * ======================================================
-     */
-
-    protected function replace_questions(
-
-        int $quizid,
-
-        string $giftfile
-
-    ) {
-
-        //
-        // Delete old questions.
-        //
-        // Import new GIFT.
-        //
-
-    }
-
-    /**
-     * ======================================================
-     * Mapping
-     * ======================================================
-     */
-
-    protected function save_mapping(
-
-        string $lessonpackageid,
-
-        int $quizid,
-
-        int $cmid
-
-    ) {
-
         global $DB;
 
-        $record = new \stdClass();
+        $substrand = trim($substrand);
 
-        $record->lesson_package_id =
+        if ($substrand === '') {
+            throw new moodle_exception(
+                'Sub-strand name cannot be empty.'
+            );
+        }
 
-            $lessonpackageid;
+        /*
+         * Moodle Subsection is a real activity module (mod_subsection).
+         *
+         * The subsection activity lives in the parent strand section.
+         * Its delegated course section contains the activities belonging
+         * to that subsection.
+         */
 
-        $record->quizid =
-
-            $quizid;
-
-        $record->cmid =
-
-            $cmid;
-
-        $record->timecreated =
-
-            time();
-
-        $record->timemodified =
-
-            time();
-
-        $DB->insert_record(
-
-            "local_rono_quiz_map",
-
-            $record
-
+        $subsectionmodule = $DB->get_record(
+            'modules',
+            ['name' => 'subsection']
         );
 
+        if (!$subsectionmodule) {
+            throw new moodle_exception(
+                'The Moodle Subsection activity is not installed.'
+            );
+        }
+
+        /*
+         * Find subsection activities located in this strand section.
+         */
+        $sql = "
+            SELECT
+                cm.id AS cmid,
+                cm.instance,
+                s.name
+            FROM {course_modules} cm
+            JOIN {subsection} s
+              ON s.id = cm.instance
+            WHERE cm.course = :courseid
+              AND cm.section = :sectionid
+              AND cm.module = :moduleid
+        ";
+
+        $records = $DB->get_records_sql(
+            $sql,
+            [
+                'courseid' => $courseid,
+                'sectionid' => $strandsection->id,
+                'moduleid' => $subsectionmodule->id,
+            ]
+        );
+
+        foreach ($records as $record) {
+            if (
+                trim((string)$record->name) === $substrand
+            ) {
+                return $this->get_subsection_result(
+                    $courseid,
+                    (int)$record->instance,
+                    (int)$record->cmid
+                );
+            }
+        }
+
+        return $this->create_subsection(
+            $courseid,
+            $strandsection,
+            $substrand
+        );
     }
 
+    /**
+     * Create a Moodle Subsection activity.
+     *
+     * @param int $courseid Moodle course ID.
+     * @param stdClass $strandsection Parent strand section.
+     * @param string $substrand Sub-strand name.
+     * @return array
+     */
+    private function create_subsection(
+        int $courseid,
+        stdClass $strandsection,
+        string $substrand
+    ): array {
+        global $CFG, $DB;
+
+        require_once(
+            $CFG->dirroot . '/course/modlib.php'
+        );
+
+        $course = $DB->get_record(
+            'course',
+            ['id' => $courseid],
+            '*',
+            MUST_EXIST
+        );
+
+        $module = $DB->get_record(
+            'modules',
+            ['name' => 'subsection'],
+            '*',
+            MUST_EXIST
+        );
+
+        /*
+         * Prepare module creation data using Moodle's standard
+         * course-module creation API.
+         */
+        $moduleinfo = new stdClass();
+
+        $moduleinfo->modulename = 'subsection';
+        $moduleinfo->module = $module->id;
+
+        $moduleinfo->course = $course->id;
+
+        // This is the parent Strand section number.
+        $moduleinfo->section = $strandsection->section;
+
+        $moduleinfo->name = $substrand;
+
+        $moduleinfo->visible = 1;
+
+        $moduleinfo->groupmode = 0;
+        $moduleinfo->groupingid = 0;
+
+        $moduleinfo->completion = 0;
+
+        /*
+         * Moodle creates:
+         *
+         * mod_subsection instance
+         *       +
+         * course_module
+         *       +
+         * delegated course section
+         */
+        $created = add_moduleinfo(
+            $moduleinfo,
+            $course
+        );
+
+        if (
+            empty($created) ||
+            empty($created->coursemodule)
+        ) {
+            throw new moodle_exception(
+                'Unable to create Moodle subsection.'
+            );
+        }
+
+        rebuild_course_cache(
+            $course->id,
+            true
+        );
+
+        $cmid = (int)$created->coursemodule;
+
+        $cm = $DB->get_record(
+            'course_modules',
+            ['id' => $cmid],
+            '*',
+            MUST_EXIST
+        );
+
+        return $this->get_subsection_result(
+            $courseid,
+            (int)$cm->instance,
+            $cmid
+        );
+    }
+
+    /**
+     * Return information about a Moodle subsection and its delegated section.
+     *
+     * @param int $courseid Moodle course ID.
+     * @param int $instanceid mod_subsection instance ID.
+     * @param int $cmid Course module ID.
+     * @return array
+     */
+    private function get_subsection_result(
+        int $courseid,
+        int $instanceid,
+        int $cmid
+    ): array {
+        global $DB;
+
+        $subsection = $DB->get_record(
+            'subsection',
+            ['id' => $instanceid],
+            '*',
+            MUST_EXIST
+        );
+
+        /*
+         * Moodle delegated sections identify their owning component
+         * and item.
+         */
+        $delegatedsection = $DB->get_record(
+            'course_sections',
+            [
+                'course' => $courseid,
+                'component' => 'mod_subsection',
+                'itemid' => $instanceid,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        return [
+            'instanceid' => $instanceid,
+            'cmid' => $cmid,
+            'subsection' => $subsection,
+            'section' => $delegatedsection,
+        ];
+    }
 }

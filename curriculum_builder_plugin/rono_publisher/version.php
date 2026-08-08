@@ -1,79 +1,22 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
-//
-// Rono Curriculum Builder
-//
-// Version Information
-//
-// Version 4.0
-//
+/**
+ * Rono Publisher
+ *
+ * Publishes AI-generated curriculum lessons into Moodle.
+ *
+ * @package     local_rono_publisher
+ * @copyright   2026 Rono's School
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_rono_curriculumbuilder';
+$plugin->component = 'local_rono_publisher';
 
-/*
-|--------------------------------------------------------------------------
-| Plugin Version
-|--------------------------------------------------------------------------
-|
-| Format:
-| YYYYMMDDXX
-|
-| Increment XX for multiple releases on the same day.
-|
-*/
+$plugin->version = 2026080800;
 
-$plugin->version = 2026071605;
+$plugin->requires = 2025100600;
 
-/*
-|--------------------------------------------------------------------------
-| Minimum Moodle Version
-|--------------------------------------------------------------------------
-|
-| Moodle 5.2
-|
-*/
+$plugin->maturity = MATURITY_ALPHA;
 
-$plugin->requires = 2025041400;
-
-/*
-|--------------------------------------------------------------------------
-| Release
-|--------------------------------------------------------------------------
-*/
-
-$plugin->release = '5.0.1';
-
-/*
-|--------------------------------------------------------------------------
-| Maturity
-|--------------------------------------------------------------------------
-*/
-
-$plugin->maturity = MATURITY_BETA;
-
-/*
-|--------------------------------------------------------------------------
-| Supported Moodle Versions
-|--------------------------------------------------------------------------
-|
-| Moodle 5.x
-|
-*/
-
-$plugin->supported = [
-
-    500,
-
-    599
-
-];
-
-/*
-|--------------------------------------------------------------------------
-| Dependencies
-|--------------------------------------------------------------------------
-*/
-
-$plugin->dependencies = [];
+$plugin->release = '1.0.0';
