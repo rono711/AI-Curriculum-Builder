@@ -90,7 +90,19 @@ class MoodleClient:
 
         response.raise_for_status()
 
-        result = response.json()
+        try:
+
+            result = response.json()
+
+        except ValueError as exc:
+
+            raise RuntimeError(
+
+                "Moodle returned a non-JSON response: "
+
+                + response.text[:1000]
+
+            ) from exc
 
         if (
 
@@ -199,6 +211,48 @@ class MoodleClient:
         return self.call(
 
             "local_rono_curriculumbuilder_publish_quiz",
+
+            payload
+
+        )
+    # ======================================================
+    # Rono Publisher - Complete Lesson
+    # ======================================================
+
+    def publish_lesson(
+
+            self,
+
+            payload
+
+    ):
+
+        """
+        Publish one complete curriculum lesson using the
+        Moodle 5.2 Rono Publisher plugin.
+
+        Moodle function:
+
+            local_rono_publisher_publish_lesson
+
+        The endpoint creates:
+
+            Strand section
+            Sub-strand subsection
+            Content Description
+            Lesson Content
+            Did You Know
+            Checking Your Thinking Quiz
+            Question Bank category
+            Questions
+            Quiz slots
+            Activities
+            Recap
+        """
+
+        return self.call(
+
+            "local_rono_publisher_publish_lesson",
 
             payload
 

@@ -1,3 +1,5 @@
+import html
+import json
 import sys
 from pathlib import Path
 
@@ -11,8 +13,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from workbook_reader import WorkbookReader
 from moodle_client import MoodleClient
-from page_publisher import PagePublisher
-from quiz_publisher import QuizPublisher
 from sync_writer import SyncWriter
 
 
@@ -28,40 +28,272 @@ class PublisherBuilder:
 
         self.moodle = MoodleClient()
 
-        self.pages = PagePublisher(
-            self.moodle
-        )
-
-        self.quiz = QuizPublisher(
-            self.moodle
-        )
-
         self.sync = SyncWriter()
+
+    # ======================================================
+    # Helpers
+    # ======================================================
+
+    @staticmethod
+    def _text(value):
+
+        if value is None:
+            return ""
+
+        return str(value).strip()
+
+    @staticmethod
+    def _read_text_file(path):
+
+        path = Path(path)
+
+        if not path.exists():
+            return ""
+
+        return path.read_text(
+            encoding="utf-8"
+        )
+
+    # ======================================================
+    # Lesson Content
+    # ======================================================
+
+    def _build_lesson_content(
+            self,
+            build_root,
+            build_name
+    ):
+
+        lesson_file = (
+            Path(build_root)
+            / "Content"
+            / build_name
+            / "lesson_output.md"
+        )
+
+        lesson_markdown = self._read_text_file(
+            lesson_file
+        )
+
+        if not lesson_markdown:
+            return ""
+
+        #
+        # Preserve the existing Publisher behaviour for the
+        # first production integration test.
+        #
+
+        return (
+                "<pre>\n"
+                + html.escape(lesson_markdown)
+                + "\n</pre>"
+        )
+
+        return (
+            "<pre>\n"
+            + html.escape(lesson_markdown)
+            + "\n</pre>"
+        )
+
+    # ======================================================
+    # Did You Know / Gamma
+    # ======================================================
+
+    def _build_did_you_know(
+            self,
+            build_root,
+            build_name,
+            slides
+    ):
+
+        slides_folder = (
+            Path(build_root)
+            / "Slides"
+            / build_name
+        )
+
+        urls_file = (
+            slides_folder
+            / "slides_urls.json"
+        )
+
+        embed_url = ""
+
+        if urls_file.exists():
+
+            data = json.loads(
+                urls_file.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            embed_url = self._text(
+                data.get("gamma_embed_url")
+            )
+        #
+        # Workbook fallback.
+        #
+
+        if not lesson_markdown:
+            return ""
+
+
+        return (
+            "<pre>\n"
+            + html.escape(lesson_markdown)
+            + "\n</pre>"
+        )
+        if not embed_url:
+
+            embed_url = self._text(
+                slides.get("gamma_embed_url")
+            )
+
+        #
+        # If the workbook already contains complete embed HTML,
+        # use it as a second fallback.
+        #
+        if not embed_url:
+
+            embed_html = self._text(
+                slides.get("slides_embed_html")
+            )
+
+            if embed_html:
+                return embed_html
+
+        if not embed_url:
+            return ""
+
+        safe_url = html.escape(
+            embed_url,
+            quote=True
+        )
+
+        return (
+            '<iframe '
+            f'src="{safe_url}" '
+            'width="100%" '
+            'height="720" '
+            'allowfullscreen>'
+            '</iframe>'
+        )
+
+    # ======================================================
+    # Activities
+    # ======================================================
+
+    def _build_activities(
+            self,
+            build_root,
+            build_name,
+            activities
+    ):
+
+        activities_file = (
+            Path(build_root)
+            / "Activities"
+            / build_name
+            / "activities.html"
+        )
+
+        content = self._read_text_file(
+            activities_file
+        )
+
+        if content:
+            return content
+
+        return self._text(
+            activities.get("activities_html")
+        )
+
+    # ======================================================
+    # Recap
+    # ======================================================
+
+    def _build_recap(
+            self,
+            build_root,
+            build_name,
+            recap
+    ):
+
+        recap_file = (
+            Path(build_root)
+            / "Recap"
+            / build_name
+            / "recap.html"
+        )
+
+        content = self._read_text_file(
+            recap_file
+        )
+
+        if content:
+            return content
+
+        return self._text(
+            recap.get("recap_html")
+        )
+
+    # ======================================================
+    # Quiz Content
+    # ======================================================
+
+    def _build_quiz_content(
+            self,
+            build_root,
+            build_name,
+            quiz
+    ):
+
+        #
+        # Prefer the GIFT content already stored in the workbook.
+        #
+        gift_content = self._text(
+            quiz.get("gift_content")
+        )
+
+        if gift_content:
+            return gift_content
+
+        #
+        # Fallback to generated .gift file.
+        #
+        gift_filename = self._text(
+            quiz.get("gift_filename")
+        )
+
+        if not gift_filename:
+            return ""
+
+        gift_file = (
+            Path(build_root)
+            / "Quiz"
+            / build_name
+            / gift_filename
+        )
+
+        return self._read_text_file(
+            gift_file
+        )
 
     # ======================================================
     # Publish
     # ======================================================
 
     def publish(
-
             self,
-
             build_root,
-
             build_name,
-
             lesson_package_id
-
     ):
 
         workbook = (
-
             Path(build_root)
-
             / "Workbook"
-
             / f"{build_name}.xlsx"
-
         )
 
         print("=" * 60)
@@ -73,265 +305,420 @@ class PublisherBuilder:
             workbook,
             lesson_package_id
         )
-        
-        print("=" * 60)
-        print("DISPLAY TITLE READ")
-        print(
-            lesson["descriptions"].get("display_title")
-        )
-        print("=" * 60)
 
         metadata = lesson["metadata"]
-
-        #
-        # ---------------------------------------------
-        # Determine School Level
-        # ---------------------------------------------
-        #
-        print("=" * 60)
-        print("METADATA KEYS")
-        print(metadata.keys())
-        print(metadata)
-        print("=" * 60)
-        year = str(
-            metadata["year_level"]
-        ).strip()
-
-        if year in [
-            "Foundation Year",
-            "Year 1",
-            "Year 2"
-        ]:
-
-            school_level = "Primary"
-
-        elif year in [
-            "Year 3",
-            "Year 4",
-            "Year 5",
-            "Year 6"
-        ]:
-
-            school_level = "Upper Primary"
-
-        elif year in [
-            "Year 7",
-            "Year 8",
-            "Year 9",
-            "Year 10"
-        ]:
-
-            school_level = "Secondary"
-
-        else:
-
-            school_level = "Senior Secondary"
+        descriptions = lesson["descriptions"]
+        slides = lesson["slides"]
+        quiz = lesson["quiz"]
+        activities = lesson["activities"]
+        recap = lesson["recap"]
 
         print("=" * 60)
         print("LESSON METADATA")
         print(metadata)
         print("=" * 60)
 
-        payload = {
+        # ==================================================
+        # Resolve / create Moodle course
+        # ==================================================
+
+        course_payload = {
 
             "build_id":
-
                 build_name,
 
             "lesson_package_id":
-
                 metadata["lesson_package_id"],
 
             "school_level":
-
                 metadata["school_level"],
 
             "subject":
-
                 metadata["subject"],
 
             "year_level":
-
-                metadata["year_level"]
-
+                metadata["year_level"],
         }
 
         print("=" * 60)
-        print("PAYLOAD TO MOODLE")
-        print(payload)
+        print("COURSE PAYLOAD")
+        print(course_payload)
         print("=" * 60)
 
         course = self.moodle.publish_course(
-            payload
+            course_payload
         )
-        #
-        # Section
-        #
 
-        section = self.moodle.publish_section({
+        courseid = int(
+            course["courseid"]
+        )
+
+        # ==================================================
+        # Build generated lesson assets
+        # ==================================================
+
+        lesson_content = self._build_lesson_content(
+            build_root,
+            build_name
+        )
+
+        did_you_know = self._build_did_you_know(
+            build_root,
+            build_name,
+            slides
+        )
+
+        quiz_content = self._build_quiz_content(
+            build_root,
+            build_name,
+            quiz
+        )
+
+        activities_content = self._build_activities(
+            build_root,
+            build_name,
+            activities
+        )
+
+        recap_content = self._build_recap(
+            build_root,
+            build_name,
+            recap
+        )
+
+        # ==================================================
+        # Validation
+        # ==================================================
+
+        if not lesson_content:
+            raise RuntimeError(
+                "Lesson Content is empty."
+            )
+
+        if not quiz_content:
+            raise RuntimeError(
+                "Quiz GIFT content is empty."
+            )
+
+        if not activities_content:
+            raise RuntimeError(
+                "Activities content is empty."
+            )
+
+        if not recap_content:
+            raise RuntimeError(
+                "Recap content is empty."
+            )
+
+        # ==================================================
+        # Lesson title
+        # ==================================================
+
+        display_title = self._text(
+            descriptions.get("display_title")
+        )
+
+        if not display_title:
+            display_title = self._text(
+                metadata.get("lesson_title")
+            )
+
+        if not display_title:
+            display_title = self._text(
+                metadata.get("elaboration")
+            )
+
+        curriculum_code = self._text(
+            metadata.get("curriculum_code")
+        )
+
+        if curriculum_code:
+            lesson_title = (
+                f"{curriculum_code} - {display_title}"
+            )
+        else:
+            lesson_title = display_title
+
+        # ==================================================
+        # Complete Moodle lesson payload
+        # ==================================================
+
+        payload = {
 
             "courseid":
-
-                course["courseid"],
+                courseid,
 
             "strand":
+                self._text(
+                    metadata.get("strand")
+                ),
 
-                metadata["strand"],
+            "substrand":
+                self._text(
+                    metadata.get("sub_strand")
+                ),
 
-            "sub-strand":
+            "contentdescription":
+                self._text(
+                    metadata.get(
+                        "content_description"
+                    )
+                ),
 
-                metadata["sub_strand"]
+            "lesson[title]":
+                lesson_title,
 
-        })
+            "lesson[lessoncontent]":
+                lesson_content,
 
-        #
-        # Mission
-        #
-        mission = self.pages.publish_mission(
+            "lesson[lessondescription]":
+                self._text(
+                    descriptions.get(
+                        "mission_description"
+                    )
+                ),
 
-            course,
+            "lesson[didyouknow]":
+                did_you_know,
 
-            section,
+            "lesson[didyouknowdescription]":
+                self._text(
+                    descriptions.get(
+                        "slides_description"
+                    )
+                ),
 
-            lesson,
+            "lesson[quiztitle]":
+                self._text(
+                    quiz.get("quiz_title")
+                )
+                or
+                self._text(
+                    descriptions.get(
+                        "quiz_title"
+                    )
+                )
+                or
+                "Checking Your Thinking",
 
-            build_root,
+            "lesson[quizdescription]":
+                self._text(
+                    descriptions.get(
+                        "quiz_description"
+                    )
+                )
+                or
+                self._text(
+                    quiz.get(
+                        "quiz_description"
+                    )
+                ),
 
-            build_name
+            "lesson[quizformat]":
+                "gift",
 
-        )
-        #
-        # Did You Know
-        #
-        did_you_know = self.pages.publish_did_you_know(
+            "lesson[quizcontent]":
+                quiz_content,
 
-            course,
+            "lesson[activities]":
+                activities_content,
 
-            section,
+            "lesson[activitiesdescription]":
+                self._text(
+                    descriptions.get(
+                        "activities_description"
+                    )
+                )
+                or
+                self._text(
+                    activities.get(
+                        "activities_description"
+                    )
+                ),
 
-            lesson,
+            "lesson[recap]":
+                recap_content,
 
-            build_root,
+            "lesson[recapdescription]":
+                self._text(
+                    descriptions.get(
+                        "recap_description"
+                    )
+                )
+                or
+                self._text(
+                    recap.get(
+                        "recap_description"
+                    )
+                ),
+        }
 
-            build_name
+        # ==================================================
+        # Validate structural metadata
+        # ==================================================
 
-        )
-        #
-        activities = self.pages.publish_activities(
+        for required in [
+            "strand",
+            "substrand",
+            "contentdescription",
+            "lesson[title]",
+        ]:
 
-            course,
+            if not payload[required]:
 
-            section,
+                raise RuntimeError(
+                    f"Required Moodle field is empty: "
+                    f"{required}"
+                )
 
-            lesson,
-
-            build_root,
-
-            build_name
-
-        )
-        # Quiz
-        #
-
-        quiz = self.quiz.publish(
-
-            course,
-
-            section,
-
-            lesson,
-
-            build_root,
-
-            build_name
-
+        print("=" * 60)
+        print("RONO PUBLISHER PAYLOAD")
+        print(
+            {
+                **payload,
+                "lesson[quizcontent]":
+                    f"<GIFT {len(quiz_content)} chars>",
+                "lesson[lessoncontent]":
+                    f"<CONTENT {len(lesson_content)} chars>",
+                "lesson[activities]":
+                    f"<ACTIVITIES {len(activities_content)} chars>",
+                "lesson[recap]":
+                    f"<RECAP {len(recap_content)} chars>",
+            }
         )
         print("=" * 60)
-        print("QUIZ RETURN")
-        print(quiz)
-        print(type(quiz))
+
+        # ==================================================
+        # ONE atomic Moodle lesson publication
+        # ==================================================
+
+        published = self.moodle.publish_lesson(
+            payload
+        )
+
         print("=" * 60)
-        #
-        # Recap
-        #
+        print("RONO PUBLISHER RESULT")
+        print(published)
+        print("=" * 60)
 
-        recap = self.pages.publish_recap(
+        # ==================================================
+        # Verify Moodle result
+        # ==================================================
 
-            course,
+        if (
+            published.get("status")
+            != "success"
+        ):
 
-            section,
+            raise RuntimeError(
+                "Moodle lesson publishing did not "
+                "return success."
+            )
 
-            lesson,
+        if int(
+            published.get(
+                "questioncount",
+                0
+            )
+        ) <= 0:
 
-            build_root,
+            raise RuntimeError(
+                "Moodle published the lesson but "
+                "reported zero imported questions."
+            )
 
-            build_name
+        if int(
+            published.get(
+                "slotcount",
+                0
+            )
+        ) <= 0:
 
-        )
+            raise RuntimeError(
+                "Moodle published the Quiz but "
+                "reported zero Quiz slots."
+            )
 
-        #
-        # Update Workbook
-        #
-
-        self.sync.update(
-
-            workbook,
-
-            lesson_package_id,
-
-            course,
-
-            section,
-
-            mission,
-
-            quiz,
-
-            activities,
-
-            recap
-
-        )
-
-        #
-        # Finished
-        #
+        # ==================================================
+        # Return
+        # ==================================================
 
         return {
 
             "status":
-
                 "SUCCESS",
 
             "lesson_package_id":
-
                 lesson_package_id,
 
             "course":
-
                 course,
 
-            "section":
+            "publisher":
+                published,
 
-                section,
+            "quiz": {
 
-            "mission":
+                "quizid":
+                    published.get(
+                        "quizid"
+                    ),
 
-                mission,
-            "did_you_know":
+                "cmid":
+                    published.get(
+                        "quizcmid"
+                    ),
 
-                did_you_know,
+                "contextid":
+                    published.get(
+                        "quizcontextid"
+                    ),
 
-            "quiz":
+                "questioncount":
+                    published.get(
+                        "questioncount"
+                    ),
 
-                quiz,
+                "slotcount":
+                    published.get(
+                        "slotcount"
+                    ),
 
-            "activities":
+                "sumgrades":
+                    published.get(
+                        "quizsumgrades"
+                    ),
+            },
 
-                activities,
+            "mission": {
 
-            "recap":
+                "cmid":
+                    published.get(
+                        "lessoncontentcmid"
+                    )
+            },
 
-                recap
+            "did_you_know": {
 
+                "cmid":
+                    published.get(
+                        "didyouknowcmid"
+                    )
+            },
+
+            "activities": {
+
+                "cmid":
+                    published.get(
+                        "activitiescmid"
+                    )
+            },
+
+            "recap": {
+
+                "cmid":
+                    published.get(
+                        "recapcmid"
+                    )
+            },
         }
