@@ -278,6 +278,160 @@ class PublisherBuilder:
         return self._read_text_file(
             gift_file
         )
+    # ======================================================
+    # Moodle Course Mapping
+    # ======================================================
+
+    def _resolve_course(
+            self,
+            subject,
+            year_level
+    ):
+
+        mapping_file = (
+            PROJECT_ROOT
+            / "data"
+            / "moodle_course_mapping.xlsx"
+        )
+
+        if not mapping_file.exists():
+            raise RuntimeError(
+                "Moodle course mapping file not found: "
+                f"{mapping_file}"
+            )
+
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(
+            mapping_file,
+            read_only=True,
+            data_only=True
+        )
+
+        try:
+
+            if "Course_Mapping" not in workbook.sheetnames:
+                raise RuntimeError(
+                    "Course_Mapping worksheet not found in "
+                    "moodle_course_mapping.xlsx"
+                )
+
+            sheet = workbook["Course_Mapping"]
+
+            headers = {}
+
+            for cell in sheet[1]:
+
+                if not cell.value:
+                    continue
+
+                key = (
+                    str(cell.value)
+                    .strip()
+                    .lower()
+                    .replace(" ", "_")
+                    .replace("-", "_")
+                )
+
+                headers[key] = cell.column
+
+            required_headers = [
+                "subject",
+                "year",
+                "moodle_course_id",
+            ]
+
+            for field in required_headers:
+
+                if field not in headers:
+                    raise RuntimeError(
+                        "Missing Moodle course mapping column: "
+                        f"{field}"
+                    )
+
+            wanted_subject = self._text(
+                subject
+            ).casefold()
+
+            wanted_year = self._text(
+                year_level
+            ).casefold()
+
+            matches = []
+
+            for row in range(
+                    2,
+                    sheet.max_row + 1
+            ):
+
+                mapped_subject = self._text(
+                    sheet.cell(
+                        row=row,
+                        column=headers["subject"]
+                    ).value
+                )
+
+                mapped_year = self._text(
+                    sheet.cell(
+                        row=row,
+                        column=headers["year"]
+                    ).value
+                )
+
+                if (
+                    mapped_subject.casefold()
+                    == wanted_subject
+                    and
+                    mapped_year.casefold()
+                    == wanted_year
+                ):
+
+                    courseid = sheet.cell(
+                        row=row,
+                        column=headers[
+                            "moodle_course_id"
+                        ]
+                    ).value
+
+                    course_name = ""
+
+                    if "moodle_course_name" in headers:
+
+                        course_name = self._text(
+                            sheet.cell(
+                                row=row,
+                                column=headers[
+                                    "moodle_course_name"
+                                ]
+                            ).value
+                        )
+
+                    matches.append({
+                        "courseid": int(courseid),
+                        "name": course_name,
+                    })
+
+            if not matches:
+
+                raise RuntimeError(
+                    "No Moodle course mapping found for "
+                    f"subject={subject!r}, "
+                    f"year_level={year_level!r}"
+                )
+
+            if len(matches) > 1:
+
+                raise RuntimeError(
+                    "Multiple Moodle course mappings found for "
+                    f"subject={subject!r}, "
+                    f"year_level={year_level!r}"
+                )
+
+            return matches[0]
+
+        finally:
+
+            workbook.close()
 
     # ======================================================
     # Publish
@@ -319,39 +473,37 @@ class PublisherBuilder:
         print("=" * 60)
 
         # ==================================================
-        # Resolve / create Moodle course
+        # Resolve existing Moodle course
         # ==================================================
 
-        course_payload = {
-
-            "build_id":
-                build_name,
-
-            "lesson_package_id":
-                metadata["lesson_package_id"],
-
-            "school_level":
-                metadata["school_level"],
-
-            "subject":
-                metadata["subject"],
-
-            "year_level":
-                metadata["year_level"],
-        }
-
-        print("=" * 60)
-        print("COURSE PAYLOAD")
-        print(course_payload)
-        print("=" * 60)
-
-        course = self.moodle.publish_course(
-            course_payload
+        course = self._resolve_course(
+            metadata["subject"],
+            metadata["year_level"]
         )
 
         courseid = int(
             course["courseid"]
         )
+
+        print("=" * 60)
+        print("MOODLE COURSE MAPPING")
+        print(
+            "Subject:",
+            metadata["subject"]
+        )
+        print(
+            "Year:",
+            metadata["year_level"]
+        )
+        print(
+            "Course ID:",
+            courseid
+        )
+        print(
+            "Course Name:",
+            course.get("name", "")
+        )
+        print("=" * 60)
 
         # ==================================================
         # Build generated lesson assets
