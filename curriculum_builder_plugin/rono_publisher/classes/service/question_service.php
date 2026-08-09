@@ -1,40 +1,10 @@
+<?php
 /**
  * Question Bank service for Rono Publisher.
  *
- * Moodle 5.2 Question Bank integration will be implemented
- * after the course structure publishing test is complete.
- *
- * @package     local_rono_publisher
- * @copyright   2026 Rono's School
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-
-    /*
-     *  responsibilities:
-     *
-     * 1. Create/find a dedicated Question Bank category
-     *    for each lesson/elaboration.
-     *
-     * 2. Import generated GIFT or Moodle XML questions.
-     *
-     * 3. Use Moodle 5.2 Question Bank APIs rather than
-     *    directly inserting question database records.
-     *
-     * 4. Validate the imported questions.
-     *
-     * 5. Return the question/bank references required by
-     *    quiz_service.
-     *
-     */
-
-
-/**
- * Question Bank service for Rono Publisher.
- *
- * Creates a dedicated Question Bank category for each lesson
- * and imports GIFT or Moodle XML questions using Moodle's
- * question-format subsystem.
+ * Creates a dedicated Question Bank category inside the
+ * Moodle Quiz module context and imports GIFT or Moodle XML
+ * questions using Moodle 5.2's question-format subsystem.
  *
  * @package     local_rono_publisher
  * @copyright   2026 Rono's School
@@ -45,7 +15,7 @@ namespace local_rono_publisher\service;
 
 defined('MOODLE_INTERNAL') || die();
 
-use context_course;
+use context_module;
 use moodle_exception;
 use stdClass;
 
@@ -55,22 +25,20 @@ use stdClass;
 class question_service {
 
     /**
-     * Find or create the Question Bank category belonging to
-     * one lesson/elaboration.
+     * Find or create the Question Bank category for one lesson.
      *
-     * @param int $courseid Moodle course ID.
+     * The category belongs to the module context of the lesson's
+     * Checking Your Thinking Quiz.
+     *
+     * @param int $quizcmid Moodle Quiz course-module ID.
      * @param string $lessonname Lesson/elaboration title.
-     * @return stdClass Question category record.
+     * @return stdClass
      */
     public function find_or_create_lesson_category(
-        int $courseid,
+        int $quizcmid,
         string $lessonname
     ): stdClass {
-        global $CFG, $DB;
-
-        require_once(
-            $CFG->libdir . '/questionlib.php'
-        );
+        global $DB;
 
         $lessonname = trim($lessonname);
 
@@ -80,12 +48,17 @@ class question_service {
             );
         }
 
-        $context = context_course::instance(
-            $courseid
+        /*
+         * Moodle 5.2 question-format imports require the target
+         * question category to belong to CONTEXT_MODULE.
+         */
+        $context = context_module::instance(
+            $quizcmid
         );
 
         /*
-         * Look only inside this course context.
+         * Look for an existing category belonging to this
+         * exact Quiz module context.
          */
         $existing = $DB->get_record(
             'question_categories',
@@ -100,37 +73,30 @@ class question_service {
         }
 
         /*
-         * Obtain the course's default question category.
-         *
-         * The lesson category will be created underneath it.
+         * Create the lesson Question Bank category.
          */
-        $defaultcategory = question_get_default_category(
-            $context->id,
-            true
-        );
-
-        if (!$defaultcategory) {
-            throw new moodle_exception(
-                'Unable to obtain the default Question Bank category for the course.'
-            );
-        }
-
         $category = new stdClass();
 
-        $category->name = $lessonname;
+        $category->name =
+            $lessonname;
 
         $category->info =
             'Questions automatically published for lesson: '
             . $lessonname;
 
-        $category->infoformat = FORMAT_HTML;
+        $category->infoformat =
+            FORMAT_HTML;
 
-        $category->contextid = $context->id;
-
-        $category->parent = $defaultcategory->id;
+        $category->contextid =
+            (int)$context->id;
 
         /*
-         * Moodle uses sortorder for question categories.
+         * Top-level category inside the Quiz module context.
+         */
+        $category->parent = 0;
+
+        /*
+         * Determine next category sort order.
          */
         $maxsortorder = $DB->get_field_sql(
             "
@@ -146,50 +112,62 @@ class question_service {
         $category->sortorder =
             ((int)$maxsortorder) + 1;
 
-        $category->id = $DB->insert_record(
-            'question_categories',
-            $category
-        );
+        $category->id =
+            $DB->insert_record(
+                'question_categories',
+                $category
+            );
 
         return $DB->get_record(
             'question_categories',
-            ['id' => $category->id],
+            [
+                'id' => $category->id,
+            ],
             '*',
             MUST_EXIST
         );
     }
 
     /**
-     * Import questions for one lesson.
-     *
-     * Supported initial formats:
-     *
-     * gift
-     * xml
+     * Import GIFT or Moodle XML questions.
      *
      * @param int $courseid Moodle course ID.
+     * @param int $quizcmid Moodle Quiz course-module ID.
      * @param stdClass $category Target Question Bank category.
-     * @param string $format Question format.
-     * @param string $content GIFT/XML content.
+     * @param string $format gift or xml.
+     * @param string $content Question content.
      * @return array
      */
     public function import_questions(
         int $courseid,
+        int $quizcmid,
         stdClass $category,
         string $format,
         string $content
     ): array {
         global $CFG, $DB;
 
+        /*
+         * Moodle Question API.
+         */
         require_once(
             $CFG->libdir . '/questionlib.php'
+        );
+
+        /*
+         * qformat_default.
+         */
+        require_once(
+            $CFG->dirroot . '/question/format.php'
         );
 
         $format = strtolower(
             trim($format)
         );
 
-        $content = trim($content);
+        $content = trim(
+            $content
+        );
 
         if ($content === '') {
             throw new moodle_exception(
@@ -206,31 +184,42 @@ class question_service {
             );
         }
 
-        $context = context_course::instance(
-            $courseid
+        /*
+         * Obtain target course.
+         *
+         * Moodle's own question importer calls setCourse().
+         */
+        $course = $DB->get_record(
+            'course',
+            [
+                'id' => $courseid,
+            ],
+            '*',
+            MUST_EXIST
         );
 
         /*
-         * Verify that the supplied category belongs to
-         * the target course context.
+         * Obtain Quiz module context.
+         */
+        $context = context_module::instance(
+            $quizcmid
+        );
+
+        /*
+         * Verify that the category belongs to this exact
+         * module context.
          */
         if (
             (int)$category->contextid !==
             (int)$context->id
         ) {
             throw new moodle_exception(
-                'Question category does not belong to the target course.'
+                'Question category does not belong to the target Quiz module context.'
             );
         }
 
         /*
-         * Load Moodle's actual question format implementation.
-         *
-         * GIFT:
-         * question/format/gift/format.php
-         *
-         * XML:
-         * question/format/xml/format.php
+         * Load requested Moodle question-format plugin.
          */
         $formatfile =
             $CFG->dirroot
@@ -245,9 +234,12 @@ class question_service {
             );
         }
 
-        require_once($formatfile);
+        require_once(
+            $formatfile
+        );
 
-        $classname = 'qformat_' . $format;
+        $classname =
+            'qformat_' . $format;
 
         if (!class_exists($classname)) {
             throw new moodle_exception(
@@ -257,11 +249,7 @@ class question_service {
         }
 
         /*
-         * Write the generated question payload to Moodle's
-         * temporary directory.
-         *
-         * qformat import implementations are designed to
-         * process question files.
+         * Create temporary import file.
          */
         $extension =
             ($format === 'xml')
@@ -282,10 +270,16 @@ class question_service {
         $importfile =
             $tempfile . $extension;
 
-        rename(
+        if (!rename(
             $tempfile,
             $importfile
-        );
+        )) {
+            @unlink($tempfile);
+
+            throw new moodle_exception(
+                'Unable to prepare temporary question import file.'
+            );
+        }
 
         $written = file_put_contents(
             $importfile,
@@ -294,9 +288,9 @@ class question_service {
 
         if ($written === false) {
 
-            if (file_exists($importfile)) {
-                unlink($importfile);
-            }
+            @unlink(
+                $importfile
+            );
 
             throw new moodle_exception(
                 'Unable to write temporary question import file.'
@@ -304,32 +298,55 @@ class question_service {
         }
 
         /*
-         * Record existing Question Bank entries in this
-         * category before importing.
-         *
-         * After Moodle performs the import we compare the
-         * Question Bank entries to determine which ones were
-         * created by this operation.
+         * Record existing Question Bank entries before import.
          */
-        $beforeentries = $this->get_category_bank_entries(
-            (int)$category->id
-        );
-
+        $beforeentries =
+            $this->get_category_bank_entries(
+                (int)$category->id
+            );
+        /*
+ * Suppress Moodle question importer HTML so the
+ * Web Service response remains pure JSON.
+ */
+$originaloblevel = ob_get_level();
+ob_start();
         try {
 
-            /** @var \qformat_default $qformat */
-            $qformat = new $classname();
+            /*
+             * Instantiate Moodle's format importer.
+             */
+            $qformat =
+                new $classname();
 
             /*
-             * Configure Moodle's standard question-format
-             * importer.
+             * Moodle 5.2 configuration.
+             *
+             * These calls mirror the API exposed by the
+             * installed question/format.php.
              */
+
             $qformat->setCategory(
                 $category
             );
 
-            $qformat->setContext(
-                $context
+            /*
+             * IMPORTANT:
+             *
+             * Moodle 5.2 uses setContexts(), plural.
+             *
+             * setContext() does not exist.
+             */
+            $qformat->setContexts(
+                [
+                    $context,
+                ]
+            );
+
+            /*
+             * Moodle's own importer supplies the course.
+             */
+            $qformat->setCourse(
+                $course
             );
 
             $qformat->setFilename(
@@ -337,35 +354,64 @@ class question_service {
             );
 
             /*
-             * Do not allow the imported file to override
-             * our dedicated lesson category.
+             * Real filename is used by the question-format
+             * subsystem for reporting/display purposes.
+             */
+            $qformat->setRealfilename(
+                basename($importfile)
+            );
+
+            /*
+             * Keep generated questions in our dedicated
+             * lesson category.
              */
             $qformat->setCatfromfile(
                 false
             );
 
             /*
-             * Do not create contexts/categories based on
-             * category declarations contained in the file.
+             * Do not allow imported content to change
+             * the target context.
              */
             $qformat->setContextfromfile(
                 false
             );
 
             /*
-             * Fail when unsupported grades are encountered
-             * rather than silently changing question grades.
+             * Reject unsupported grades rather than
+             * silently altering them.
              */
             $qformat->setMatchgrades(
                 'error'
             );
 
             /*
-             * Moodle's question-format subsystem performs
-             * parsing, validation and saving into the modern
-             * Question Bank structures.
+             * Stop when a question import error occurs.
              */
-            $success = $qformat->importprocess();
+            $qformat->setStoponerror(
+                true
+            );
+
+            /*
+             * Moodle import preprocessing.
+             */
+            if (!$qformat->importpreprocess()) {
+                throw new moodle_exception(
+                    'Moodle Question Bank import preprocessing failed.'
+                );
+            }
+
+            /*
+             * IMPORTANT:
+             *
+             * Moodle 5.2 importprocess() accepts NO category
+             * parameter.
+             *
+             * The target category was already supplied through
+             * setCategory().
+             */
+            $success =
+                $qformat->importprocess();
 
             if (!$success) {
                 throw new moodle_exception(
@@ -373,27 +419,48 @@ class question_service {
                 );
             }
 
-        } finally {
+            /*
+             * Moodle import postprocessing.
+             */
+            if (!$qformat->importpostprocess()) {
+                throw new moodle_exception(
+                    'Moodle Question Bank import postprocessing failed.'
+                );
+            }
 
+        } finally {
+            /*
+            * Suppress all HTML/progress output generated
+            * by Moodle's question importer.
+            */
+            while (ob_get_level() > $originaloblevel) {
+               ob_end_clean();
+            }
+            /*
+             * Always remove temporary import file.
+             */
             if (file_exists($importfile)) {
-                unlink($importfile);
+                @unlink(
+                    $importfile
+                );
             }
         }
 
         /*
-         * Determine which Question Bank entries were created
-         * by this import.
+         * Determine which Question Bank entries were created.
          */
-        $afterentries = $this->get_category_bank_entries(
-            (int)$category->id
-        );
+        $afterentries =
+            $this->get_category_bank_entries(
+                (int)$category->id
+            );
 
-        $newentryids = array_values(
-            array_diff(
-                $afterentries,
-                $beforeentries
-            )
-        );
+        $newentryids =
+            array_values(
+                array_diff(
+                    $afterentries,
+                    $beforeentries
+                )
+            );
 
         if (empty($newentryids)) {
             throw new moodle_exception(
@@ -401,12 +468,37 @@ class question_service {
             );
         }
 
+        /*
+         * Resolve latest usable Moodle question IDs.
+         */
+        $questionids =
+            $this->get_latest_question_ids(
+                $newentryids
+            );
+
         return [
+
             'categoryid' =>
                 (int)$category->id,
 
+            'contextid' =>
+                (int)$context->id,
+
             'questionbankentryids' =>
-                $newentryids,
+                array_values(
+                    array_map(
+                        'intval',
+                        $newentryids
+                    )
+                ),
+
+            'questionids' =>
+                array_values(
+                    array_map(
+                        'intval',
+                        $questionids
+                    )
+                ),
 
             'questioncount' =>
                 count($newentryids),
@@ -414,52 +506,52 @@ class question_service {
     }
 
     /**
-     * Create/find the lesson category and import questions.
+     * Prepare all questions for one lesson.
      *
      * @param int $courseid Moodle course ID.
+     * @param int $quizcmid Quiz course-module ID.
      * @param string $lessonname Lesson title.
      * @param string $format gift or xml.
-     * @param string $content Question payload.
+     * @param string $content Question content.
      * @return array
      */
     public function prepare_lesson_questions(
         int $courseid,
+        int $quizcmid,
         string $lessonname,
         string $format,
         string $content
     ): array {
 
+        /*
+         * Create/find category in Quiz module context.
+         */
         $category =
             $this->find_or_create_lesson_category(
-                $courseid,
+                $quizcmid,
                 $lessonname
             );
 
+        /*
+         * Import questions.
+         */
         $result =
             $this->import_questions(
                 $courseid,
+                $quizcmid,
                 $category,
                 $format,
                 $content
             );
 
-        $result['category'] = $category;
+        $result['category'] =
+            $category;
 
         return $result;
     }
 
     /**
      * Return Question Bank entry IDs belonging to a category.
-     *
-     * Moodle 4+ / 5.x stores the relationship as:
-     *
-     * question_categories
-     *        |
-     * question_bank_entries
-     *        |
-     * question_versions
-     *        |
-     * question
      *
      * @param int $categoryid Question category ID.
      * @return array
@@ -481,7 +573,66 @@ class question_service {
 
         return array_map(
             'intval',
-            array_keys($records)
+            array_keys(
+                $records
+            )
         );
+    }
+
+    /**
+     * Resolve latest usable question IDs.
+     *
+     * @param array $entryids Question Bank entry IDs.
+     * @return array
+     */
+    private function get_latest_question_ids(
+        array $entryids
+    ): array {
+        global $DB;
+
+        $questionids = [];
+
+        foreach ($entryids as $entryid) {
+
+            $sql = "
+                SELECT qv.id,
+                       qv.questionid,
+                       qv.version,
+                       qv.status
+                  FROM {question_versions} qv
+                 WHERE qv.questionbankentryid = :entryid
+                   AND qv.status <> :draftstatus
+              ORDER BY qv.version DESC
+            ";
+
+            $versions =
+                $DB->get_records_sql(
+                    $sql,
+                    [
+                        'entryid' =>
+                            (int)$entryid,
+
+                        'draftstatus' =>
+                            'draft',
+                    ],
+                    0,
+                    1
+                );
+
+            if (empty($versions)) {
+                throw new moodle_exception(
+                    'Unable to resolve a usable question version for Question Bank entry '
+                    . (int)$entryid
+                );
+            }
+
+            $version =
+                reset($versions);
+
+            $questionids[] =
+                (int)$version->questionid;
+        }
+
+        return $questionids;
     }
 }

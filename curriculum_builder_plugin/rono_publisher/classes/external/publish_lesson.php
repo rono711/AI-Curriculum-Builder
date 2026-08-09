@@ -5,8 +5,9 @@
  * Current development stage:
  *
  * - Course structure publishing: enabled.
- * - Question Bank import: enabled for testing.
- * - Quiz activity creation: not yet enabled.
+ * - Quiz activity creation: enabled.
+ * - Question Bank import into Quiz module context: enabled.
+ * - Question attachment to Quiz: not yet enabled.
  *
  * @package     local_rono_publisher
  * @copyright   2026 Rono's School
@@ -90,13 +91,6 @@ class publish_lesson extends external_api {
                     ''
                 ),
 
-                /*
-                 * Question Bank / Quiz data.
-                 *
-                 * During this development stage quizcontent is imported
-                 * into the Question Bank, but no Quiz activity is created.
-                 */
-
                 'quiztitle' => new external_value(
                     PARAM_TEXT,
                     'Quiz activity title',
@@ -153,12 +147,20 @@ class publish_lesson extends external_api {
     /**
      * Publish one curriculum lesson.
      *
-     * Current version:
+     * Current sequence:
      *
-     * 1. Publishes course structure.
-     * 2. Creates/fetches lesson Question Bank category.
-     * 3. Imports GIFT/XML questions.
-     * 4. Does NOT create the Quiz activity yet.
+     * 1. Strand Section.
+     * 2. Sub-strand Subsection.
+     * 3. Content Description.
+     * 4. Lesson Content.
+     * 5. Did You Know?
+     * 6. Checking Your Thinking Quiz.
+     * 7. Question Bank category in Quiz module context.
+     * 8. GIFT/XML question import.
+     * 9. Let's Do It.
+     * 10. What We Discovered.
+     *
+     * Imported questions are NOT attached to the Quiz yet.
      *
      * @param int $courseid
      * @param string $strand
@@ -178,9 +180,7 @@ class publish_lesson extends external_api {
 
         /*
          * =========================================================
-         * STEP 1
-         *
-         * Validate Web Service parameters.
+         * VALIDATE PARAMETERS
          * =========================================================
          */
 
@@ -197,9 +197,7 @@ class publish_lesson extends external_api {
 
         /*
          * =========================================================
-         * STEP 2
-         *
-         * Confirm target Moodle course exists.
+         * VERIFY COURSE
          * =========================================================
          */
 
@@ -214,9 +212,7 @@ class publish_lesson extends external_api {
 
         /*
          * =========================================================
-         * STEP 3
-         *
-         * Validate course context.
+         * VALIDATE COURSE CONTEXT
          * =========================================================
          */
 
@@ -230,9 +226,7 @@ class publish_lesson extends external_api {
 
         /*
          * =========================================================
-         * STEP 4
-         *
-         * Require Rono Publisher capability.
+         * REQUIRE PUBLISHING CAPABILITY
          * =========================================================
          */
 
@@ -243,27 +237,25 @@ class publish_lesson extends external_api {
 
         /*
          * =========================================================
-         * STEP 5
-         *
-         * Run internal publisher.
+         * RUN INTERNAL PUBLISHER
          * =========================================================
          */
 
-        $publisher = new publisher();
+        $publisher =
+            new publisher();
 
-        $result = $publisher->publish_structure(
-            (int)$course->id,
-            $params['strand'],
-            $params['substrand'],
-            $params['contentdescription'],
-            $params['lesson']
-        );
+        $result =
+            $publisher->publish_structure(
+                (int)$course->id,
+                $params['strand'],
+                $params['substrand'],
+                $params['contentdescription'],
+                $params['lesson']
+            );
 
         /*
          * =========================================================
-         * STEP 6
-         *
-         * Return structure + Question Bank results.
+         * RETURN RESULT
          * =========================================================
          */
 
@@ -273,10 +265,17 @@ class publish_lesson extends external_api {
                 'success',
 
             'message' =>
-                'Lesson structure and Question Bank questions published successfully. Quiz activity creation is not yet enabled.',
+                'Lesson structure, Quiz activity, Question Bank questions and Quiz question slots published successfully.',
+            /*
+             * Course.
+             */
 
             'courseid' =>
                 (int)$result['courseid'],
+
+            /*
+             * Curriculum structure.
+             */
 
             'strandsectionid' =>
                 (int)$result['strandsectionid'],
@@ -290,6 +289,10 @@ class publish_lesson extends external_api {
             'contentdescriptioncmid' =>
                 (int)$result['contentdescriptioncmid'],
 
+            /*
+             * Lesson.
+             */
+
             'lessoncontentcmid' =>
                 (int)$result['lessoncontentcmid'],
 
@@ -297,11 +300,27 @@ class publish_lesson extends external_api {
                 (int)$result['didyouknowcmid'],
 
             /*
-             * Question Bank results.
+             * Quiz.
+             */
+
+            'quizid' =>
+                (int)$result['quizid'],
+
+            'quizcmid' =>
+                (int)$result['quizcmid'],
+
+            'quizcontextid' =>
+                (int)$result['quizcontextid'],
+
+            /*
+             * Question Bank.
              */
 
             'questioncategoryid' =>
                 (int)$result['questioncategoryid'],
+
+            'questioncontextid' =>
+                (int)$result['questioncontextid'],
 
             'questioncount' =>
                 (int)$result['questioncount'],
@@ -313,6 +332,38 @@ class publish_lesson extends external_api {
                         $result['questionbankentryids']
                     )
                 ),
+
+            'questionids' =>
+                array_values(
+                    array_map(
+                        'intval',
+                        $result['questionids']
+                    )
+                ),
+            /*
+ * Quiz question attachment.
+ */
+
+'attachedquestionids' =>
+    array_values(
+        array_map(
+            'intval',
+            $result['attachedquestionids']
+        )
+    ),
+
+'attachedcount' =>
+    (int)$result['attachedcount'],
+
+'slotcount' =>
+    (int)$result['slotcount'],
+
+'quizsumgrades' =>
+    (float)$result['quizsumgrades'],    
+
+            /*
+             * Remaining lesson activities.
+             */
 
             'activitiescmid' =>
                 (int)$result['activitiescmid'],
@@ -341,10 +392,18 @@ class publish_lesson extends external_api {
                 'Publishing result message'
             ),
 
+            /*
+             * Course.
+             */
+
             'courseid' => new external_value(
                 PARAM_INT,
                 'Target Moodle course ID'
             ),
+
+            /*
+             * Curriculum structure.
+             */
 
             'strandsectionid' => new external_value(
                 PARAM_INT,
@@ -366,6 +425,10 @@ class publish_lesson extends external_api {
                 'Course module ID of the Content Description Text and Media activity'
             ),
 
+            /*
+             * Lesson.
+             */
+
             'lessoncontentcmid' => new external_value(
                 PARAM_INT,
                 'Course module ID of the Lesson Content page'
@@ -377,17 +440,41 @@ class publish_lesson extends external_api {
             ),
 
             /*
-             * Question Bank return values.
+             * Quiz.
+             */
+
+            'quizid' => new external_value(
+                PARAM_INT,
+                'Moodle Quiz instance ID'
+            ),
+
+            'quizcmid' => new external_value(
+                PARAM_INT,
+                'Moodle Quiz course module ID'
+            ),
+
+            'quizcontextid' => new external_value(
+                PARAM_INT,
+                'Moodle module context ID belonging to the Quiz'
+            ),
+
+            /*
+             * Question Bank.
              */
 
             'questioncategoryid' => new external_value(
                 PARAM_INT,
-                'Question Bank category ID for this lesson'
+                'Question Bank category ID belonging to this lesson'
+            ),
+
+            'questioncontextid' => new external_value(
+                PARAM_INT,
+                'Question Bank module context ID'
             ),
 
             'questioncount' => new external_value(
                 PARAM_INT,
-                'Number of Question Bank entries imported'
+                'Number of imported Question Bank entries'
             ),
 
             'questionbankentryids' =>
@@ -397,6 +484,46 @@ class publish_lesson extends external_api {
                         'Question Bank entry ID'
                     )
                 ),
+
+            'questionids' =>
+                new external_multiple_structure(
+                    new external_value(
+                        PARAM_INT,
+                        'Latest imported Moodle question ID'
+                    )
+                ),
+        /*
+ * Quiz question attachment.
+ */
+
+'attachedquestionids' =>
+    new external_multiple_structure(
+        new external_value(
+            PARAM_INT,
+            'Moodle question ID attached to the Quiz'
+        )
+    ),
+
+'attachedcount' =>
+    new external_value(
+        PARAM_INT,
+        'Number of questions attached during this publishing operation'
+    ),
+
+'slotcount' =>
+    new external_value(
+        PARAM_INT,
+        'Total number of question slots in the Quiz'
+    ),
+
+'quizsumgrades' =>
+    new external_value(
+        PARAM_FLOAT,
+        'Total raw marks available from the questions in the Quiz'
+    ),
+            /*
+             * Remaining lesson activities.
+             */
 
             'activitiescmid' => new external_value(
                 PARAM_INT,

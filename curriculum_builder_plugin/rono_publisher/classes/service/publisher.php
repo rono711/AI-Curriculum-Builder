@@ -2,17 +2,15 @@
 /**
  * Publisher service for Rono Publisher.
  *
- * Coordinates publishing of curriculum content into Moodle.
- *
  * Current development stage:
  *
  * - Strand Section: enabled.
  * - Sub-strand Subsection: enabled.
  * - Content Description: enabled.
  * - Lesson Pages: enabled.
- * - Question Bank category: enabled.
- * - Question import: enabled for testing.
- * - Quiz creation: NOT YET enabled.
+ * - Quiz creation: enabled.
+ * - Question Bank import into Quiz module context: enabled.
+ * - Question attachment to Quiz: not yet enabled.
  *
  * @package     local_rono_publisher
  * @copyright   2026 Rono's School
@@ -31,29 +29,26 @@ use moodle_exception;
 class publisher {
 
     /**
-     * Section service.
-     *
      * @var section_service
      */
     private $sections;
 
     /**
-     * Page service.
-     *
      * @var page_service
      */
     private $pages;
 
     /**
-     * Lesson service.
-     *
      * @var lesson_service
      */
     private $lessons;
 
     /**
-     * Question Bank service.
-     *
+     * @var quiz_service
+     */
+    private $quizzes;
+
+    /**
      * @var question_service
      */
     private $questions;
@@ -63,38 +58,50 @@ class publisher {
      */
     public function __construct() {
 
-        $this->sections = new section_service();
+        $this->sections =
+            new section_service();
 
-        $this->pages = new page_service();
+        $this->pages =
+            new page_service();
 
-        $this->lessons = new lesson_service();
+        $this->lessons =
+            new lesson_service();
 
-        $this->questions = new question_service();
+        $this->quizzes =
+            new quiz_service();
+
+        $this->questions =
+            new question_service();
     }
 
     /**
-     * Publish one lesson structure and import its questions.
+     * Publish one complete lesson structure and import its questions.
      *
-     * Current publishing order:
+     * Current publishing sequence:
      *
-     * Section: Strand
-     *
-     *   Subsection: Sub-strand
-     *
-     *     Text & Media: Content Description
-     *
-     *     Lesson Content                  indent 0
-     *
-     *         Did You Know?               indent 1
-     *
-     *         Question Bank Category
-     *         Question Import
-     *
-     *         [Quiz will be created here later]
-     *
-     *         Let's Do It                 indent 1
-     *
-     *         What We Discovered          indent 1
+     * Strand Section
+     *      |
+     * Sub-strand Subsection
+     *      |
+     * Content Description
+     *      |
+     * Lesson Content                  indent 0
+     *      |
+     * Did You Know?                   indent 1
+     *      |
+     * Checking Your Thinking          indent 1
+     *      |
+     * Quiz module context
+     *      |
+     * Question Bank category
+     *      |
+     * GIFT/XML import
+     *      |
+     * [Question attachment comes later]
+     *      |
+     * Let's Do It                     indent 1
+     *      |
+     * What We Discovered              indent 1
      *
      * @param int $courseid Moodle course ID.
      * @param string $strand Curriculum strand.
@@ -114,7 +121,7 @@ class publisher {
 
         /*
          * =========================================================
-         * BASIC VALIDATION
+         * VALIDATION
          * =========================================================
          */
 
@@ -149,7 +156,7 @@ class publisher {
         }
 
         /*
-         * For the Question Bank test, quiz content is now required.
+         * Question Bank import is active again.
          */
         if (empty($lesson['quizcontent'])) {
             throw new moodle_exception(
@@ -199,7 +206,7 @@ class publisher {
          * =========================================================
          * STEP 2
          *
-         * SUB-STRAND -> real Moodle Subsection
+         * SUB-STRAND -> Moodle Subsection
          * =========================================================
          */
 
@@ -217,8 +224,8 @@ class publisher {
         }
 
         /*
-         * Activities belonging to this curriculum sub-strand
-         * are published into the delegated subsection section.
+         * All lesson activities are placed in this delegated
+         * Moodle subsection section.
          */
         $lessonsection =
             $subsection['section'];
@@ -243,9 +250,7 @@ class publisher {
          * =========================================================
          * STEP 4
          *
-         * LESSON / ELABORATION
-         *
-         * Lesson Content / Mission of the Day
+         * LESSON CONTENT / MISSION OF THE DAY
          *
          * indent = 0
          * =========================================================
@@ -290,70 +295,114 @@ class publisher {
          * =========================================================
          * STEP 6
          *
-         * QUESTION BANK TEST
+         * CREATE CHECKING YOUR THINKING QUIZ
+         *
+         * indent = 1
+         * =========================================================
+         */
+
+        $quizresult =
+            $this->quizzes->create_quiz(
+                $course->id,
+                $lessonsection,
+                isset($lesson['quiztitle'])
+                    ? $lesson['quiztitle']
+                    : 'Checking Your Thinking',
+                isset($lesson['quizdescription'])
+                    ? $lesson['quizdescription']
+                    : '',
+                1
+            );
+
+        if (
+            empty($quizresult['quizid']) ||
+            empty($quizresult['cmid']) ||
+            empty($quizresult['contextid'])
+        ) {
+            throw new moodle_exception(
+                'Quiz was created but required Quiz identifiers were not returned.'
+            );
+        }
+
+        /*
+         * =========================================================
+         * STEP 7
+         *
+         * QUESTION BANK
          * =========================================================
          *
-         * This is the new part.
+         * CRITICAL:
          *
-         * For every lesson:
+         * We now pass QUIZ CMID rather than course ID.
          *
-         * Lesson title
-         *      |
-         *      v
-         * Dedicated Question Bank category
-         *      |
-         *      v
-         * Import GIFT/XML
-         *      |
-         *      v
-         * Return Question Bank entry IDs
+         * question_service will therefore use:
          *
-         * NO QUIZ IS CREATED YET.
+         * context_module::instance($quizcmid)
+         *
+         * This is the Moodle 5.2 module context required by
+         * the Question Bank import workflow.
          * =========================================================
          */
 
         $questionresult =
-            $this->questions->prepare_lesson_questions(
-                $course->id,
+    $this->questions->prepare_lesson_questions(
+        (int)$course->id,
 
-                $lesson['title'],
+        (int)$quizresult['cmid'],
 
-                isset($lesson['quizformat'])
-                    ? $lesson['quizformat']
-                    : 'gift',
+        $lesson['title'],
 
-                $lesson['quizcontent']
-            );
+        isset($lesson['quizformat'])
+            ? $lesson['quizformat']
+            : 'gift',
 
-        /*
+        $lesson['quizcontent']
+    );
+    
+            /*
          * =========================================================
-         * FUTURE STEP 7
+         * STEP 8
          *
-         * QUIZ WILL GO HERE.
+         * ATTACH IMPORTED QUESTIONS TO QUIZ
          * =========================================================
          *
-         * $quiz = $this->quizzes->create_quiz(...);
+         * question_service has already:
          *
-         * It will receive the Question Bank entries produced above.
+         * 1. Created the Question Bank category.
+         * 2. Imported the GIFT/XML questions.
+         * 3. Resolved the latest Moodle question IDs.
          *
-         * Final visual ordering:
-         *
-         * Lesson Content
-         *
-         *     Did You Know?
-         *
-         *     Checking Your Thinking
-         *
-         *     Let's Do It
-         *
-         *     What We Discovered
-         *
+         * We now attach those questions to the
+         * Checking Your Thinking Quiz.
          * =========================================================
          */
 
+        if (empty($questionresult['questionids'])) {
+            throw new moodle_exception(
+                'Question Bank import succeeded but no Moodle question IDs were returned.'
+            );
+        }
+
+        $attachmentresult =
+            $this->quizzes->attach_questions(
+                (int)$quizresult['quizid'],
+                $questionresult['questionids']
+            );
+            
+            
+
+        /*
+         * Verify Moodle created Quiz slots.
+         */
+        if (empty($attachmentresult['slotcount'])) {
+            throw new moodle_exception(
+                'Questions were imported but no Quiz slots were created.'
+            );
+        }
+        
         /*
          * =========================================================
-         * STEP 7 - CURRENT
+         * STEP 8
          *
          * LET'S DO IT
          *
@@ -375,7 +424,7 @@ class publisher {
 
         /*
          * =========================================================
-         * STEP 8
+         * STEP 9
          *
          * WHAT WE DISCOVERED
          *
@@ -397,7 +446,7 @@ class publisher {
 
         /*
          * =========================================================
-         * STEP 9
+         * STEP 10
          *
          * REBUILD COURSE CACHE
          * =========================================================
@@ -410,9 +459,9 @@ class publisher {
 
         /*
          * =========================================================
-         * STEP 10
+         * STEP 11
          *
-         * COMMIT
+         * COMMIT TRANSACTION
          * =========================================================
          */
 
@@ -420,11 +469,15 @@ class publisher {
 
         /*
          * =========================================================
-         * RESPONSE
+         * RETURN RESULT
          * =========================================================
          */
 
         return [
+
+            /*
+             * Course structure.
+             */
 
             'courseid' =>
                 (int)$course->id,
@@ -441,6 +494,10 @@ class publisher {
             'contentdescriptioncmid' =>
                 (int)$contentdescriptioncm->id,
 
+            /*
+             * Lesson activities.
+             */
+
             'lessoncontentcmid' =>
                 (int)$lessoncontent->id,
 
@@ -448,17 +505,71 @@ class publisher {
                 (int)$didyouknow->id,
 
             /*
-             * New Question Bank information.
+             * Quiz.
+             */
+
+            'quizid' =>
+                (int)$quizresult['quizid'],
+
+            'quizcmid' =>
+                (int)$quizresult['cmid'],
+
+            'quizcontextid' =>
+                (int)$quizresult['contextid'],
+
+            /*
+             * Question Bank.
              */
 
             'questioncategoryid' =>
                 (int)$questionresult['categoryid'],
 
+            'questioncontextid' =>
+                (int)$questionresult['contextid'],
+
             'questioncount' =>
                 (int)$questionresult['questioncount'],
 
             'questionbankentryids' =>
-                $questionresult['questionbankentryids'],
+                array_values(
+                    array_map(
+                        'intval',
+                        $questionresult['questionbankentryids']
+                    )
+                ),
+
+            'questionids' =>
+                array_values(
+                    array_map(
+                        'intval',
+                        $questionresult['questionids']
+                    )
+                ),
+
+                        /*
+             * Quiz attachment results.
+             */
+
+            'attachedquestionids' =>
+                array_values(
+                    array_map(
+                        'intval',
+                        $attachmentresult['attachedquestionids']
+                    )
+                ),
+
+            'attachedcount' =>
+                (int)$attachmentresult['attachedcount'],
+
+            'slotcount' =>
+                (int)$attachmentresult['slotcount'],
+
+            'quizsumgrades' =>
+                (float)$attachmentresult['sumgrades'],
+                
+            /*
+             * Remaining lesson activities.
+             */
 
             'activitiescmid' =>
                 (int)$activities->id,
