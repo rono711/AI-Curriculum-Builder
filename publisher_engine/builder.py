@@ -89,12 +89,6 @@ class PublisherBuilder:
                 + "\n</pre>"
         )
 
-        return (
-            "<pre>\n"
-            + html.escape(lesson_markdown)
-            + "\n</pre>"
-        )
-
     # ======================================================
     # Did You Know / Gamma
     # ======================================================
@@ -134,15 +128,6 @@ class PublisherBuilder:
         # Workbook fallback.
         #
 
-        if not lesson_markdown:
-            return ""
-
-
-        return (
-            "<pre>\n"
-            + html.escape(lesson_markdown)
-            + "\n</pre>"
-        )
         if not embed_url:
 
             embed_url = self._text(
