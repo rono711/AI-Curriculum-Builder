@@ -54,3 +54,6 @@ google/n8n_credentials_web.json
 *_credentials*.json
 *.pre-py312
 *.pre-py312
+
+# Runtime build counter
+lesson_package_builder/build_number.txt
