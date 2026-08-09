@@ -640,6 +640,21 @@ class PublisherBuilder:
             )
 
         # ==================================================
+        # Update Moodle_Publish worksheet
+        # ==================================================
+
+        self.sync.update(
+            workbook,
+            lesson_package_id,
+            published
+        )
+
+        print("=" * 60)
+        print("MOODLE_PUBLISH WORKBOOK UPDATED")
+        print(lesson_package_id)
+        print("=" * 60)
+
+        # ==================================================
         # Return
         # ==================================================
 
