@@ -54,6 +54,42 @@ class PublisherBuilder:
             encoding="utf-8"
         )
 
+    @staticmethod
+    def _read_json_field(
+            path,
+            field
+    ):
+
+        path = Path(path)
+
+        if not path.exists():
+            return ""
+
+        try:
+
+            data = json.loads(
+                path.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        except (
+            OSError,
+            UnicodeDecodeError,
+            json.JSONDecodeError
+        ):
+            return ""
+
+        value = data.get(
+            field,
+            ""
+        )
+
+        if value is None:
+            return ""
+
+        return str(value).strip()
+
     # ======================================================
     # Lesson Content
     # ======================================================
@@ -76,7 +112,22 @@ class PublisherBuilder:
         )
 
         if not lesson_markdown:
+
+            lesson_json = (
+                Path(build_root)
+                / "Content"
+                / build_name
+                / "lesson_output.json"
+            )
+
+            lesson_markdown = self._read_json_field(
+                lesson_json,
+                "markdown"
+            )
+
+        if not lesson_markdown:
             return ""
+
 
         #
         # Preserve the existing Publisher behaviour for the
@@ -113,6 +164,9 @@ class PublisherBuilder:
 
         embed_url = ""
 
+        #
+        # Prefer the generated Gamma URL file.
+        #
         if urls_file.exists():
 
             data = json.loads(
@@ -124,10 +178,10 @@ class PublisherBuilder:
             embed_url = self._text(
                 data.get("gamma_embed_url")
             )
-        #
-        # Workbook fallback.
-        #
 
+        #
+        # Workbook URL fallback.
+        #
         if not embed_url:
 
             embed_url = self._text(
@@ -135,8 +189,7 @@ class PublisherBuilder:
             )
 
         #
-        # If the workbook already contains complete embed HTML,
-        # use it as a second fallback.
+        # Complete embed HTML fallback.
         #
         if not embed_url:
 
@@ -189,9 +242,31 @@ class PublisherBuilder:
         if content:
             return content
 
-        return self._text(
+        activities_json = (
+            Path(build_root)
+            / "Activities"
+            / build_name
+            / "activities.json"
+        )
+
+        content = self._read_json_field(
+            activities_json,
+            "html"
+        )
+
+        if content:
+            return content
+
+        workbook_value = self._text(
             activities.get("activities_html")
         )
+
+        if workbook_value.lower().endswith(
+                ".html"
+        ):
+            return ""
+
+        return workbook_value
 
     # ======================================================
     # Recap
@@ -218,9 +293,31 @@ class PublisherBuilder:
         if content:
             return content
 
-        return self._text(
+        recap_json = (
+            Path(build_root)
+            / "Recap"
+            / build_name
+            / "recap.json"
+        )
+
+        content = self._read_json_field(
+            recap_json,
+            "html"
+        )
+
+        if content:
+            return content
+
+        workbook_value = self._text(
             recap.get("recap_html")
         )
+
+        if workbook_value.lower().endswith(
+                ".html"
+        ):
+            return ""
+
+        return workbook_value
 
     # ======================================================
     # Quiz Content
@@ -260,9 +357,25 @@ class PublisherBuilder:
             / gift_filename
         )
 
-        return self._read_text_file(
+        gift_content = self._read_text_file(
             gift_file
         )
+
+        if gift_content:
+            return gift_content
+
+        gift_json = (
+            Path(build_root)
+            / "Quiz"
+            / build_name
+            / "lesson_quiz.json"
+        )
+
+        return self._read_json_field(
+            gift_json,
+            "gift"
+        )
+
     # ======================================================
     # Moodle Course Mapping
     # ======================================================
