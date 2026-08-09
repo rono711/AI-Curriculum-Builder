@@ -113,6 +113,10 @@ def write_moodle_publish(
 
                 "PENDING",
 
+            "needs_sync":
+
+                 "YES",
+
             "payload_hash":
 
                 "",
@@ -121,7 +125,7 @@ def write_moodle_publish(
 
                 "",
 
-            "last_sync":
+            "last_synced":
 
                 ""
 
