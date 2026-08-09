@@ -11,8 +11,18 @@ def header_map(sheet):
 
     for cell in sheet[1]:
 
-        if cell.value:
-            headers[str(cell.value).strip()] = cell.column
+        if not cell.value:
+            continue
+
+        key = (
+            str(cell.value)
+            .strip()
+            .lower()
+            .replace(" ", "_")
+            .replace("-", "_")
+        )
+
+        headers[key] = cell.column
 
     return headers
 
