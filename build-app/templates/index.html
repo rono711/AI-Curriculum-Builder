@@ -228,6 +228,197 @@
 
         }
 
+		        /* ==================================================
+           Elaboration Build Status
+        ================================================== */
+
+        .lesson-published {
+
+            padding: 14px;
+
+            margin-bottom: 12px;
+
+            background: #f3f5f8;
+
+            border: 1px solid #d7dde5;
+
+            border-left: 5px solid #14853b;
+
+            border-radius: 8px;
+
+        }
+
+        .lesson-available {
+
+            padding: 10px;
+
+            margin-bottom: 10px;
+
+        }
+
+        .published-status {
+
+            display: block;
+
+            margin-top: 8px;
+
+            margin-left: 28px;
+
+            color: #14853b;
+
+            font-size: 15px;
+
+            font-weight: bold;
+
+        }
+
+        .update-elaboration {
+
+            width: auto;
+
+            margin-top: 10px;
+
+            margin-left: 28px;
+
+            padding: 8px 14px;
+
+            background: #003366;
+
+            color: white;
+
+            border: none;
+
+            border-radius: 6px;
+
+            font-size: 14px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+        }
+
+        .update-elaboration:hover {
+
+            background: #002244;
+
+        }
+
+		        /* ======================================================
+           Selective Update Modal
+        ====================================================== */
+
+        .update-modal-overlay {
+
+            display: none;
+
+            position: fixed;
+
+            inset: 0;
+
+            background: rgba(0, 0, 0, 0.55);
+
+            z-index: 10000;
+
+            align-items: center;
+
+            justify-content: center;
+
+        }
+
+        .update-modal {
+
+            width: 520px;
+
+            max-width: calc(100% - 40px);
+
+            background: white;
+
+            border-radius: 14px;
+
+            padding: 28px;
+
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.25);
+
+        }
+
+        .update-modal h3 {
+
+            margin-top: 0;
+
+            color: #003366;
+
+        }
+
+        .update-modal-subtitle {
+
+            margin-bottom: 20px;
+
+            color: #555;
+
+        }
+
+        .update-option {
+
+            display: block;
+
+            padding: 10px 0;
+
+            font-size: 16px;
+
+        }
+
+        .update-option input {
+
+            margin-right: 10px;
+
+        }
+
+        .update-option-disabled {
+
+            color: #888;
+
+        }
+
+        .update-modal-actions {
+
+            display: flex;
+
+            justify-content: flex-end;
+
+            gap: 12px;
+
+            margin-top: 24px;
+
+        }
+
+        .update-modal-actions button {
+
+            width: auto;
+
+            padding: 10px 18px;
+
+        }
+
+        .update-cancel {
+
+            background: #777;
+
+        }
+
+        .update-submit {
+
+            background: #003366;
+
+        }
+
+        .lesson input:disabled {
+
+            cursor: not-allowed;
+
+        }
+
         .lesson label {
 
             margin: 0;
@@ -629,6 +820,110 @@
             </button>
 
         </form>
+		<div
+    id="updateModalOverlay"
+    class="update-modal-overlay">
+
+    <div class="update-modal">
+
+        <h3 id="updateModalTitle">
+            Update / Rebuild Lesson
+        </h3>
+
+        <div
+            id="updateModalSubtitle"
+            class="update-modal-subtitle">
+        </div>
+
+        <p>
+            Select what you want to regenerate:
+        </p>
+
+        <label class="update-option">
+            <input
+                type="checkbox"
+                class="update-component"
+                value="lesson_content">
+
+            Lesson Content / Mission
+        </label>
+
+        <label class="update-option">
+            <input
+                type="checkbox"
+                class="update-component"
+                value="slides">
+
+            Slides / Did You Know
+        </label>
+
+        <label class="update-option">
+            <input
+                type="checkbox"
+                class="update-component"
+                value="activities">
+
+            Activities / Let's Do It
+        </label>
+
+        <label class="update-option">
+            <input
+                type="checkbox"
+                class="update-component"
+                value="recap">
+
+            Recap / What We Discovered
+        </label>
+
+        <label
+            class="update-option update-option-disabled">
+
+            <input
+                type="checkbox"
+                disabled>
+
+            Quiz / Checking Your Thinking
+            — coming later
+
+        </label>
+
+        <hr>
+
+        <label class="update-option">
+
+            <input
+                type="checkbox"
+                id="updateSelectAll">
+
+            Select all available components
+
+        </label>
+
+        <div class="update-modal-actions">
+
+            <button
+                type="button"
+                id="updateCancelButton"
+                class="update-cancel">
+
+                Cancel
+
+            </button>
+
+            <button
+                type="button"
+                id="updateSubmitButton"
+                class="update-submit">
+
+                Generate Selected Update
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
 
         <div id="status"></div>
 
@@ -1246,6 +1541,7 @@
 
     }
 
+
     /* ==========================================================
        Lessons
     ========================================================== */
@@ -1253,71 +1549,120 @@
     async function loadLessons() {
 
         const parentCode =
-
-            document.getElementById(
-                "topic"
-            ).value;
+            document.getElementById("topic").value;
 
         if (!parentCode) {
-
-            clearLessons();
-
             return;
-
         }
 
         const container =
-
-            document.getElementById(
-                "lessons"
-            );
+            document.getElementById("lessons");
 
         container.innerHTML =
+            "<div>Loading Lessons...</div>";
 
-            "<div class='lesson'>Loading Lessons...</div>";
+        const response = await fetch(
+
+            API_BASE +
+
+            "/lessons?parent_code=" +
+
+            encodeURIComponent(parentCode)
+
+        );
 
         const lessons =
-
-            await fetchJSON(
-                API_BASE +
-
-                "/lessons?parent_code=" +
-
-                encodeURIComponent(
-                    parentCode
-                )
-            );
+            await response.json();
 
         container.innerHTML = "";
 
         lessons.forEach(lesson => {
 
             const div =
-
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             div.className = "lesson";
 
-            div.innerHTML = `
+
+            /*
+             * =============================================
+             * Previously Published Elaboration
+             * =============================================
+             */
+
+            if (lesson.already_built) {
+
+                div.classList.add(
+                    "lesson-published"
+                );
+
+                div.innerHTML = `
 
 <label>
 
 <input
-
-type="checkbox"
-
-value="${lesson.lesson_number}"
-
-data-topic="${lesson.topic_id}"
-
->
+    type="checkbox"
+    value="${lesson.lesson_number}"
+    data-topic="${lesson.topic_id}"
+    disabled>
 
 <strong>
-
 Lesson ${lesson.lesson_number}
+</strong>
 
+<br>
+
+${lesson.lesson}
+
+</label>
+
+<span class="published-status">
+
+✓ Already Published — Build ${lesson.previous_build_id}
+
+</span>
+
+<button
+    type="button"
+    class="update-elaboration"
+    data-lesson-number="${lesson.lesson_number}"
+    data-topic="${lesson.topic_id}"
+    data-elaboration-key="${lesson.elaboration_key}"
+    data-previous-build-id="${lesson.previous_build_id}"
+    data-previous-package-id="${lesson.previous_lesson_package_id}">
+
+Update / Rebuild
+
+</button>
+
+`;
+
+            }
+
+
+            /*
+             * =============================================
+             * New / Available Elaboration
+             * =============================================
+             */
+
+            else {
+
+                div.classList.add(
+                    "lesson-available"
+                );
+
+                div.innerHTML = `
+
+<label>
+
+<input
+    type="checkbox"
+    value="${lesson.lesson_number}"
+    data-topic="${lesson.topic_id}">
+
+<strong>
+Lesson ${lesson.lesson_number}
 </strong>
 
 <br>
@@ -1328,11 +1673,20 @@ ${lesson.lesson}
 
 `;
 
+            }
+
             container.appendChild(div);
 
         });
 
     }
+    /* ==========================================================
+       Lessons
+    ========================================================== */
+
+    
+
+
 
 
     /* ==========================================================
@@ -1344,7 +1698,7 @@ ${lesson.lesson}
         document
 
             .querySelectorAll(
-                "#lessons input[type=checkbox]"
+                "#lessons input[type=checkbox]:checked:not(:disabled)"
             )
 
             .forEach(
@@ -1570,7 +1924,7 @@ ${lesson.lesson}
         const checked =
 
             document.querySelectorAll(
-                "#lessons input:checked"
+                "#lessons input[type=checkbox]:not(:disabled)"
             );
 
         if (checked.length === 0) {
@@ -1815,9 +2169,404 @@ ${lesson.lesson}
         }
 
     }
+    /* =====================================================
+       Selective Update / Rebuild Existing Elaboration
+    ===================================================== */
+
+    let selectedUpdateLesson = null;
 
 
-    /* ==========================================================
+
+       function closeUpdateModal(clearSelection = true) {
+
+        const overlay =
+            document.getElementById(
+                "updateModalOverlay"
+            );
+
+        overlay.style.display = "none";
+
+        if (clearSelection) {
+    selectedUpdateLesson = null;
+    }
+
+        document
+            .querySelectorAll(
+                ".update-component"
+            )
+            .forEach(
+                checkbox => {
+                    checkbox.checked = false;
+                }
+            );
+
+        document.getElementById(
+            "updateSelectAll"
+        ).checked = false;
+
+    }
+
+
+    document
+        .getElementById("lessons")
+        .addEventListener(
+            "click",
+
+            function (event) {
+
+                const button =
+                    event.target.closest(
+                        ".update-elaboration"
+                    );
+
+                if (!button) {
+                    return;
+                }
+
+                selectedUpdateLesson = {
+
+                    lessonNumber:
+                        parseInt(
+                            button.dataset.lessonNumber
+                        ),
+
+                    topicId:
+                        button.dataset.topic,
+
+                    elaborationKey:
+                        button.dataset.elaborationKey,
+
+                    previousBuildId:
+                        button.dataset.previousBuildId,
+
+                    previousPackageId:
+                        button.dataset.previousPackageId
+
+                };
+
+                document.getElementById(
+                    "updateModalTitle"
+                ).textContent =
+                    "Update / Rebuild Lesson "
+                    + selectedUpdateLesson.lessonNumber;
+
+                document.getElementById(
+                    "updateModalSubtitle"
+                ).textContent =
+                    "Previously published in Build "
+                    + selectedUpdateLesson.previousBuildId
+                    + ".";
+
+                document
+                    .querySelectorAll(
+                        ".update-component"
+                    )
+                    .forEach(
+                        checkbox => {
+                            checkbox.checked = false;
+                        }
+                    );
+
+                document.getElementById(
+                    "updateSelectAll"
+                ).checked = false;
+
+                document.getElementById(
+                    "updateModalOverlay"
+                ).style.display = "flex";
+
+            }
+        );
+
+
+    /* =====================================================
+       Select All Update Components
+    ===================================================== */
+
+    document
+        .getElementById(
+            "updateSelectAll"
+        )
+        .addEventListener(
+            "change",
+
+            function () {
+
+                const checked =
+                    this.checked;
+
+                document
+                    .querySelectorAll(
+                        ".update-component:not(:disabled)"
+                    )
+                    .forEach(
+                        checkbox => {
+                            checkbox.checked = checked;
+                        }
+                    );
+
+            }
+        );
+
+
+    /* =====================================================
+       Keep Select All State Synchronized
+    ===================================================== */
+
+    document
+        .querySelectorAll(
+            ".update-component"
+        )
+        .forEach(
+            checkbox => {
+
+                checkbox.addEventListener(
+                    "change",
+
+                    function () {
+
+                        const available =
+                            Array.from(
+                                document.querySelectorAll(
+                                    ".update-component:not(:disabled)"
+                                )
+                            );
+
+                        document.getElementById(
+                            "updateSelectAll"
+                        ).checked =
+                            available.length > 0
+                            &&
+                            available.every(
+                                item => item.checked
+                            );
+
+                    }
+                );
+
+            }
+        );
+
+
+    /* =====================================================
+       Cancel Selective Update
+    ===================================================== */
+
+    document
+        .getElementById(
+            "updateCancelButton"
+        )
+        .addEventListener(
+            "click",
+            closeUpdateModal
+        );
+
+
+    /* =====================================================
+       Submit Selective Update
+    ===================================================== */
+
+    document
+        .getElementById(
+            "updateSubmitButton"
+        )
+        .addEventListener(
+            "click",
+
+            async function () {
+
+                if (!selectedUpdateLesson) {
+
+                    alert(
+                        "No lesson has been selected "
+                        + "for update."
+                    );
+
+                    return;
+                }
+
+                const components =
+                    Array.from(
+                        document.querySelectorAll(
+                            ".update-component:checked"
+                        )
+                    ).map(
+                        checkbox => checkbox.value
+                    );
+
+                if (components.length === 0) {
+
+                    alert(
+                        "Please select at least one "
+                        + "component to update."
+                    );
+
+                    return;
+                }
+
+                const payload = {
+
+                    requested_by:
+                        document.getElementById(
+                            "requested_by"
+                        ).value,
+
+                    learning_area:
+                        document.getElementById(
+                            "learning_area"
+                        ).value,
+
+                    subject:
+                        document.getElementById(
+                            "subject"
+                        ).value,
+
+                    year_level:
+                        document.getElementById(
+                            "year_level"
+                        ).value,
+
+                    strand:
+                        document.getElementById(
+                            "strand"
+                        ).value,
+
+                    sub_strand:
+                        document.getElementById(
+                            "sub_strand"
+                        ).value,
+
+                    parent_code:
+                        document.getElementById(
+                            "topic"
+                        ).value,
+
+                    topic_id:
+                        selectedUpdateLesson.topicId,
+
+                    lesson_numbers: [
+                        selectedUpdateLesson.lessonNumber
+                    ],
+
+                    build_mode:
+                        "UPDATE",
+
+                    update_components:
+                        components
+
+                };
+
+                const updateButton = this;
+
+                updateButton.disabled = true;
+
+                closeUpdateModal(false);
+ 
+                showProgress(
+                    "Preparing selected update...",
+                    15
+                );
+
+                try {
+
+                    showProgress(
+                        "Generating selected components...",
+                        35
+                    );
+
+                    const response =
+                        await fetch(
+                            "/api/build",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        payload
+                                    )
+                            }
+                        );
+
+                    showProgress(
+                        "Processing selected update...",
+                        70
+                    );
+
+                    const result =
+                        await response.json();
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            result.detail
+                            ||
+                            JSON.stringify(
+                                result
+                            )
+                        );
+
+                    }
+
+                    hideProgress();
+
+                    showStatus(
+                        `
+                        <h3>
+                        Selective Update Generated
+                        </h3>
+
+                        <p>
+                        The selected lesson components
+                        were regenerated successfully.
+                        </p>
+
+                        <p>
+                        Moodle publishing is currently
+                        protected while the in-place
+                        updater is being completed.
+                        </p>
+                        `,
+                        true
+                    );
+
+                }
+
+                catch (err) {
+
+                    hideProgress();
+
+                    console.error(err);
+
+                    showStatus(
+                        `
+                        <h3>
+                        Update Generation Stopped
+                        </h3>
+
+                        <p>
+                        ${err.message}
+                        </p>
+                        `,
+                        false
+                    );
+
+                }
+
+                finally {
+
+                    updateButton.disabled = false;
+
+                }
+
+            }
+        );
+    
+	/* ==========================================================
        Build Button
     ========================================================== */
 

@@ -171,6 +171,27 @@ class page_service {
         $moduleinfo->groupingid = 0;
         $moduleinfo->completion = 0;
 
+		        /*
+         * Temporary diagnostics for Moodle module creation.
+         * Do not log full HTML content.
+         */
+        debugging(
+            'RONO PAGE CREATE: ' .
+            'name_type=' . gettype($moduleinfo->name) .
+            ', intro_type=' . gettype($moduleinfo->intro) .
+            ', content_type=' . gettype($moduleinfo->content) .
+            ', section_type=' . gettype($moduleinfo->section) .
+            ', name=' . (string)$moduleinfo->name,
+            DEBUG_DEVELOPER
+		);
+
+		debugging(
+            'RONO LABEL CREATE: ' .
+            'name_type=' . gettype($moduleinfo->name) .
+            ', intro_type=' . gettype($moduleinfo->intro) .
+            ', section_type=' . gettype($moduleinfo->section),
+            DEBUG_DEVELOPER
+        );
         $created = add_moduleinfo(
             $moduleinfo,
             $course
@@ -185,10 +206,7 @@ class page_service {
             );
         }
 
-        rebuild_course_cache(
-            $course->id,
-            true
-        );
+
 
         return $DB->get_record(
             'course_modules',
@@ -329,10 +347,7 @@ class page_service {
             );
         }
 
-        rebuild_course_cache(
-            $course->id,
-            true
-        );
+        
 
         return $DB->get_record(
             'course_modules',
@@ -341,4 +356,251 @@ class page_service {
             MUST_EXIST
         );
     }
-}
+
+    /**
+     * Update an existing Moodle Page activity in place.
+     *
+     * Safety rules:
+     * - The supplied CMID must exist.
+     * - It must belong to the supplied course.
+     * - It must be a Page module.
+     * - The existing Page instance is updated.
+     * - No new course_modules record is created.
+     *
+     * @param int $courseid Moodle course ID.
+     * @param int $cmid Existing Moodle course-module ID.
+     * @param string $content Replacement Page HTML.
+     * @param string|null $description Optional replacement description.
+     * @return stdClass Existing course module record.
+	 */
+
+	    /**
+     * Update an existing Moodle Page activity in place.
+     *
+     * Safety:
+     * - Exact CMID is required.
+     * - CMID must belong to the supplied course.
+     * - CMID must be mod_page.
+     * - Existing Page instance is updated.
+     * - No new course module is created.
+     *
+     * @param int $courseid Moodle course ID.
+     * @param int $cmid Existing Page course-module ID.
+     * @param string $content Replacement Page HTML.
+     * @param string|null $description Optional replacement description.
+     * @return stdClass Existing course module.
+     */
+    public function update_page(
+        int $courseid,
+        int $cmid,
+        string $content,
+        ?string $description = null
+    ): stdClass {
+        global $CFG, $DB;
+
+        require_once(
+            $CFG->dirroot . '/course/modlib.php'
+        );
+
+        if ($courseid <= 0) {
+            throw new moodle_exception(
+                'Invalid Moodle course ID.'
+            );
+        }
+
+        if ($cmid <= 0) {
+            throw new moodle_exception(
+                'Invalid Moodle course module ID.'
+            );
+        }
+
+        /*
+         * Exact target course.
+         */
+        $course = $DB->get_record(
+            'course',
+            [
+                'id' => $courseid,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        /*
+         * Exact target course module.
+         *
+         * Requiring both id and course prevents a CMID
+         * belonging to another course being updated.
+         */
+        $cm = $DB->get_record(
+            'course_modules',
+            [
+                'id' => $cmid,
+                'course' => $course->id,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        /*
+         * Verify target is really mod_page.
+         */
+        $module = $DB->get_record(
+            'modules',
+            [
+                'id' => $cm->module,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        if ($module->name !== 'page') {
+            throw new moodle_exception(
+                'Target course module is not a Moodle Page.'
+            );
+        }
+
+        /*
+         * Verify the underlying Page instance exists and
+         * belongs to the same course.
+         */
+        $page = $DB->get_record(
+            'page',
+            [
+                'id' => $cm->instance,
+                'course' => $course->id,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        /*
+         * Ask Moodle to prepare the complete existing module
+         * information required by update_moduleinfo().
+         *
+         * This preserves settings that our publisher should
+         * not invent or reset.
+         */
+        [
+            $existingcm,
+            $context,
+            $existingmodule,
+            $moduleinfo,
+            $section
+        ] = get_moduleinfo_data(
+            $cm,
+            $course
+        );
+
+        /*
+         * Defensive identity checks.
+         */
+        if ((int)$existingcm->id !== $cmid) {
+            throw new moodle_exception(
+                'Moodle returned an unexpected course module.'
+            );
+        }
+
+        if ($existingmodule->name !== 'page') {
+            throw new moodle_exception(
+                'Validated Moodle module is not a Page.'
+            );
+        }
+
+        /*
+         * Preserve the existing Page name.
+         */
+        $moduleinfo->name =
+            $page->name;
+
+        /*
+         * Replace the Page body.
+         */
+        $moduleinfo->content =
+            $content;
+
+        $moduleinfo->contentformat =
+            FORMAT_HTML;
+
+        /*
+         * Preserve the existing description unless a
+         * replacement description was explicitly supplied.
+         *
+         * Moodle's update_moduleinfo() expects introeditor
+         * for modules supporting FEATURE_MOD_INTRO.
+         */
+        if ($description !== null) {
+
+            if (
+                isset($moduleinfo->introeditor) &&
+                is_array($moduleinfo->introeditor)
+            ) {
+                $moduleinfo->introeditor['text'] =
+                    $description;
+
+                $moduleinfo->introeditor['format'] =
+                    FORMAT_HTML;
+            }
+
+            $moduleinfo->intro =
+                $description;
+
+            $moduleinfo->introformat =
+                FORMAT_HTML;
+        }
+
+        /*
+         * Critical identity fields.
+         */
+        $moduleinfo->coursemodule =
+            $cmid;
+
+        $moduleinfo->instance =
+            $page->id;
+
+        $moduleinfo->course =
+            $course->id;
+
+        $moduleinfo->module =
+            $module->id;
+
+        $moduleinfo->modulename =
+            'page';
+
+        /*
+         * Moodle 5.2 signature:
+         *
+         * update_moduleinfo(
+         *     $cm,
+         *     $moduleinfo,
+         *     $course,
+         *     $mform = null
+         * )
+         *
+         * This updates the existing activity.
+         * It does NOT call add_moduleinfo().
+         */
+        update_moduleinfo(
+            $cm,
+            $moduleinfo,
+            $course
+        );
+
+        /*
+         * Verify that the original CMID still exists and
+         * still points to the same Page instance.
+         */
+        $updatedcm = $DB->get_record(
+            'course_modules',
+            [
+                'id' => $cmid,
+                'course' => $course->id,
+                'instance' => $page->id,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        return $updatedcm;
+	}
+	}

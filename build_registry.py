@@ -114,7 +114,68 @@ def initialize_registry():
             )
             """
         )
+                # ==================================================
+        # Non-destructive Registry Schema Migration
+        # ==================================================
 
+        existing_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(elaboration_builds)"
+            ).fetchall()
+        }
+
+        additional_columns = {
+
+            # Moodle structure identity.
+
+            "moodle_subsection_cmid":
+                "INTEGER",
+
+            "moodle_subsection_section_id":
+                "INTEGER",
+
+            "moodle_content_description_cmid":
+                "INTEGER",
+
+            # Lesson component identity.
+
+            "moodle_lesson_content_cmid":
+                "INTEGER",
+
+            "moodle_did_you_know_cmid":
+                "INTEGER",
+
+            "moodle_quiz_id":
+                "INTEGER",
+
+            "moodle_quiz_cmid":
+                "INTEGER",
+
+            "moodle_activities_cmid":
+                "INTEGER",
+
+            "moodle_recap_cmid":
+                "INTEGER",
+
+            # Selective UPDATE history.
+
+            "update_components":
+                "TEXT"
+
+        }
+
+        for column_name, column_type in additional_columns.items():
+
+            if column_name in existing_columns:
+                continue
+
+            connection.execute(
+                f"""
+                ALTER TABLE elaboration_builds
+                ADD COLUMN {column_name} {column_type}
+                """
+            )
         connection.commit()
 
 
@@ -239,11 +300,23 @@ def start_build(
         elaboration,
         build_id,
         lesson_package_id,
-        build_mode="NEW"
+        build_mode="NEW",
+        update_components=None
 ):
 
     initialize_registry()
 
+    if update_components:
+
+        update_components_value = ",".join(
+            str(component).strip().lower()
+            for component in update_components
+            if str(component).strip()
+        )
+
+    else:
+
+        update_components_value = None
     now = datetime.now(
         timezone.utc
     ).isoformat()
@@ -255,29 +328,21 @@ def start_build(
             INSERT INTO elaboration_builds (
 
                 elaboration_key,
-
                 learning_area,
                 subject,
                 year_level,
-
                 strand,
                 sub_strand,
-
                 parent_code,
                 topic_id,
-
                 curriculum_code,
-
                 content_description,
                 elaboration,
-
                 build_id,
                 lesson_package_id,
-
                 build_mode,
-
+                update_components,
                 status,
-
                 created_at,
                 updated_at
 
@@ -285,7 +350,7 @@ def start_build(
 
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """,
             (
@@ -311,6 +376,8 @@ def start_build(
 
                 str(build_mode).upper(),
 
+                update_components_value,
+
                 "BUILDING",
 
                 now,
@@ -331,8 +398,20 @@ def update_status(
         record_id,
         status,
         moodle_course_id=None,
-        moodle_section_id=None
+        moodle_section_id=None,
+        moodle_subsection_cmid=None,
+        moodle_subsection_section_id=None,
+        moodle_content_description_cmid=None,
+        moodle_lesson_content_cmid=None,
+        moodle_did_you_know_cmid=None,
+        moodle_quiz_id=None,
+        moodle_quiz_cmid=None,
+        moodle_activities_cmid=None,
+        moodle_recap_cmid=None,
+        update_components=None
 ):
+
+    initialize_registry()
 
     now = datetime.now(
         timezone.utc
@@ -345,16 +424,58 @@ def update_status(
             UPDATE elaboration_builds
 
             SET status = ?,
+
                 moodle_course_id =
-                    COALESCE(
-                        ?,
-                        moodle_course_id
-                    ),
+                    COALESCE(?, moodle_course_id),
+
                 moodle_section_id =
+                    COALESCE(?, moodle_section_id),
+
+                moodle_subsection_cmid =
+                    COALESCE(?, moodle_subsection_cmid),
+
+                moodle_subsection_section_id =
                     COALESCE(
                         ?,
-                        moodle_section_id
+                        moodle_subsection_section_id
                     ),
+
+                moodle_content_description_cmid =
+                    COALESCE(
+                        ?,
+                        moodle_content_description_cmid
+                    ),
+
+                moodle_lesson_content_cmid =
+                    COALESCE(
+                        ?,
+                        moodle_lesson_content_cmid
+                    ),
+
+                moodle_did_you_know_cmid =
+                    COALESCE(
+                        ?,
+                        moodle_did_you_know_cmid
+                    ),
+
+                moodle_quiz_id =
+                    COALESCE(?, moodle_quiz_id),
+
+                moodle_quiz_cmid =
+                    COALESCE(?, moodle_quiz_cmid),
+
+                moodle_activities_cmid =
+                    COALESCE(
+                        ?,
+                        moodle_activities_cmid
+                    ),
+
+                moodle_recap_cmid =
+                    COALESCE(?, moodle_recap_cmid),
+
+                update_components =
+                    COALESCE(?, update_components),
+
                 updated_at = ?
 
             WHERE id = ?
@@ -363,18 +484,24 @@ def update_status(
                 str(status).upper(),
 
                 moodle_course_id,
-
                 moodle_section_id,
+                moodle_subsection_cmid,
+                moodle_subsection_section_id,
+                moodle_content_description_cmid,
+                moodle_lesson_content_cmid,
+                moodle_did_you_know_cmid,
+                moodle_quiz_id,
+                moodle_quiz_cmid,
+                moodle_activities_cmid,
+                moodle_recap_cmid,
+                update_components,
 
                 now,
-
                 record_id
             )
         )
 
         connection.commit()
-
-
 # ==========================================================
 # Mark Published
 # ==========================================================
@@ -382,14 +509,55 @@ def update_status(
 def mark_published(
         record_id,
         moodle_course_id=None,
-        moodle_section_id=None
+        moodle_section_id=None,
+        moodle_subsection_cmid=None,
+        moodle_subsection_section_id=None,
+        moodle_content_description_cmid=None,
+        moodle_lesson_content_cmid=None,
+        moodle_did_you_know_cmid=None,
+        moodle_quiz_id=None,
+        moodle_quiz_cmid=None,
+        moodle_activities_cmid=None,
+        moodle_recap_cmid=None,
+        update_components=None
 ):
 
     update_status(
-        record_id,
-        "PUBLISHED",
-        moodle_course_id,
-        moodle_section_id
+        record_id=record_id,
+        status="PUBLISHED",
+
+        moodle_course_id=moodle_course_id,
+        moodle_section_id=moodle_section_id,
+
+        moodle_subsection_cmid=
+            moodle_subsection_cmid,
+
+        moodle_subsection_section_id=
+            moodle_subsection_section_id,
+
+        moodle_content_description_cmid=
+            moodle_content_description_cmid,
+
+        moodle_lesson_content_cmid=
+            moodle_lesson_content_cmid,
+
+        moodle_did_you_know_cmid=
+            moodle_did_you_know_cmid,
+
+        moodle_quiz_id=
+            moodle_quiz_id,
+
+        moodle_quiz_cmid=
+            moodle_quiz_cmid,
+
+        moodle_activities_cmid=
+            moodle_activities_cmid,
+
+        moodle_recap_cmid=
+            moodle_recap_cmid,
+
+        update_components=
+            update_components
     )
 
 
@@ -404,6 +572,21 @@ def mark_failed(record_id):
         "FAILED"
     )
 
+
+# ==========================================================
+# Mark Update Ready
+# ==========================================================
+
+def mark_update_ready(
+        record_id,
+        update_components=None
+):
+
+    update_status(
+        record_id=record_id,
+        status="UPDATE_READY",
+        update_components=update_components
+    )
 
 # ==========================================================
 # Build History

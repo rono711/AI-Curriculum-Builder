@@ -1,12 +1,25 @@
 from pathlib import Path
+import sys
 
 import requests
 from openpyxl import load_workbook
 
+
+
+# ==========================================================
+# Shared Project Modules
+# ==========================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+
 from build_registry import (
     start_build,
     mark_published,
-
+    mark_update_ready
 )
 from config import (
     PROMPT_ENGINE_URL,
@@ -181,7 +194,15 @@ class PipelineBuilder:
 
                 lesson_package_id=lesson_package_id,
 
-                build_mode="NEW"
+                build_mode=lesson.get(
+                    "build_mode",
+                    "NEW"
+                ),
+
+                update_components=lesson.get(
+                    "update_components",
+                    []
+                )
 
             )
 
@@ -191,20 +212,114 @@ class PipelineBuilder:
                 "STATUS: BUILDING"
             )
 
-            prompt_sequence = [
+            # ==================================================
+            # Build Mode / Selective UPDATE
+            # ==================================================
 
-                "LESSON_CONTENT",
-                "DISPLAY_TITLE",
-                "MISSION",
-                "GAMMA_SLIDES",
-                "DID_YOU_KNOW",
-                "QUIZ",
-                "CHECKING_YOUR_THINKING",
-                "ACTIVITIES",
-                "LETS_DO_IT",
-                "RECAP",
-                "WHAT_WE_DISCOVERED"
-            ]
+            build_mode = str(
+                lesson.get(
+                    "build_mode",
+                    "NEW"
+                )
+            ).strip().upper()
+
+            update_components = (
+                lesson.get(
+                    "update_components",
+                    []
+                )
+                or []
+            )
+
+            print("=" * 60)
+            print("PIPELINE EXECUTION MODE")
+            print("Build Mode:", build_mode)
+            print(
+                "Update Components:",
+                update_components
+                or "ALL - NEW BUILD"
+            )
+            print("=" * 60)
+
+            # ==================================================
+            # Prompt Selection
+            # ==================================================
+
+            if build_mode == "NEW":
+
+                prompt_sequence = [
+
+                    "LESSON_CONTENT",
+                    "DISPLAY_TITLE",
+                    "MISSION",
+
+                    "GAMMA_SLIDES",
+                    "DID_YOU_KNOW",
+
+                    "QUIZ",
+                    "CHECKING_YOUR_THINKING",
+
+                    "ACTIVITIES",
+                    "LETS_DO_IT",
+
+                    "RECAP",
+                    "WHAT_WE_DISCOVERED"
+
+                ]
+
+            else:
+
+                prompt_map = {
+
+                    "lesson_content": [
+                        "LESSON_CONTENT",
+                        "DISPLAY_TITLE",
+                        "MISSION"
+                    ],
+
+                    "slides": [
+                        "GAMMA_SLIDES",
+                        "DID_YOU_KNOW"
+                    ],
+
+                    "quiz": [
+                        "QUIZ",
+                        "CHECKING_YOUR_THINKING"
+                    ],
+
+                    "activities": [
+                        "ACTIVITIES",
+                        "LETS_DO_IT"
+                    ],
+
+                    "recap": [
+                        "RECAP",
+                        "WHAT_WE_DISCOVERED"
+                    ]
+
+                }
+
+                prompt_sequence = []
+
+                for component in update_components:
+
+                    prompt_sequence.extend(
+                        prompt_map.get(
+                            component,
+                            []
+                        )
+                    )
+
+                prompt_sequence = list(
+                    dict.fromkeys(
+                        prompt_sequence
+                    )
+                )
+
+            print(
+                "Prompt Sequence:",
+                prompt_sequence
+            )
 
             prompt_results = []
 
@@ -240,20 +355,88 @@ class PipelineBuilder:
                 prompt_results.append(result)
 
             print("=" * 60)
-            print("PROMPT COMPLETE")
-            print(prompt_type)
+            print("PROMPT GENERATION COMPLETE")
+            print(
+                "Prompts Executed:",
+                prompt_sequence
+            )
             print("=" * 60)
-
             engine_build_root = str(build["path"].parent.parent)
             engine_build_name = build["path"].stem
 
-            engines = [
-                ("Gamma", GAMMA_ENGINE_URL),
-                ("Quiz", QUIZ_ENGINE_URL),
-                ("Activities", ACTIVITIES_ENGINE_URL),
-                ("Recap", RECAP_ENGINE_URL),
-            ]
+            if build_mode == "NEW":
 
+                engines = [
+
+                    (
+                        "Gamma",
+                        GAMMA_ENGINE_URL
+                    ),
+
+                    (
+                        "Quiz",
+                        QUIZ_ENGINE_URL
+                    ),
+
+                    (
+                        "Activities",
+                        ACTIVITIES_ENGINE_URL
+                    ),
+
+                    (
+                        "Recap",
+                        RECAP_ENGINE_URL
+                    )
+
+                ]
+
+            else:
+
+                engine_map = {
+
+                    "slides": (
+                        "Gamma",
+                        GAMMA_ENGINE_URL
+                    ),
+
+                    "quiz": (
+                        "Quiz",
+                        QUIZ_ENGINE_URL
+                    ),
+
+                    "activities": (
+                        "Activities",
+                        ACTIVITIES_ENGINE_URL
+                    ),
+
+                    "recap": (
+                        "Recap",
+                        RECAP_ENGINE_URL
+                    )
+
+                }
+
+                engines = []
+
+                for component in update_components:
+
+                    engine = engine_map.get(
+                        component
+                    )
+
+                    if engine:
+
+                        engines.append(
+                            engine
+                        )
+
+            print(
+                "Engines Selected:",
+                [
+                    name
+                    for name, url in engines
+                ]
+            )
             for engine_name, engine_url in engines:
 
                 print("=" * 60)
@@ -276,6 +459,67 @@ class PipelineBuilder:
                     print(response.text)
 
                 response.raise_for_status()
+
+
+            # ==================================================
+            # UPDATE Moodle Safety Barrier
+            # ==================================================
+            #
+            # Selective UPDATE generation is now supported,
+            # but Moodle in-place UPDATE publishing has not
+            # yet been implemented.
+            #
+            # NEVER allow UPDATE to fall through into the
+            # existing NEW publisher because that publisher
+            if build_mode == "UPDATE":
+
+                mark_update_ready(
+                    registry_record_id,
+                    update_components=",".join(
+                        update_components
+                    )
+                )
+
+                print("=" * 60)
+                print("UPDATE GENERATION COMPLETE")
+                print(
+                    "Components:",
+                    update_components
+                )
+                print(
+                    "REGISTRY RECORD:",
+                    registry_record_id,
+                    "STATUS: UPDATE_READY"
+                )
+                print(
+                    "MOODLE UPDATE PUBLISHING BLOCKED"
+                )
+                print("=" * 60)
+
+                results.append({
+                    "lesson_package_id":
+                        lesson_package_id,
+
+                    "status":
+                        "UPDATE_READY",
+
+                    "build_mode":
+                        "UPDATE",
+
+                    "update_components":
+                        update_components,
+
+                    "prompts":
+                        prompt_results,
+
+                    "publisher": {
+                        "status": "BLOCKED",
+                        "reason":
+                            "MOODLE_UPDATE_NOT_ENABLED"
+                    }
+                })
+
+                continue
             # ==================================================
             # Moodle Publication
             # ==================================================
@@ -368,7 +612,65 @@ class PipelineBuilder:
                         f"{publisher_result}"
                     )
                 mark_published(
-                    registry_record_id
+
+                    record_id=
+                        registry_record_id,
+
+                    moodle_course_id=
+                        publisher_result.get(
+                            "courseid"
+                        ),
+
+                    moodle_section_id=
+                        publisher_result.get(
+                            "strandsectionid"
+                        ),
+
+                    moodle_subsection_cmid=
+                        publisher_result.get(
+                            "subsectioncmid"
+                        ),
+
+                    moodle_subsection_section_id=
+                        publisher_result.get(
+                            "subsectionsectionid"
+                        ),
+
+                    moodle_content_description_cmid=
+                        publisher_result.get(
+                            "contentdescriptioncmid"
+                        ),
+
+                    moodle_lesson_content_cmid=
+                        publisher_result.get(
+                            "lessoncontentcmid"
+                        ),
+
+                    moodle_did_you_know_cmid=
+                        publisher_result.get(
+                            "didyouknowcmid"
+                        ),
+
+                    moodle_quiz_id=
+                        publisher_result.get(
+                            "quizid"
+                        ),
+
+                    moodle_quiz_cmid=
+                        publisher_result.get(
+                            "quizcmid"
+                        ),
+
+                    moodle_activities_cmid=
+                        publisher_result.get(
+                            "activitiescmid"
+                        ),
+
+                    moodle_recap_cmid=
+                        publisher_result.get(
+                            "recapcmid"
+                        )
+
                 )
 
                 print(
