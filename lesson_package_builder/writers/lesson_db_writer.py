@@ -4,7 +4,7 @@ from config import (
     MASTER_LESSON_DB,
     SHEET_LESSON_DB
 )
-
+from build_registry import make_elaboration_key
 # ==========================================================
 # Master Lesson DB  -> Workbook Column Mapping
 # ==========================================================
@@ -176,6 +176,23 @@ def write_lesson_db(
             f"{sequence:03d}"
 
         )
+        #
+        # Generate stable Elaboration Key
+        #
+
+        elaboration_key = make_elaboration_key(
+
+            year_level=lesson["Year Level"],
+
+            subject=lesson["Subject"],
+
+            parent_code=lesson["Parent Code"],
+
+            topic_id=lesson["Topic ID"],
+
+            elaboration=lesson["Elaboration"]
+
+        )
 
         #
         # Builder-generated values
@@ -249,6 +266,10 @@ def write_lesson_db(
             "lesson_package_id":
 
                 lesson_package_id,
+
+            "elaboration_key":
+
+                elaboration_key,
 
             #
             # Curriculum

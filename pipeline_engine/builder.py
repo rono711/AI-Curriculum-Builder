@@ -2,6 +2,12 @@ from pathlib import Path
 
 import requests
 from openpyxl import load_workbook
+
+from build_registry import (
+    start_build,
+    mark_published,
+
+)
 from config import (
     PROMPT_ENGINE_URL,
     GAMMA_ENGINE_URL,
@@ -137,11 +143,53 @@ class PipelineBuilder:
         results = []
 
         for lesson in lesson_rows:
+
             lesson_package_id = lesson["lesson_package_id"]
+
+            elaboration_key = lesson["elaboration_key"]
 
             print("=" * 60)
             print("PROCESSING", lesson_package_id)
+            print("ELABORATION KEY:", elaboration_key)
             print("=" * 60)
+
+            registry_record_id = start_build(
+
+                elaboration_key=elaboration_key,
+
+                learning_area=lesson["learning_area"],
+
+                subject=lesson["subject"],
+
+                year_level=lesson["year_level"],
+
+                strand=lesson["strand"],
+
+                sub_strand=lesson["sub_strand"],
+
+                parent_code=lesson["parent_code"],
+
+                topic_id=lesson["topic_id"],
+
+                curriculum_code=lesson["curriculum_code"],
+
+                content_description=lesson["content_description"],
+
+                elaboration=lesson["elaboration"],
+
+                build_id=lesson["build_id"],
+
+                lesson_package_id=lesson_package_id,
+
+                build_mode="NEW"
+
+            )
+
+            print(
+                "REGISTRY RECORD:",
+                registry_record_id,
+                "STATUS: BUILDING"
+            )
 
             prompt_sequence = [
 
@@ -259,6 +307,21 @@ class PipelineBuilder:
                     "status": "SKIPPED",
                     "reason": "ALREADY_PUBLISHED"
                 }
+                #
+                # Workbook confirms this lesson package
+                # was already successfully published.
+                # Synchronize the persistent registry.
+                #
+
+                mark_published(
+                    registry_record_id
+                )
+
+                print(
+                    "REGISTRY RECORD:",
+                    registry_record_id,
+                    "STATUS: PUBLISHED"
+                )
 
             else:
 
@@ -304,7 +367,15 @@ class PipelineBuilder:
                         f"{lesson_package_id}: "
                         f"{publisher_result}"
                     )
+                mark_published(
+                    registry_record_id
+                )
 
+                print(
+                    "REGISTRY RECORD:",
+                    registry_record_id,
+                    "STATUS: PUBLISHED"
+                )
             #
             # Finished
             #

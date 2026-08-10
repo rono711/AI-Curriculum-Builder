@@ -57,3 +57,6 @@ google/n8n_credentials_web.json
 
 # Runtime build counter
 lesson_package_builder/build_number.txt
+
+# Runtime elaboration build registry
+data/build_registry.db
