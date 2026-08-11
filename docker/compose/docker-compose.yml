@@ -219,6 +219,26 @@ services:
       - "8010:8010"
     restart: unless-stopped
 
+  image-engine:
+    image: curriculum-builder-py312-test
+    container_name: image-engine
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder/image_engine
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8013"
+    ports:
+      - "8013:8013"
+    restart: unless-stopped
 
   workbook-service:
     image: curriculum-builder-py312-test

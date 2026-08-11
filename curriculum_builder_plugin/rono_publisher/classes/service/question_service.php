@@ -414,11 +414,29 @@ ob_start();
                 $qformat->importprocess();
 
             if (!$success) {
+
+                $importoutput = '';
+
+                if (ob_get_level() > $originaloblevel) {
+                    $importoutput = ob_get_contents();
+                }
+
+                $importoutput = trim(
+                    strip_tags(
+                        (string)$importoutput
+                    )
+                );
+
+                if ($importoutput === '') {
+                    $importoutput =
+                        'No detailed importer output was returned.';
+                }
+
                 throw new moodle_exception(
-                    'Moodle Question Bank import failed.'
+                    'Moodle Question Bank import failed: ' .
+                    $importoutput
                 );
             }
-
             /*
              * Moodle import postprocessing.
              */

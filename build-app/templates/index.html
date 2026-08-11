@@ -2142,12 +2142,6 @@ ${lesson.lesson}
                     accepted.job_id
                 );
 
-            showProgress(
-                "Updating workbook...",
-
-                85
-            );
-
             window.buildResult = result;
 
             showProgress(
@@ -2605,18 +2599,15 @@ ${lesson.lesson}
                     showStatus(
                         `
                         <h3>
-                        Selective Update Generated
+                        Selective Update Completed
                         </h3>
 
                         <p>
-                        The selected lesson components
-                        were regenerated successfully.
-                        </p>
-
                         <p>
-                        Moodle publishing is currently
-                        protected while the in-place
-                        updater is being completed.
+                        The selected lesson components
+                        were regenerated and updated
+                        successfully in Moodle.
+                        </p>
                         </p>
                         `,
                         true

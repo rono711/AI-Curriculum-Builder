@@ -143,9 +143,36 @@ def selected_lessons(request):
 
     )
 
+
+    print("REQUEST LESSON NUMBERS:")
+    print(request.get("lesson_numbers"))
+    print(
+        "REQUEST LESSON NUMBER TYPES:",
+        [
+            type(value).__name__
+            for value in request.get(
+                "lesson_numbers",
+                []
+            )
+        ]
+    )
+
     print("=" * 60)
     print("SELECTED LESSONS")
     print("Rows:", len(df))
+    print(
+        "FILTERED TOPIC LESSON NUMBERS:",
+        df[
+            "Topic Lesson Number"
+        ].tolist()
+    )
+
+    print(
+        "FILTERED TOPIC IDS:",
+        df[
+            "Topic ID"
+        ].tolist()
+    )
     print("Columns:")
     print(df.columns.tolist())
     print(df.head())

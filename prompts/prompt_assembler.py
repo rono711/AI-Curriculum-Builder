@@ -61,6 +61,12 @@ class PromptAssembler:
 
         )
 
+        lesson_metadata = self.reader.lesson_metadata(
+           lesson_package_id
+        )
+
+        if lesson_metadata is None:
+           lesson_metadata = {}
         context = {}
 
         #
@@ -152,22 +158,26 @@ class PromptAssembler:
 
         )
 
-        context["CONTENT_DESCRIPTION"] = lesson.get(
 
+        context["CONTENT_DESCRIPTION"] = lesson_metadata.get(
             "content_description",
-
             ""
-
         )
 
-        context["ELABORATION"] = lesson.get(
+        context["STRAND"] = lesson_metadata.get(
+            "strand",
+            ""
+        )
 
+        context["SUB_STRAND"] = lesson_metadata.get(
+            "sub-strand",
+            ""
+        )
+
+        context["ELABORATION"] = lesson_metadata.get(
             "elaboration",
-
             ""
-
         )
-
         return context
 
     # ======================================================
@@ -450,6 +460,17 @@ class PromptAssembler:
                     "recap.md"
 
                 )
+            )
+        elif prompt_type == "IMAGE":
+
+            templates.append(
+
+                self.templates.image(
+
+                    "image.md"
+
+                )
+
             )
         elif prompt_type == "WHAT_WE_DISCOVERED":
 

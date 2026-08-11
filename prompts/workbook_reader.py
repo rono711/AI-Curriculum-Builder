@@ -3,6 +3,7 @@ from openpyxl import load_workbook
 from config import (
     SHEET_BUILD_METADATA,
     SHEET_LESSON_DB,
+    SHEET_LESSON_METADATA,
     SHEET_PROMPT_QUEUE
 )
 
@@ -208,6 +209,56 @@ class WorkbookReader:
                 return lesson
 
         return None
+
+    # ======================================================
+    # One Lesson Metadata
+    # ======================================================
+
+    def lesson_metadata(
+
+            self,
+
+            lesson_package_id
+
+    ):
+
+        sheet = self.workbook[
+            SHEET_LESSON_METADATA
+        ]
+
+        headers = self.header_map(
+            sheet
+        )
+
+        row = 2
+
+        while True:
+
+            current_id = sheet.cell(
+                row=row,
+                column=headers["lesson_package_id"]
+            ).value
+
+            if not current_id:
+                break
+
+            if current_id == lesson_package_id:
+
+                metadata = {}
+
+                for field, column in headers.items():
+
+                    metadata[field] = sheet.cell(
+                        row=row,
+                        column=column
+                    ).value
+
+                return metadata
+
+            row += 1
+
+        return None
+
 
     # ======================================================
     # One Prompt

@@ -44,6 +44,8 @@ SHEET_BUILD_METADATA = "Build_Metadata"
 
 SHEET_LESSON_DB = "Lesson_DB"
 
+SHEET_LESSON_METADATA = "Lesson_Metadata"
+
 SHEET_LESSON_CONTENT = "Lesson_Content"
 
 SHEET_GOOGLE_SLIDES = "Gamma_Slides"
