@@ -110,14 +110,18 @@ class publisher {
      * @param array $lesson Lesson data.
      * @return array
      */
-    public function publish_structure(
+	    public function publish_structure(
         int $courseid,
         string $strand,
         string $substrand,
         string $contentdescription,
+        string $parentcode,
+        string $contentdescriptionimagename,
+        string $contentdescriptionimage,
         array $lesson
-    ): array {
-        global $DB;
+	): array {
+
+	    global $DB;
 
         /*
          * =========================================================
@@ -149,7 +153,24 @@ class publisher {
             );
         }
 
-        if (empty($lesson['title'])) {
+		        if (trim($parentcode) === '') {
+            throw new moodle_exception(
+                'Parent curriculum code cannot be empty.'
+            );
+        }
+
+        if (trim($contentdescriptionimagename) === '') {
+            throw new moodle_exception(
+                'Content Description image filename cannot be empty.'
+            );
+        }
+
+        if (trim($contentdescriptionimage) === '') {
+            throw new moodle_exception(
+                'Content Description image cannot be empty.'
+            );
+        }
+		if (empty($lesson['title'])) {
             throw new moodle_exception(
                 'Lesson title cannot be empty.'
             );
@@ -243,7 +264,10 @@ class publisher {
                 ->find_or_create_content_description(
                     $course->id,
                     $lessonsection,
-                    $contentdescription
+                    $contentdescription,
+                    $parentcode,
+                    $contentdescriptionimagename,
+                    $contentdescriptionimage
                 );
 
         /*

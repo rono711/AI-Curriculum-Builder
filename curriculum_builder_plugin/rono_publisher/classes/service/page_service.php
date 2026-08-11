@@ -37,11 +37,15 @@ class page_service {
     public function find_or_create_content_description(
         int $courseid,
         stdClass $section,
-        string $contentdescription
+        string $contentdescription,
+        string $parentcode,
+        string $contentdescriptionimagename,
+        string $contentdescriptionimage
     ): stdClass {
         global $DB;
 
         $contentdescription = trim($contentdescription);
+        $parentcode = trim($parentcode);
 
         if ($contentdescription === '') {
             throw new moodle_exception(
@@ -49,9 +53,15 @@ class page_service {
             );
         }
 
+        if ($parentcode === '') {
+            throw new moodle_exception(
+                'Parent curriculum code cannot be empty.'
+            );
+        }
+
         /*
          * Moodle still uses the internal module name "label"
-         * for the activity presented in the UI as Text & Media.
+         * for the activity presented as Text & Media.
          */
         $labelmodule = $DB->get_record(
             'modules',
@@ -61,8 +71,11 @@ class page_service {
         );
 
         /*
-         * Look for an existing matching Text & Media activity
-         * inside this exact subsection.
+         * Look for the existing Content Description Text & Media
+         * inside this exact delegated subsection.
+         *
+         * Compare only the visible H3 text. The image and other
+         * HTML must not cause a duplicate Content Description.
          */
         $sql = "
             SELECT
@@ -87,16 +100,40 @@ class page_service {
             ]
         );
 
+        $targettext = trim(
+            strip_tags($contentdescription)
+        );
+
         foreach ($records as $record) {
+
+            $existingtext = trim(
+                strip_tags((string)$record->intro)
+            );
+
+            /*
+             * Existing records may already contain an image.
+             * Therefore compare the beginning of the visible
+             * Content Description rather than the whole HTML.
+             */
             if (
-                trim(strip_tags((string)$record->intro)) ===
-                trim(strip_tags($contentdescription))
+                $targettext !== ''
+                &&
+                mb_stripos(
+                    $existingtext,
+                    $targettext,
+                    0,
+                    'UTF-8'
+                ) === 0
             ) {
-                return $DB->get_record(
-                    'course_modules',
-                    ['id' => $record->id],
-                    '*',
-                    MUST_EXIST
+				
+				
+		return $this->update_text_and_media(
+                    $courseid,
+                    $record,
+                    $contentdescription,
+                    $parentcode,
+                    $contentdescriptionimagename,
+                    $contentdescriptionimage
                 );
             }
         }
@@ -104,9 +141,12 @@ class page_service {
         return $this->create_text_and_media(
             $courseid,
             $section,
-            $contentdescription
+            $contentdescription,
+            $parentcode,
+            $contentdescriptionimagename,
+            $contentdescriptionimage
         );
-    }
+	}
 
     /**
      * Create the curriculum Content Description as Text & Media.
@@ -119,7 +159,10 @@ class page_service {
     private function create_text_and_media(
         int $courseid,
         stdClass $section,
-        string $contentdescription
+        string $contentdescription,
+        string $parentcode,
+        string $contentdescriptionimagename,
+        string $contentdescriptionimage
     ): stdClass {
         global $CFG, $DB;
 
@@ -141,64 +184,53 @@ class page_service {
             MUST_EXIST
         );
 
+        /*
+         * Capitalise first visible character.
+         */
+        $contentdescription = $this->capitalise_first(
+            $contentdescription
+        );
+
+        /*
+         * First create the Text & Media activity.
+         * We need its module context before storing the image.
+         */
         $moduleinfo = new stdClass();
 
         $moduleinfo->modulename = 'label';
         $moduleinfo->module = $module->id;
-
         $moduleinfo->course = $course->id;
-
-        /*
-         * add_moduleinfo() expects the section NUMBER,
-         * not the course_sections database ID.
-         */
         $moduleinfo->section = $section->section;
 
-        /*
-         * Text & Media content is stored in intro.
-         */
         $moduleinfo->name = shorten_text(
             trim(strip_tags($contentdescription)),
             100
         );
 
-        $moduleinfo->intro = $contentdescription;
+        /*
+         * Temporary H3 only.
+         * The image is attached immediately after creation.
+         */
+        $moduleinfo->intro =
+            '<h3 style="color: blue;">' .
+            s($contentdescription) .
+            '</h3>';
+
         $moduleinfo->introformat = FORMAT_HTML;
 
         $moduleinfo->visible = 1;
-
         $moduleinfo->groupmode = 0;
         $moduleinfo->groupingid = 0;
         $moduleinfo->completion = 0;
 
-		        /*
-         * Temporary diagnostics for Moodle module creation.
-         * Do not log full HTML content.
-         */
-        debugging(
-            'RONO PAGE CREATE: ' .
-            'name_type=' . gettype($moduleinfo->name) .
-            ', intro_type=' . gettype($moduleinfo->intro) .
-            ', content_type=' . gettype($moduleinfo->content) .
-            ', section_type=' . gettype($moduleinfo->section) .
-            ', name=' . (string)$moduleinfo->name,
-            DEBUG_DEVELOPER
-		);
-
-		debugging(
-            'RONO LABEL CREATE: ' .
-            'name_type=' . gettype($moduleinfo->name) .
-            ', intro_type=' . gettype($moduleinfo->intro) .
-            ', section_type=' . gettype($moduleinfo->section),
-            DEBUG_DEVELOPER
-        );
         $created = add_moduleinfo(
             $moduleinfo,
             $course
         );
 
         if (
-            empty($created) ||
+            empty($created)
+            ||
             empty($created->coursemodule)
         ) {
             throw new moodle_exception(
@@ -206,17 +238,262 @@ class page_service {
             );
         }
 
-
-
-        return $DB->get_record(
+        $cm = $DB->get_record(
             'course_modules',
-            ['id' => (int)$created->coursemodule],
+            [
+                'id' =>
+                    (int)$created->coursemodule
+            ],
             '*',
             MUST_EXIST
         );
-    }
 
-    /**
+        $label = $DB->get_record(
+            'label',
+            [
+                'id' =>
+                    (int)$cm->instance
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        /*
+         * Store image and build final Text & Media HTML.
+         */
+        $intro = $this->build_content_description_html(
+            $courseid,
+            (int)$cm->id,
+            $contentdescription,
+            $parentcode,
+            $contentdescriptionimagename,
+            $contentdescriptionimage
+        );
+
+        $label->intro = $intro;
+        $label->introformat = FORMAT_HTML;
+
+        $DB->update_record(
+            'label',
+            $label
+        );
+
+        rebuild_course_cache(
+            $courseid,
+            true
+        );
+
+        return $cm;
+    }
+	
+	    private function update_text_and_media(
+        int $courseid,
+        stdClass $record,
+        string $contentdescription,
+        string $parentcode,
+        string $contentdescriptionimagename,
+        string $contentdescriptionimage
+    ): stdClass {
+        global $DB;
+
+        $cm = $DB->get_record(
+            'course_modules',
+            ['id' => (int)$record->id],
+            '*',
+            MUST_EXIST
+        );
+
+        $label = $DB->get_record(
+            'label',
+            ['id' => (int)$cm->instance],
+            '*',
+            MUST_EXIST
+        );
+
+        $contentdescription = $this->capitalise_first(
+            $contentdescription
+        );
+
+        $label->name = shorten_text(
+            trim(strip_tags($contentdescription)),
+            100
+        );
+
+        $label->intro =
+            $this->build_content_description_html(
+                $courseid,
+                (int)$cm->id,
+                $contentdescription,
+                $parentcode,
+                $contentdescriptionimagename,
+                $contentdescriptionimage
+            );
+
+        $label->introformat = FORMAT_HTML;
+
+        $DB->update_record(
+            'label',
+            $label
+        );
+
+        rebuild_course_cache(
+            $courseid,
+            true
+        );
+
+        return $cm;
+		}
+
+	    private function capitalise_first(
+        string $text
+    ): string {
+
+        $text = trim($text);
+
+        if ($text === '') {
+            return '';
+        }
+
+        return
+            mb_strtoupper(
+                mb_substr(
+                    $text,
+                    0,
+                    1,
+                    'UTF-8'
+                ),
+                'UTF-8'
+            )
+            .
+            mb_substr(
+                $text,
+                1,
+                null,
+                'UTF-8'
+            );
+		}
+
+
+	private function build_content_description_html(
+        int $courseid,
+        int $cmid,
+        string $contentdescription,
+        string $parentcode,
+        string $contentdescriptionimagename,
+        string $contentdescriptionimage
+     ): string {
+        
+
+        $context = \context_module::instance(
+            $cmid
+        );
+
+        $decoded = base64_decode(
+            $contentdescriptionimage,
+            true
+        );
+
+        if ($decoded === false || $decoded === '') {
+            throw new moodle_exception(
+                'Unable to decode Content Description image.'
+            );
+        }
+
+        /*
+         * Enforce our own safe filename.
+         * Do not trust the incoming filename for identity.
+         */
+        $filename =
+            clean_param(
+                $parentcode,
+                PARAM_ALPHANUMEXT
+            )
+            .
+            '_content_description.png';
+
+        /*
+         * Confirm incoming name represents the expected PNG.
+         */
+        if (
+            strtolower(
+                pathinfo(
+                    $contentdescriptionimagename,
+                    PATHINFO_EXTENSION
+                )
+            ) !== 'png'
+        ) {
+            throw new moodle_exception(
+                'Content Description image must be a PNG.'
+            );
+        }
+
+        $fs = get_file_storage();
+
+        /*
+         * Replace the previous generated image if this
+         * Content Description is being updated.
+         */
+        $oldfile = $fs->get_file(
+            $context->id,
+            'mod_label',
+            'intro',
+            0,
+            '/',
+            $filename
+        );
+
+        if ($oldfile) {
+            $oldfile->delete();
+        }
+
+        $filerecord = [
+            'contextid' =>
+                $context->id,
+
+            'component' =>
+                'mod_label',
+
+            'filearea' =>
+                'intro',
+
+            'itemid' =>
+                0,
+
+            'filepath' =>
+                '/',
+
+            'filename' =>
+                $filename,
+        ];
+
+        $fs->create_file_from_string(
+            $filerecord,
+            $decoded
+        );
+
+        $heading =
+            '<h3 style="color: blue;">' .
+            s($contentdescription) .
+            '</h3>';
+
+        $image =
+            '<p>' .
+            '<img src="@@PLUGINFILE@@/' .
+            s($filename) .
+            '" alt="" ' .
+            'style="max-width: 100%; height: auto;">' .
+            '</p>';
+
+        return $heading . $image;
+			}
+
+
+	
+	
+	
+	
+	
+	/**
      * Create a Moodle Page activity.
      *
      * Used for:

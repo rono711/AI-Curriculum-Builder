@@ -1,3 +1,4 @@
+import base64
 import html
 import json
 import sys
@@ -213,6 +214,8 @@ class PublisherBuilder:
             f'src="{safe_url}" '
             'width="100%" '
             'height="720" '
+            'referrerpolicy="no-referrer" '
+            'allow="fullscreen" '
             'allowfullscreen>'
             '</iframe>'
         )
@@ -692,6 +695,65 @@ class PublisherBuilder:
         # ==================================================
         # Complete Moodle lesson payload
         # ==================================================
+        # ==================================================
+        # Content Description Image
+        #
+        # ONE image belongs to the parent Content Description,
+        # not to an individual elaboration / lesson.
+        # ==================================================
+
+        parent_code = self._text(
+            metadata.get("parent_code")
+        )
+
+        if not parent_code:
+
+            raise RuntimeError(
+                "Parent curriculum code is empty."
+            )
+
+        content_description_image = (
+            Path(build_root)
+            / "Images"
+            / build_name
+            / f"{parent_code}_content_description.png"
+        )
+
+        if not content_description_image.exists():
+
+            raise RuntimeError(
+                "Content Description image not found: "
+                f"{content_description_image}"
+            )
+
+        image_bytes = (
+            content_description_image.read_bytes()
+        )
+
+        if not image_bytes:
+
+            raise RuntimeError(
+                "Content Description image is empty: "
+                f"{content_description_image}"
+            )
+
+        content_description_image_base64 = (
+            base64.b64encode(
+                image_bytes
+            ).decode("ascii")
+        )
+
+        content_description_image_name = (
+            content_description_image.name
+        )
+
+        
+        print("=" * 60)
+        print("CONTENT DESCRIPTION IMAGE")
+        print("Parent Code:", parent_code)
+        print("Image:", content_description_image)
+        print("Bytes:", len(image_bytes))
+        print("=" * 60)
 
         payload = {
 
@@ -715,6 +777,15 @@ class PublisherBuilder:
                     )
                 ),
 
+            "parentcode":
+                parent_code,
+
+            "contentdescriptionimagename":
+                content_description_image_name,
+
+            "contentdescriptionimage":
+                content_description_image_base64,
+                
             "lesson[title]":
                 lesson_title,
 
@@ -823,19 +894,30 @@ class PublisherBuilder:
 
         print("=" * 60)
         print("RONO PUBLISHER PAYLOAD")
-        print(
-            {
-                **payload,
-                "lesson[quizcontent]":
-                    f"<GIFT {len(quiz_content)} chars>",
-                "lesson[lessoncontent]":
-                    f"<CONTENT {len(lesson_content)} chars>",
-                "lesson[activities]":
-                    f"<ACTIVITIES {len(activities_content)} chars>",
-                "lesson[recap]":
-                    f"<RECAP {len(recap_content)} chars>",
-            }
-        )
+
+        safe_payload = {
+            **payload,
+
+            "contentdescriptionimage":
+                (
+                    f"<BASE64 "
+                    f"{len(content_description_image_base64)} chars>"
+                ),
+
+            "lesson[quizcontent]":
+                f"<GIFT {len(quiz_content)} chars>",
+
+            "lesson[lessoncontent]":
+                f"<CONTENT {len(lesson_content)} chars>",
+
+            "lesson[activities]":
+                f"<ACTIVITIES {len(activities_content)} chars>",
+
+            "lesson[recap]":
+                f"<RECAP {len(recap_content)} chars>",
+        }
+
+        print(safe_payload)
         print("=" * 60)
 
         # ==================================================

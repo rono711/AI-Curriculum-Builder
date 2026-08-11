@@ -67,6 +67,53 @@ Create:
 • 2 matching questions (where appropriate)
 • 1 short answer questions
 
+------------------------------------------------
+
+MANDATORY MOODLE GIFT SYNTAX
+
+Every generated question MUST use valid Moodle GIFT syntax.
+
+Multiple choice:
+
+::Q1::Question text {=Correct answer ~Wrong answer ~Wrong answer ~Wrong answer}
+
+True/False:
+
+::T1::Statement text {T}
+
+or:
+
+::T2::Statement text {F}
+
+Matching:
+
+::M1::Match the items. {
+=Item 1 -> Match 1
+=Item 2 -> Match 2
+=Item 3 -> Match 3
+}
+
+Short answer:
+
+::SA1::Question text {=Correct answer}
+
+CRITICAL SHORT ANSWER RULE:
+
+The answer MUST be enclosed inside a matching opening { and closing }.
+
+CORRECT:
+
+::SA1::Put the words in order. {=The cat sat}
+
+WRONG:
+
+::SA1::Put the words in order. =The cat sat}
+
+Before returning the quiz, verify EVERY question has correctly matched opening { and closing } answer braces.
+
+Do not return malformed GIFT.
+
+------------------------------------------------
 Questions should progress from simple recall to deeper understanding.
 
 ------------------------------------------------

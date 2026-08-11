@@ -50,6 +50,11 @@ RECAP_ENGINE_URL = os.getenv(
     "http://192.168.1.108:8010/generate"
 )
 
+IMAGE_ENGINE_URL = os.getenv(
+    "IMAGE_ENGINE_URL",
+    "http://image-engine:8013/generate"
+)
+
 PUBLISHER_ENGINE_URL = os.getenv(
     "PUBLISHER_ENGINE_URL",
     "http://192.168.1.108:8012/publish"

@@ -31,6 +31,7 @@ from config import (
     QUIZ_ENGINE_URL,
     ACTIVITIES_ENGINE_URL,
     RECAP_ENGINE_URL,
+    IMAGE_ENGINE_URL,
     PUBLISHER_ENGINE_URL,
     PROMPT_TIMEOUT,
     ENGINE_TIMEOUT
@@ -211,11 +212,10 @@ class PipelineBuilder:
         self._report_progress(
             progress_url,
             progress_job_id,
-            "PIPELINE_CONNECTED",
-            "Pipeline progress bridge connected.",
-            42
+            "PIPELINE_START",
+            "Preparing lesson pipeline...",
+            20
         )
-
 
         #
         # ==================================================
@@ -338,7 +338,8 @@ class PipelineBuilder:
                     "LETS_DO_IT",
 
                     "RECAP",
-                    "WHAT_WE_DISCOVERED"
+                    "WHAT_WE_DISCOVERED",
+                    "IMAGE"
 
                 ]
 
@@ -397,6 +398,19 @@ class PipelineBuilder:
             )
 
             prompt_results = []
+
+            self._report_progress(
+                progress_url,
+                progress_job_id,
+                "PROMPTS",
+                (
+                    "Generating selected lesson prompts..."
+                    if build_mode == "UPDATE"
+                    else
+                    "Generating lesson prompts..."
+                ),
+                30
+            )
 
             for prompt_type in prompt_sequence:
 
@@ -461,6 +475,11 @@ class PipelineBuilder:
                     (
                         "Recap",
                         RECAP_ENGINE_URL
+                    ),
+
+                    (
+                       "Image",
+                       IMAGE_ENGINE_URL
                     )
 
                 ]
@@ -512,20 +531,87 @@ class PipelineBuilder:
                     for name, url in engines
                 ]
             )
+            
+            engine_progress = {
+                "Gamma": (
+                    "SLIDES",
+                    "Generating Did You Know slides...",
+                    45
+                ),
+                "Quiz": (
+                    "QUIZ",
+                    "Generating quiz...",
+                    55
+                ),
+                "Activities": (
+                    "ACTIVITIES",
+                    "Generating activities...",
+                    65
+                ),
+                "Recap": (
+                    "RECAP",
+                    "Generating lesson recap...",
+                    75
+                ),
+                "Image": (
+                    "IMAGE",
+                    "Generating Content Description image...",
+                    80
+                ),
+            }
+
             for engine_name, engine_url in engines:
+                (
+                    progress_stage,
+                    progress_message,
+                    progress_percent
+                ) = engine_progress[
+                    engine_name
+                ]
+
+                self._report_progress(
+                    progress_url,
+                    progress_job_id,
+                    progress_stage,
+                    progress_message,
+                    progress_percent
+                )
 
                 print("=" * 60)
                 print(f"CALLING {engine_name.upper()} ENGINE")
                 print("=" * 60)
+                
+
+                engine_payload = {
+
+                    "build_root":
+                        engine_build_root,
+
+                    "build_name":
+                        engine_build_name,
+
+                    "lesson_package_id":
+                        lesson_package_id
+
+                }
+
+                if engine_name == "Image":
+
+                    engine_payload[
+                        "parent_code"
+                    ] = lesson.get(
+                        "parent_code",
+                        ""
+                    )
 
                 response = requests.post(
+
                     engine_url,
-                    json={
-                        "build_root": engine_build_root,
-                        "build_name": engine_build_name,
-                        "lesson_package_id": lesson_package_id
-                    },
+
+                    json=engine_payload,
+
                     timeout=ENGINE_TIMEOUT
+
                 )
 
                 print(engine_name, response.status_code)
@@ -616,6 +702,14 @@ class PipelineBuilder:
                     + "/update"
                 )
 
+                self._report_progress(
+                    progress_url,
+                    progress_job_id,
+                    "MOODLE_UPDATE",
+                    "Updating selected components in Moodle...",
+                    85
+                )
+
                 print("=" * 60)
                 print("CALLING PUBLISHER UPDATE")
                 print(
@@ -698,6 +792,14 @@ class PipelineBuilder:
                 # ==============================================
                 # Mark New Build Published
                 # ==============================================
+
+                self._report_progress(
+                    progress_url,
+                    progress_job_id,
+                    "REGISTRY",
+                    "Recording updated Moodle publication...",
+                    95
+                )
 
                 mark_published(
                     record_id=
@@ -929,6 +1031,13 @@ class PipelineBuilder:
                 )
 
             else:
+                self._report_progress(
+                    progress_url,
+                    progress_job_id,
+                    "MOODLE_PUBLISH",
+                    "Publishing lesson to Moodle...",
+                    85
+                )
 
                 print("=" * 60)
                 print("CALLING PUBLISHER ENGINE")
@@ -971,7 +1080,17 @@ class PipelineBuilder:
                         "return SUCCESS for "
                         f"{lesson_package_id}: "
                         f"{publisher_result}"
-                    )
+                
+                )
+                    
+                self._report_progress(
+                    progress_url,
+                    progress_job_id,
+                    "REGISTRY",
+                    "Recording Moodle publication...",
+                    95
+                )
+
                 mark_published(
 
                     record_id=

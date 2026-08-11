@@ -59,7 +59,21 @@ class publish_lesson extends external_api {
                 PARAM_RAW,
                 'Curriculum content description displayed as Text and Media'
             ),
+            'parentcode' => new external_value(
+                PARAM_TEXT,
+                'Parent curriculum Content Description code'
+            ),
 
+            'contentdescriptionimagename' => new external_value(
+                PARAM_FILE,
+                'Generated Content Description image filename'
+            ),
+
+            'contentdescriptionimage' => new external_value(
+                PARAM_RAW,
+                'Base64 encoded generated Content Description image'
+			),
+			
             'lesson' => new external_single_structure([
 
                 'title' => new external_value(
@@ -174,8 +188,12 @@ class publish_lesson extends external_api {
         string $strand,
         string $substrand,
         string $contentdescription,
+        string $parentcode,
+        string $contentdescriptionimagename,
+        string $contentdescriptionimage,
         array $lesson
-    ): array {
+	): array {
+
         global $DB;
 
         /*
@@ -191,6 +209,11 @@ class publish_lesson extends external_api {
                 'strand' => $strand,
                 'substrand' => $substrand,
                 'contentdescription' => $contentdescription,
+                'parentcode' => $parentcode,
+                'contentdescriptionimagename' =>
+                    $contentdescriptionimagename,
+                'contentdescriptionimage' =>
+                    $contentdescriptionimage,
                 'lesson' => $lesson,
             ]
         );
@@ -250,6 +273,9 @@ class publish_lesson extends external_api {
                 $params['strand'],
                 $params['substrand'],
                 $params['contentdescription'],
+                $params['parentcode'],
+                $params['contentdescriptionimagename'],
+                $params['contentdescriptionimage'],
                 $params['lesson']
             );
 

@@ -133,6 +133,35 @@ class WorkbookReader:
 
         )
 
+        # --------------------------------------------------
+        # Parent Content Description identity
+        #
+        # parent_code belongs to Lesson_DB rather than
+        # Lesson_Metadata. Resolve it using this exact
+        # lesson_package_id only.
+        # --------------------------------------------------
+
+        lesson_db = self.read_sheet(
+
+            workbook,
+
+            "Lesson_DB",
+
+            lesson_package_id
+
+        )
+
+        parent_code = (
+            lesson_db.get(
+                "parent_code",
+                ""
+            )
+            or ""
+        )
+
+        metadata["parent_code"] = (
+            str(parent_code).strip()
+        )
         #
         # --------------------------------------------------
         # Derive School Level

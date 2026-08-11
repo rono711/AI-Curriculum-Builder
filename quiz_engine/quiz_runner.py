@@ -15,6 +15,65 @@ class QuizRunner:
         self.client = AIClient()
 
     # ======================================================
+    # Validate GIFT
+    # ======================================================
+
+    @staticmethod
+    def _validate_gift(content):
+
+        content = str(
+            content or ""
+        ).strip()
+
+        if not content:
+
+            raise RuntimeError(
+                "Generated GIFT content is empty."
+            )
+
+        questions = [
+            block.strip()
+            for block in content.split("\n\n")
+            if block.strip()
+        ]
+
+        if not questions:
+
+            raise RuntimeError(
+                "Generated GIFT contains no questions."
+            )
+
+        for index, question in enumerate(
+                questions,
+                start=1
+        ):
+
+            if not question.startswith("::"):
+
+                raise RuntimeError(
+                    f"GIFT question {index} "
+                    "does not start with a title."
+                )
+
+            if question.count("{") != question.count("}"):
+
+                raise RuntimeError(
+                    f"GIFT question {index} has "
+                    "unbalanced answer braces: "
+                    f"{question[:200]}"
+                )
+
+            if "{" not in question or "}" not in question:
+
+                raise RuntimeError(
+                    f"GIFT question {index} has "
+                    "no answer block: "
+                    f"{question[:200]}"
+                )
+
+        return content
+
+    # ======================================================
     # Generate
     # ======================================================
 
@@ -99,6 +158,10 @@ class QuizRunner:
 
         )
 
+        gift_content = self._validate_gift(
+            result["content"]
+        )
+
         #
         # Description
         #
@@ -144,7 +207,7 @@ class QuizRunner:
             #
             "gift":
 
-                result["content"],
+                gift_content,
 
              #
             # Tokens
