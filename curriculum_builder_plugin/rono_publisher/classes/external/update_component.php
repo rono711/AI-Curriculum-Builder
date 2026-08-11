@@ -2,8 +2,11 @@
 /**
  * External API for updating one existing lesson component.
  *
- * Initial implementation:
- * - Recap / What We Discovered only.
+ * Selective Page UPDATE implementation:
+ * - Lesson Content / Mission.
+ * - Slides / Did You Know.
+ * - Activities / Let's Do It.
+ * - Recap / What We Discovered.
  * - Updates an existing Moodle Page by exact CMID.
  * - Does not create any new Moodle activity.
  *
@@ -74,8 +77,8 @@ class update_component extends external_api {
     /**
      * Update one existing component.
      *
-     * Initial safety restriction:
-     * only recap is supported.
+     * Safety restriction:
+     * Only explicitly enabled Page components are supported.
      *
      * @param int $courseid
      * @param string $component
@@ -123,9 +126,22 @@ class update_component extends external_api {
          * Moodle activities during this development stage.
          */
 
-        if ($component !== 'recap') {
+
+        $allowedcomponents = [
+            'lesson_content',
+            'slides',
+            'activities',
+            'recap',
+        ];
+
+        if (!in_array(
+            $component,
+            $allowedcomponents,
+            true
+        )) {
             throw new moodle_exception(
-                'Only recap UPDATE is currently enabled.'
+                'This lesson component is not currently '
+                . 'enabled for UPDATE.'
             );
         }
 
@@ -143,9 +159,10 @@ class update_component extends external_api {
 
         if (trim($params['content']) === '') {
             throw new moodle_exception(
-                'Replacement recap content cannot be empty.'
+                'Replacement component content cannot be empty.'
             );
-        }
+		
+		}
 
         /*
          * =====================================================

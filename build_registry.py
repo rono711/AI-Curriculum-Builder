@@ -562,6 +562,117 @@ def mark_published(
 
 
 # ==========================================================
+# Inherit Published Moodle Identity
+# ==========================================================
+
+def inherit_moodle_identity(
+        record_id,
+        published_build
+):
+
+    if not published_build:
+        raise ValueError(
+            "Published build is required to inherit "
+            "Moodle identity."
+        )
+
+    required = [
+        "moodle_course_id",
+        "moodle_recap_cmid",
+    ]
+
+    for field in required:
+
+        if not published_build.get(field):
+
+            raise ValueError(
+                "Previous published build is missing "
+                f"required Moodle identity: {field}"
+            )
+
+    initialize_registry()
+
+    with get_connection() as connection:
+
+        row = connection.execute(
+            """
+            SELECT status
+            FROM elaboration_builds
+            WHERE id = ?
+            """,
+            (
+                record_id,
+            )
+        ).fetchone()
+
+    if row is None:
+
+        raise ValueError(
+            f"Registry record {record_id} does not exist."
+        )
+
+    current_status = row["status"]
+    update_status(
+        record_id=record_id,
+        status=current_status,
+
+        moodle_course_id=
+            published_build.get(
+                "moodle_course_id"
+            ),
+
+        moodle_section_id=
+            published_build.get(
+                "moodle_section_id"
+            ),
+
+        moodle_subsection_cmid=
+            published_build.get(
+                "moodle_subsection_cmid"
+            ),
+
+        moodle_subsection_section_id=
+            published_build.get(
+                "moodle_subsection_section_id"
+            ),
+
+        moodle_content_description_cmid=
+            published_build.get(
+                "moodle_content_description_cmid"
+            ),
+
+        moodle_lesson_content_cmid=
+            published_build.get(
+                "moodle_lesson_content_cmid"
+            ),
+
+        moodle_did_you_know_cmid=
+            published_build.get(
+                "moodle_did_you_know_cmid"
+            ),
+
+        moodle_quiz_id=
+            published_build.get(
+                "moodle_quiz_id"
+            ),
+
+        moodle_quiz_cmid=
+            published_build.get(
+                "moodle_quiz_cmid"
+            ),
+
+        moodle_activities_cmid=
+            published_build.get(
+                "moodle_activities_cmid"
+            ),
+
+        moodle_recap_cmid=
+            published_build.get(
+                "moodle_recap_cmid"
+            )
+    )
+
+# ==========================================================
 # Mark Failed
 # ==========================================================
 

@@ -328,7 +328,21 @@ class quiz_service {
          * ---------------------------------------------------------
          */
 
-        $created = add_moduleinfo(
+		        /*
+         * Temporary diagnostics for Moodle Quiz creation.
+         * Do not log question content.
+         */
+        debugging(
+            'RONO QUIZ CREATE: ' .
+            'name_type=' . gettype($moduleinfo->name) .
+            ', intro_type=' . gettype($moduleinfo->intro) .
+            ', section_type=' . gettype($moduleinfo->section) .
+            ', browsersecurity_type=' . gettype($moduleinfo->browsersecurity) .
+            ', name=' . (string)$moduleinfo->name,
+            DEBUG_DEVELOPER
+		);
+
+		$created = add_moduleinfo(
             $moduleinfo,
             $course
         );
@@ -406,18 +420,7 @@ class quiz_service {
             context_module::instance(
                 $cmid
             );
-            
-
-        /*
-         * ---------------------------------------------------------
-         * Rebuild course cache.
-         * ---------------------------------------------------------
-         */
-
-        rebuild_course_cache(
-            $course->id,
-            true
-        );
+    
 
         /*
          * ---------------------------------------------------------
@@ -428,7 +431,7 @@ class quiz_service {
         return [
 
             'quizid' =>
-                $quizid,
+            $quizid,
 
             'cmid' =>
                 $cmid,
@@ -646,13 +649,7 @@ class quiz_service {
                 MUST_EXIST
             );
 
-        /*
-         * Rebuild course cache.
-         */
-        rebuild_course_cache(
-            $quiz->course,
-            true
-        );
+
 
         return [
 

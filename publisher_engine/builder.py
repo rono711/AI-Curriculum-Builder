@@ -987,3 +987,493 @@ class PublisherBuilder:
                     )
             },
         }
+            # ======================================================
+    # Publish Selective UPDATE
+    # ======================================================
+
+    def publish_update(
+            self,
+            build_root,
+            build_name,
+            lesson_package_id,
+            update_components,
+            moodle_identity
+    ):
+
+        """
+        Update selected components of an existing published
+        Moodle lesson without creating new Moodle activities.
+
+        Initial supported component:
+
+            recap
+        """
+
+        update_components = (
+            update_components
+            or []
+        )
+
+        update_components = [
+            str(component).strip().lower()
+            for component in update_components
+            if str(component).strip()
+        ]
+
+        if not update_components:
+
+            raise ValueError(
+                "UPDATE requires at least one component."
+            )
+
+        supported_components = {
+            "lesson_content",
+            "slides",
+            "activities",
+            "recap",
+        }
+
+        unsupported = (
+            set(update_components)
+            - supported_components
+        )
+
+        if unsupported:
+
+            raise ValueError(
+                "Publisher UPDATE does not support: "
+                + ", ".join(
+                    sorted(unsupported)
+                )
+            )
+
+        if not moodle_identity:
+
+            raise ValueError(
+                "Moodle identity is required for UPDATE."
+            )
+
+        courseid = moodle_identity.get(
+            "moodle_course_id"
+        )
+
+        if not courseid:
+
+            raise ValueError(
+                "UPDATE Moodle course ID is missing."
+            )
+
+        results = {}
+        
+
+
+        lesson = None
+
+        if (
+            "slides" in update_components
+            or
+            "activities" in update_components
+        ):
+
+            workbook = (
+                Path(build_root)
+                / "Workbook"
+                / f"{build_name}.xlsx"
+            )
+
+            lesson = self.reader.read(
+                workbook,
+                lesson_package_id
+            )
+
+        # ==================================================
+        # Lesson Content / Mission
+        # ==================================================
+
+        if "lesson_content" in update_components:
+
+            lesson_content_cmid = (
+                moodle_identity.get(
+                    "moodle_lesson_content_cmid"
+                )
+            )
+
+            if not lesson_content_cmid:
+
+                raise ValueError(
+                    "UPDATE Lesson Content CMID is missing."
+                )
+
+            lesson_content = (
+                self._build_lesson_content(
+                    build_root,
+                    build_name
+                )
+            )
+
+            if not lesson_content:
+
+                raise RuntimeError(
+                    "Generated Lesson Content is empty."
+                )
+
+            print("=" * 60)
+            print("PUBLISHER SELECTIVE UPDATE")
+            print("Component : lesson_content")
+            print("Course    :", courseid)
+            print(
+                "CMID      :",
+                lesson_content_cmid
+            )
+            print(
+                "Content   :",
+                len(lesson_content),
+                "chars"
+            )
+            print("=" * 60)
+
+            result = (
+                self.moodle.update_component({
+                    "courseid":
+                        int(courseid),
+
+                    "component":
+                        "lesson_content",
+
+                    "cmid":
+                        int(
+                            lesson_content_cmid
+                        ),
+
+                    "content":
+                        lesson_content,
+                })
+            )
+
+            if (
+                result.get("status")
+                != "success"
+            ):
+
+                raise RuntimeError(
+                    "Moodle Lesson Content UPDATE "
+                    "did not return success: "
+                    f"{result}"
+                )
+
+            if (
+                int(
+                    result.get(
+                        "cmid",
+                        0
+                    )
+                )
+                !=
+                int(lesson_content_cmid)
+            ):
+
+                raise RuntimeError(
+                    "Moodle Lesson Content UPDATE "
+                    "returned an unexpected CMID."
+                )
+
+            results["lesson_content"] = (
+                result
+            )
+
+        # ==================================================
+        # Slides / Did You Know
+        # ==================================================
+
+        if "slides" in update_components:
+
+            did_you_know_cmid = (
+                moodle_identity.get(
+                    "moodle_did_you_know_cmid"
+                )
+            )
+
+            if not did_you_know_cmid:
+
+                raise ValueError(
+                    "UPDATE Did You Know CMID is missing."
+                )
+
+            did_you_know_content = (
+                self._build_did_you_know(
+                    build_root,
+                    build_name,
+                    lesson["slides"]
+                )
+            )
+
+            if not did_you_know_content:
+
+                raise RuntimeError(
+                    "Generated Did You Know content is empty."
+                )
+
+            print("=" * 60)
+            print("PUBLISHER SELECTIVE UPDATE")
+            print("Component : slides")
+            print("Course    :", courseid)
+            print(
+                "CMID      :",
+                did_you_know_cmid
+            )
+            print(
+                "Content   :",
+                len(did_you_know_content),
+                "chars"
+            )
+            print("=" * 60)
+
+            result = (
+                self.moodle.update_component({
+                    "courseid":
+                        int(courseid),
+
+                    "component":
+                        "slides",
+
+                    "cmid":
+                        int(did_you_know_cmid),
+
+                    "content":
+                        did_you_know_content,
+                })
+            )
+
+            if result.get("status") != "success":
+
+                raise RuntimeError(
+                    "Moodle Did You Know UPDATE "
+                    "did not return success: "
+                    f"{result}"
+                )
+
+            if (
+                int(result.get("cmid", 0))
+                !=
+                int(did_you_know_cmid)
+            ):
+
+                raise RuntimeError(
+                    "Moodle Did You Know UPDATE "
+                    "returned an unexpected CMID."
+                )
+
+            results["slides"] = result
+
+        # ==================================================
+        # Activities / Let's Do It
+        # ==================================================
+
+        if "activities" in update_components:
+
+            activities_cmid = (
+                moodle_identity.get(
+                    "moodle_activities_cmid"
+                )
+            )
+
+            if not activities_cmid:
+
+                raise ValueError(
+                    "UPDATE Activities CMID is missing."
+                )
+
+            activities_content = (
+                self._build_activities(
+                    build_root,
+                    build_name,
+                    lesson["activities"]
+                )
+            )
+
+            if not activities_content:
+
+                raise RuntimeError(
+                    "Generated Activities content is empty."
+                )
+
+            print("=" * 60)
+            print("PUBLISHER SELECTIVE UPDATE")
+            print("Component : activities")
+            print("Course    :", courseid)
+            print(
+                "CMID      :",
+                activities_cmid
+            )
+            print(
+                "Content   :",
+                len(activities_content),
+                "chars"
+            )
+            print("=" * 60)
+
+            result = (
+                self.moodle.update_component({
+                    "courseid":
+                        int(courseid),
+
+                    "component":
+                        "activities",
+
+                    "cmid":
+                        int(activities_cmid),
+
+                    "content":
+                        activities_content,
+                })
+            )
+
+            if result.get("status") != "success":
+
+                raise RuntimeError(
+                    "Moodle Activities UPDATE "
+                    "did not return success: "
+                    f"{result}"
+                )
+
+            if (
+                int(result.get("cmid", 0))
+                !=
+                int(activities_cmid)
+            ):
+
+                raise RuntimeError(
+                    "Moodle Activities UPDATE "
+                    "returned an unexpected CMID."
+                )
+
+            results["activities"] = result
+       
+       # ==================================================
+        # Recap
+        # ==================================================
+
+        if "recap" in update_components:
+
+            recap_cmid = moodle_identity.get(
+                "moodle_recap_cmid"
+            )
+
+            if not recap_cmid:
+
+                raise ValueError(
+                    "UPDATE Recap CMID is missing."
+                )
+
+            recap_file = (
+                Path(build_root)
+                / "Recap"
+                / build_name
+                / "recap.html"
+            )
+
+            recap_content = (
+                self._read_text_file(
+                    recap_file
+                )
+            )
+
+            if not recap_content:
+
+                raise RuntimeError(
+                    "Generated Recap HTML is empty: "
+                    + str(recap_file)
+                )
+
+            print("=" * 60)
+            print("PUBLISHER SELECTIVE UPDATE")
+            print("Component : recap")
+            print("Course    :", courseid)
+            print("CMID      :", recap_cmid)
+            print(
+                "Content   :",
+                len(recap_content),
+                "chars"
+            )
+            print("=" * 60)
+
+            result = (
+                self.moodle.update_component({
+                    "courseid":
+                        int(courseid),
+
+                    "component":
+                        "recap",
+
+                    "cmid":
+                        int(recap_cmid),
+
+                    "content":
+                        recap_content,
+                })
+            )
+
+            if (
+                result.get("status")
+                != "success"
+            ):
+
+                raise RuntimeError(
+                    "Moodle Recap UPDATE did not "
+                    "return success: "
+                    f"{result}"
+                )
+
+            if (
+                int(
+                    result.get(
+                        "cmid",
+                        0
+                    )
+                )
+                !=
+                int(recap_cmid)
+            ):
+
+                raise RuntimeError(
+                    "Moodle Recap UPDATE returned "
+                    "an unexpected CMID."
+                )
+
+            results["recap"] = result
+
+        # ==================================================
+        # Complete
+        # ==================================================
+
+        print("=" * 60)
+        print("PUBLISHER UPDATE COMPLETE")
+        print(
+            "Lesson:",
+            lesson_package_id
+        )
+        print(
+            "Components:",
+            update_components
+        )
+        print("=" * 60)
+
+        return {
+            "status":
+                "SUCCESS",
+
+            "build_mode":
+                "UPDATE",
+
+            "lesson_package_id":
+                lesson_package_id,
+
+            "update_components":
+                update_components,
+
+            "courseid":
+                int(courseid),
+
+            "components":
+                results,
+        }

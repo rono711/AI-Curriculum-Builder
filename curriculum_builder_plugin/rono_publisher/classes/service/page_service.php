@@ -356,25 +356,7 @@ class page_service {
             MUST_EXIST
         );
     }
-
     /**
-     * Update an existing Moodle Page activity in place.
-     *
-     * Safety rules:
-     * - The supplied CMID must exist.
-     * - It must belong to the supplied course.
-     * - It must be a Page module.
-     * - The existing Page instance is updated.
-     * - No new course_modules record is created.
-     *
-     * @param int $courseid Moodle course ID.
-     * @param int $cmid Existing Moodle course-module ID.
-     * @param string $content Replacement Page HTML.
-     * @param string|null $description Optional replacement description.
-     * @return stdClass Existing course module record.
-	 */
-
-	    /**
      * Update an existing Moodle Page activity in place.
      *
      * Safety:
@@ -428,9 +410,6 @@ class page_service {
 
         /*
          * Exact target course module.
-         *
-         * Requiring both id and course prevents a CMID
-         * belonging to another course being updated.
          */
         $cm = $DB->get_record(
             'course_modules',
@@ -461,8 +440,7 @@ class page_service {
         }
 
         /*
-         * Verify the underlying Page instance exists and
-         * belongs to the same course.
+         * Verify the underlying Page instance.
          */
         $page = $DB->get_record(
             'page',
@@ -475,11 +453,7 @@ class page_service {
         );
 
         /*
-         * Ask Moodle to prepare the complete existing module
-         * information required by update_moduleinfo().
-         *
-         * This preserves settings that our publisher should
-         * not invent or reset.
+         * Ask Moodle for the existing module information.
          */
         [
             $existingcm,
@@ -508,13 +482,28 @@ class page_service {
         }
 
         /*
-         * Preserve the existing Page name.
+         * Preserve existing Page name.
          */
         $moduleinfo->name =
             $page->name;
 
         /*
-         * Replace the Page body.
+         * Moodle 5.2 mod_page update contract.
+         *
+         * page_update_instance() reads the Page body from:
+         *
+         * $data->page['itemid']
+         * $data->page['text']
+         * $data->page['format']
+         */
+        $moduleinfo->page = [
+            'itemid' => 0,
+            'text' => $content,
+            'format' => FORMAT_HTML,
+        ];
+
+        /*
+         * Keep direct content fields populated too.
          */
         $moduleinfo->content =
             $content;
@@ -523,11 +512,42 @@ class page_service {
             FORMAT_HTML;
 
         /*
-         * Preserve the existing description unless a
-         * replacement description was explicitly supplied.
-         *
-         * Moodle's update_moduleinfo() expects introeditor
-         * for modules supporting FEATURE_MOD_INTRO.
+         * Preserve existing Page-specific display options.
+         */
+        $displayoptions = [];
+
+        if (!empty($page->displayoptions)) {
+            $decodedoptions =
+                unserialize($page->displayoptions);
+
+            if (is_array($decodedoptions)) {
+                $displayoptions =
+                    $decodedoptions;
+            }
+        }
+
+        $moduleinfo->display =
+            $page->display;
+
+        $moduleinfo->printintro =
+            $displayoptions['printintro']
+            ?? 0;
+
+        $moduleinfo->printlastmodified =
+            $displayoptions['printlastmodified']
+            ?? 0;
+
+        $moduleinfo->popupwidth =
+            $displayoptions['popupwidth']
+            ?? 620;
+
+        $moduleinfo->popupheight =
+            $displayoptions['popupheight']
+            ?? 450;
+
+        /*
+         * Preserve existing description unless a replacement
+         * description was explicitly supplied.
          */
         if ($description !== null) {
 
@@ -550,7 +570,7 @@ class page_service {
         }
 
         /*
-         * Critical identity fields.
+         * Critical existing Moodle identity.
          */
         $moduleinfo->coursemodule =
             $cmid;
@@ -566,19 +586,21 @@ class page_service {
 
         $moduleinfo->modulename =
             'page';
-
         /*
-         * Moodle 5.2 signature:
+         * update_moduleinfo() triggers course_module_updated
+         * using the $cm object.
          *
-         * update_moduleinfo(
-         *     $cm,
-         *     $moduleinfo,
-         *     $course,
-         *     $mform = null
-         * )
+         * Because $cm was loaded directly from the
+         * course_modules table, Moodle's derived "modname"
+         * property is not present automatically.
+         */
+        $cm->modname =
+            'page';
+		
+		/*
+         * Update the EXISTING Moodle activity.
          *
-         * This updates the existing activity.
-         * It does NOT call add_moduleinfo().
+         * No add_moduleinfo() call occurs here.
          */
         update_moduleinfo(
             $cm,
@@ -587,8 +609,8 @@ class page_service {
         );
 
         /*
-         * Verify that the original CMID still exists and
-         * still points to the same Page instance.
+         * Verify the same CMID still points to the same
+         * Page instance after the update.
          */
         $updatedcm = $DB->get_record(
             'course_modules',
@@ -602,5 +624,6 @@ class page_service {
         );
 
         return $updatedcm;
-	}
-	}
+    }
+
+}

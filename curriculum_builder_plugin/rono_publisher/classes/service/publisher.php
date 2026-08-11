@@ -444,11 +444,34 @@ class publisher {
                     : ''
             );
 
-        /*
+                /*
          * =========================================================
          * STEP 10
          *
+         * COMMIT TRANSACTION
+         * =========================================================
+         *
+         * IMPORTANT:
+         *
+         * The database transaction must be committed BEFORE
+         * rebuilding the Moodle course cache.
+         *
+         * Otherwise the cache may contain course-module IDs
+         * created inside a transaction that is later rolled back.
+         * =========================================================
+         */
+
+        $transaction->allow_commit();
+
+        /*
+         * =========================================================
+         * STEP 11
+         *
          * REBUILD COURSE CACHE
+         * =========================================================
+         *
+         * Rebuild only after all Moodle records have been
+         * successfully committed.
          * =========================================================
          */
 
@@ -456,16 +479,6 @@ class publisher {
             $course->id,
             true
         );
-
-        /*
-         * =========================================================
-         * STEP 11
-         *
-         * COMMIT TRANSACTION
-         * =========================================================
-         */
-
-        $transaction->allow_commit();
 
         /*
          * =========================================================

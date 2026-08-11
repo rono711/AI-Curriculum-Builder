@@ -97,61 +97,30 @@ class MoodleClient:
         except ValueError as exc:
 
             raise RuntimeError(
+
                 "Moodle returned a non-JSON response: "
+
                 + response.text[:1000]
+
             ) from exc
 
         if (
+
             isinstance(result, dict)
+
             and
+
             "exception" in result
+
         ):
 
-            print("=" * 60)
-            print("MOODLE RAW ERROR RESPONSE")
-            print(result)
-            print("=" * 60)
-
-            exception_name = result.get(
-                "exception",
-                "Unknown Moodle exception"
-            )
-
-            error_code = result.get(
-                "errorcode",
-                ""
-            )
-
-            message = result.get(
-                "message",
-                ""
-            )
-
-            debug_info = result.get(
-                "debuginfo",
-                ""
-            )
-
-            error_parts = [
-                f"Moodle exception: {exception_name}",
-                f"Error code: {error_code}",
-                f"Message: {message}"
-            ]
-
-            if debug_info:
-
-                error_parts.append(
-                    f"Debug info: {debug_info}"
-                )
-
             raise RuntimeError(
-                "\n".join(
-                    error_parts
-                )
+
+                result["message"]
+
             )
 
         return result
-       
 
     # ======================================================
     # Health
@@ -288,38 +257,7 @@ class MoodleClient:
             payload
 
         )
-    # ======================================================
-    # Rono Publisher - Update Existing Component
-    # ======================================================
 
-    def update_component(
-
-            self,
-
-            payload
-
-    ):
-
-        """
-        Update one existing published lesson component
-        using its exact Moodle course-module ID.
-
-        Moodle function:
-
-            local_rono_publisher_update_component
-
-        Initial supported component:
-
-            recap
-        """
-
-        return self.call(
-
-            "local_rono_publisher_update_component",
-
-            payload
-
-        )
     # ======================================================
     # Synchronise
     # ======================================================

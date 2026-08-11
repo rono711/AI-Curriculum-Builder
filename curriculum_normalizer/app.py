@@ -1,8 +1,27 @@
-﻿from fastapi import FastAPI, HTTPException, Query
+﻿from pathlib import Path
+import sys
+
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from normalizer import CurriculumNormalizer
 from master_db import MasterDB
+
+
+# ==========================================================
+# Shared Project Modules
+# ==========================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+
+from build_registry import (
+    make_elaboration_key,
+    get_published_build
+)
 
 # ==========================================================
 # FastAPI
@@ -256,13 +275,14 @@ def lessons(
         parent_code: str = Query(...)
 
 ):
-    lessons = (
+
+    lessons_df = (
 
         master_db.df[
 
             master_db.df["Parent Code"] == parent_code
 
-            ]
+        ]
 
         .sort_values(
 
@@ -272,9 +292,67 @@ def lessons(
 
     )
 
-    return [
+    results = []
 
-        {
+    for _, row in lessons_df.iterrows():
+
+        #
+        # Generate the same stable elaboration identity
+        # used by Lesson Package Builder / Pipeline Engine.
+        #
+
+        elaboration_key = make_elaboration_key(
+
+            year_level=row["Year Level"],
+
+            subject=row["Subject"],
+
+            parent_code=row["Parent Code"],
+
+            topic_id=row["Topic ID"],
+
+            elaboration=row["Elaboration"]
+
+        )
+
+        #
+        # Look for the most recent successful publication
+        # of this curriculum elaboration.
+        #
+
+        published_build = get_published_build(
+
+            elaboration_key
+
+        )
+
+        already_built = (
+
+            published_build is not None
+
+        )
+
+        if already_built:
+
+            build_status = "PUBLISHED"
+
+            build_id = published_build.get(
+                "build_id"
+            )
+
+            lesson_package_id = published_build.get(
+                "lesson_package_id"
+            )
+
+        else:
+
+            build_status = "NOT_BUILT"
+
+            build_id = None
+
+            lesson_package_id = None
+
+        results.append({
 
             "topic_id":
 
@@ -283,20 +361,48 @@ def lessons(
             "lesson_number":
 
                 int(
-
                     row["Topic Lesson Number"]
-
                 ),
 
             "lesson":
 
-                row["Elaboration"]
+                row["Elaboration"],
 
-        }
+            #
+            # Build Registry
+            #
 
-        for _, row in lessons.iterrows()
+            "elaboration_key":
 
-    ]
+                elaboration_key,
+
+            "build_status":
+
+                build_status,
+
+            "already_built":
+
+                already_built,
+
+            "can_build":
+
+                not already_built,
+
+            "can_update":
+
+                already_built,
+
+            "previous_build_id":
+
+                build_id,
+
+            "previous_lesson_package_id":
+
+                lesson_package_id
+
+        })
+
+    return results
 
 
 # ==========================================================

@@ -71,7 +71,9 @@ class BuildRequest(BaseModel):
 
     lesson_numbers: List[int]
 
+    build_mode: str = "NEW"
 
+    update_components: List[str] = []
 # ==========================================================
 # Home
 # ==========================================================

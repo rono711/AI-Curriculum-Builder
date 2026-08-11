@@ -124,10 +124,7 @@ class section_service {
             $updatedata
         );
 
-        rebuild_course_cache(
-            $course->id,
-            true
-        );
+        
 
         return $DB->get_record(
             'course_sections',
@@ -309,10 +306,7 @@ class section_service {
             );
         }
 
-        rebuild_course_cache(
-            $course->id,
-            true
-        );
+
 
         $cmid = (int)$created->coursemodule;
 

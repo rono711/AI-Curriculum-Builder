@@ -19,8 +19,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from build_registry import (
     start_build,
     mark_published,
-    mark_update_ready
+    mark_update_ready,
+    get_published_build,
+    inherit_moodle_identity
 )
+
 from config import (
     PROMPT_ENGINE_URL,
     GAMMA_ENGINE_URL,
@@ -457,21 +460,67 @@ class PipelineBuilder:
 
                 if response.status_code != 200:
                     print(response.text)
-
                 response.raise_for_status()
 
+            # ==================================================
+            # Selective UPDATE Moodle Publication
+            # ==================================================
 
-            # ==================================================
-            # UPDATE Moodle Safety Barrier
-            # ==================================================
-            #
-            # Selective UPDATE generation is now supported,
-            # but Moodle in-place UPDATE publishing has not
-            # yet been implemented.
-            #
-            # NEVER allow UPDATE to fall through into the
-            # existing NEW publisher because that publisher
             if build_mode == "UPDATE":
+
+                print("=" * 60)
+                print("UPDATE GENERATION COMPLETE")
+                print(
+                    "Components:",
+                    update_components
+                )
+                print("=" * 60)
+
+                # ==============================================
+                # Previous Published Moodle Identity
+                # ==============================================
+
+                published_build = get_published_build(
+                    elaboration_key
+                )
+
+                if not published_build:
+
+                    raise RuntimeError(
+                        "UPDATE requires a previous "
+                        "PUBLISHED registry record."
+                    )
+
+                print("=" * 60)
+                print("PREVIOUS PUBLISHED BUILD")
+                print(
+                    "Build:",
+                    published_build.get(
+                        "build_id"
+                    )
+                )
+                print(
+                    "Course:",
+                    published_build.get(
+                        "moodle_course_id"
+                    )
+                )
+                print(
+                    "Recap CMID:",
+                    published_build.get(
+                        "moodle_recap_cmid"
+                    )
+                )
+                print("=" * 60)
+
+                # ==============================================
+                # Inherit Stable Moodle Identity
+                # ==============================================
+
+                inherit_moodle_identity(
+                    registry_record_id,
+                    published_build
+                )
 
                 mark_update_ready(
                     registry_record_id,
@@ -480,19 +529,182 @@ class PipelineBuilder:
                     )
                 )
 
-                print("=" * 60)
-                print("UPDATE GENERATION COMPLETE")
-                print(
-                    "Components:",
-                    update_components
-                )
                 print(
                     "REGISTRY RECORD:",
                     registry_record_id,
                     "STATUS: UPDATE_READY"
                 )
+
+                # ==============================================
+                # Publisher UPDATE
+                # ==============================================
+
+                publisher_update_url = (
+                    PUBLISHER_ENGINE_URL.rstrip("/")
+                    + "/update"
+                )
+
+                print("=" * 60)
+                print("CALLING PUBLISHER UPDATE")
                 print(
-                    "MOODLE UPDATE PUBLISHING BLOCKED"
+                    "URL:",
+                    publisher_update_url
+                )
+                print("=" * 60)
+
+                response = requests.post(
+                    publisher_update_url,
+                    json={
+                        "build_root":
+                            engine_build_root,
+
+                        "build_name":
+                            engine_build_name,
+
+                        "lesson_package_id":
+                            lesson_package_id,
+
+                        "update_components":
+                            update_components,
+
+                         "moodle_identity":
+                            {
+                                "moodle_course_id":
+                                    published_build.get(
+                                        "moodle_course_id"
+                                    ),
+
+                                "moodle_lesson_content_cmid":
+                                    published_build.get(
+                                        "moodle_lesson_content_cmid"
+                                    ),
+
+                                "moodle_did_you_know_cmid":
+                                    published_build.get(
+                                        "moodle_did_you_know_cmid"
+                                    ),
+
+                                "moodle_activities_cmid":
+                                    published_build.get(
+                                        "moodle_activities_cmid"
+                                    ),
+
+                                "moodle_recap_cmid":
+                                    published_build.get(
+                                        "moodle_recap_cmid"
+                                    ),
+                            }
+                    },
+                    timeout=ENGINE_TIMEOUT
+                )
+
+                print(
+                    "Publisher UPDATE:",
+                    response.status_code
+                )
+
+                if response.status_code != 200:
+
+                    print(response.text)
+
+                response.raise_for_status()
+
+                publisher_result = response.json()
+
+                if (
+                    publisher_result.get("status")
+                    != "SUCCESS"
+                ):
+
+                    raise RuntimeError(
+                        "Publisher UPDATE did not "
+                        "return SUCCESS for "
+                        f"{lesson_package_id}: "
+                        f"{publisher_result}"
+                    )
+
+                # ==============================================
+                # Mark New Build Published
+                # ==============================================
+
+                mark_published(
+                    record_id=
+                        registry_record_id,
+
+                    moodle_course_id=
+                        published_build.get(
+                            "moodle_course_id"
+                        ),
+
+                    moodle_section_id=
+                        published_build.get(
+                            "moodle_section_id"
+                        ),
+
+                    moodle_subsection_cmid=
+                        published_build.get(
+                            "moodle_subsection_cmid"
+                        ),
+
+                    moodle_subsection_section_id=
+                        published_build.get(
+                            "moodle_subsection_section_id"
+                        ),
+
+                    moodle_content_description_cmid=
+                        published_build.get(
+                            "moodle_content_description_cmid"
+                        ),
+
+                    moodle_lesson_content_cmid=
+                        published_build.get(
+                            "moodle_lesson_content_cmid"
+                        ),
+
+                    moodle_did_you_know_cmid=
+                        published_build.get(
+                            "moodle_did_you_know_cmid"
+                        ),
+
+                    moodle_quiz_id=
+                        published_build.get(
+                            "moodle_quiz_id"
+                        ),
+
+                    moodle_quiz_cmid=
+                        published_build.get(
+                            "moodle_quiz_cmid"
+                        ),
+
+                    moodle_activities_cmid=
+                        published_build.get(
+                            "moodle_activities_cmid"
+                        ),
+
+                    moodle_recap_cmid=
+                        published_build.get(
+                            "moodle_recap_cmid"
+                        ),
+
+                    update_components=
+                        ",".join(
+                            update_components
+                        )
+                )
+
+                print("=" * 60)
+                print("UPDATE PUBLISHED SUCCESSFULLY")
+                print(
+                    "REGISTRY RECORD:",
+                    registry_record_id
+                )
+                print(
+                    "Lesson:",
+                    lesson_package_id
+                )
+                print(
+                    "Components:",
+                    update_components
                 )
                 print("=" * 60)
 
@@ -501,7 +713,7 @@ class PipelineBuilder:
                         lesson_package_id,
 
                     "status":
-                        "UPDATE_READY",
+                        "SUCCESS",
 
                     "build_mode":
                         "UPDATE",
@@ -512,11 +724,8 @@ class PipelineBuilder:
                     "prompts":
                         prompt_results,
 
-                    "publisher": {
-                        "status": "BLOCKED",
-                        "reason":
-                            "MOODLE_UPDATE_NOT_ENABLED"
-                    }
+                    "publisher":
+                        publisher_result
                 })
 
                 continue
