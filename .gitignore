@@ -60,3 +60,17 @@ lesson_package_builder/build_number.txt
 
 # Runtime elaboration build registry
 data/build_registry.db
+
+# ==========================================================
+# Local development backups / recovery files
+# ==========================================================
+*.bak
+*.bak_*
+*.progress_candidate
+*.recovered
+
+# Database safety backups
+*.db.bak_*
+
+# Accidental shell output
+/head
