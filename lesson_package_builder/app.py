@@ -74,6 +74,11 @@ class BuildRequest(BaseModel):
     build_mode: str = "NEW"
 
     update_components: List[str] = []
+
+    progress_job_id: str = ""
+
+    progress_url: str = ""
+
 # ==========================================================
 # Home
 # ==========================================================

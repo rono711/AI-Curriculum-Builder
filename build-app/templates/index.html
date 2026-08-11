@@ -1884,6 +1884,70 @@ ${lesson.lesson}
 
 
     /* ==========================================================
+       Build Job Polling
+    ========================================================== */
+
+    async function waitForBuildJob(jobId) {
+
+        while (true) {
+
+            const response =
+                await fetch(
+                    "/api/build-status/"
+                    + encodeURIComponent(jobId),
+                    {
+                        cache: "no-store"
+                    }
+                );
+
+            const job =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    job.detail
+                    ||
+                    JSON.stringify(job)
+                );
+            }
+
+            showProgress(
+                job.message
+                || "Building lesson package...",
+
+                Number(
+                    job.percent
+                    ?? 0
+                )
+            );
+
+            if (job.status === "SUCCESS") {
+
+                return job.result;
+            }
+
+            if (job.status === "FAILED") {
+
+                throw new Error(
+                    job.error
+                    ||
+                    "Lesson package build failed."
+                );
+            }
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        1000
+                    )
+            );
+        }
+    }
+
+
+    /* ==========================================================
        Status Panel
     ========================================================== */
 
@@ -2053,25 +2117,30 @@ ${lesson.lesson}
                     }
                 );
 
-            showProgress(
-                "Generating AI lesson...",
-
-                55
-            );
-
-            const result =
-
+            const accepted =
                 await response.json();
 
             if (!response.ok) {
 
                 throw new Error(
-                    result.detail ||
+                    accepted.detail
+                    ||
 
-                    JSON.stringify(result)
+                    JSON.stringify(accepted)
                 );
-
             }
+
+            if (!accepted.job_id) {
+
+                throw new Error(
+                    "Build App did not return a job ID."
+                );
+            }
+
+            const result =
+                await waitForBuildJob(
+                    accepted.job_id
+                );
 
             showProgress(
                 "Updating workbook...",
@@ -2492,25 +2561,44 @@ ${lesson.lesson}
                             }
                         );
 
-                    showProgress(
-                        "Processing selected update...",
-                        70
-                    );
-
-                    const result =
+                    const accepted =
                         await response.json();
 
                     if (!response.ok) {
 
                         throw new Error(
-                            result.detail
+                            accepted.detail
                             ||
                             JSON.stringify(
-                                result
+                                accepted
                             )
                         );
-
                     }
+
+                    if (!accepted.job_id) {
+
+                        throw new Error(
+                            "Build App did not return a job ID."
+                        );
+                    }
+
+                    const result =
+                        await waitForBuildJob(
+                            accepted.job_id
+                        );
+
+                    showProgress(
+                        "Selected update complete.",
+                        100
+                    );
+
+                    await new Promise(
+                        resolve =>
+                            setTimeout(
+                                resolve,
+                                700
+                            )
+                    );
 
                     hideProgress();
 

@@ -16,6 +16,10 @@ class PipelineRequest(BaseModel):
     lesson_rows: List[Dict[str, Any]]
 
 
+    progress_job_id: str = ""
+
+    progress_url: str = ""
+
 # ==========================================================
 # Lesson Result
 # ==========================================================

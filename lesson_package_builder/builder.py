@@ -846,11 +846,26 @@ class LessonPackageBuilder:
 
             json={
 
-                "build_root": build_root,
+                "build_root":
+                    build_root,
 
-                "build_name": build_name,
+                "build_name":
+                    build_name,
 
-                "lesson_rows": lesson_rows
+                "lesson_rows":
+                    lesson_rows,
+
+                "progress_job_id":
+                    request.get(
+                        "progress_job_id",
+                        ""
+                    ),
+
+                "progress_url":
+                    request.get(
+                        "progress_url",
+                        ""
+                    )
 
             },
 
@@ -861,7 +876,6 @@ class LessonPackageBuilder:
         response.raise_for_status()
 
         return response.json()
-
 
 #
 #     lesson_package_id = lesson_rows[0]["lesson_package_id"]

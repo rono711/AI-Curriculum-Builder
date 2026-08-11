@@ -266,6 +266,45 @@ def get_published_build(elaboration_key):
 
         return dict(row)
 
+# ==========================================================
+# Previous Published Build With Moodle Identity
+# ==========================================================
+
+def get_previous_published_build(
+        elaboration_key,
+        before_record_id
+):
+
+    initialize_registry()
+
+    with get_connection() as connection:
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM elaboration_builds
+
+            WHERE elaboration_key = ?
+              AND status = 'PUBLISHED'
+              AND id < ?
+              AND moodle_course_id IS NOT NULL
+              AND moodle_lesson_content_cmid IS NOT NULL
+
+            ORDER BY id DESC
+
+            LIMIT 1
+            """,
+            (
+                elaboration_key,
+                before_record_id,
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return dict(row)
+
 
 # ==========================================================
 # Is Published?

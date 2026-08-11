@@ -21,6 +21,7 @@ from build_registry import (
     mark_published,
     mark_update_ready,
     get_published_build,
+    get_previous_published_build,
     inherit_moodle_identity
 )
 
@@ -131,6 +132,63 @@ class PipelineBuilder:
             workbook.close()
 
     # ======================================================
+    # Build Progress Reporter
+    # ======================================================
+
+    @staticmethod
+    def _report_progress(
+            progress_url,
+            progress_job_id,
+            stage,
+            message,
+            percent
+    ):
+
+        if not progress_url:
+            return
+
+        if not progress_job_id:
+            return
+
+        callback_url = (
+            progress_url.rstrip("/")
+            + "/api/build-progress/"
+            + str(progress_job_id)
+        )
+
+        try:
+
+            response = requests.post(
+                callback_url,
+                json={
+                    "stage":
+                        stage,
+
+                    "message":
+                        message,
+
+                    "percent":
+                        int(percent),
+                },
+                timeout=5
+            )
+
+            print(
+                "PROGRESS CALLBACK:",
+                percent,
+                stage,
+                response.status_code
+            )
+
+        except Exception as exc:
+
+            print(
+                "PROGRESS CALLBACK WARNING:",
+                str(exc)
+            )
+
+
+    # ======================================================
     # Run Pipeline
     # ======================================================
 
@@ -142,9 +200,23 @@ class PipelineBuilder:
 
             build_name,
 
-            lesson_rows
+            lesson_rows,
+
+            progress_job_id="",
+
+            progress_url=""
 
     ):
+
+        self._report_progress(
+            progress_url,
+            progress_job_id,
+            "PIPELINE_CONNECTED",
+            "Pipeline progress bridge connected.",
+            42
+        )
+
+
         #
         # ==================================================
         # Prompt Generation Pipeline
@@ -760,14 +832,94 @@ class PipelineBuilder:
                     "status": "SKIPPED",
                     "reason": "ALREADY_PUBLISHED"
                 }
-                #
-                # Workbook confirms this lesson package
-                # was already successfully published.
-                # Synchronize the persistent registry.
+                
+                                #
+                # Workbook reports this lesson as already
+                # published. Never mark the new registry
+                # record PUBLISHED without Moodle identity.
                 #
 
+                previous_published = (
+                    get_previous_published_build(
+                        elaboration_key,
+                        registry_record_id
+                    )
+                )
+
+                if not previous_published:
+
+                    raise RuntimeError(
+                        "Workbook reports PUBLISHED for "
+                        f"{lesson_package_id}, but no earlier "
+                        "PUBLISHED registry record with Moodle "
+                        "identity exists. Refusing to create a "
+                        "PUBLISHED registry record without "
+                        "Moodle CMIDs."
+                    )
+
+                inherit_moodle_identity(
+                    registry_record_id,
+                    previous_published
+                )
+
                 mark_published(
-                    registry_record_id
+                    record_id=
+                        registry_record_id,
+
+                    moodle_course_id=
+                        previous_published.get(
+                            "moodle_course_id"
+                        ),
+
+                    moodle_section_id=
+                        previous_published.get(
+                            "moodle_section_id"
+                        ),
+
+                    moodle_subsection_cmid=
+                        previous_published.get(
+                            "moodle_subsection_cmid"
+                        ),
+
+                    moodle_subsection_section_id=
+                        previous_published.get(
+                            "moodle_subsection_section_id"
+                        ),
+
+                    moodle_content_description_cmid=
+                        previous_published.get(
+                            "moodle_content_description_cmid"
+                        ),
+
+                    moodle_lesson_content_cmid=
+                        previous_published.get(
+                            "moodle_lesson_content_cmid"
+                        ),
+
+                    moodle_did_you_know_cmid=
+                        previous_published.get(
+                            "moodle_did_you_know_cmid"
+                        ),
+
+                    moodle_quiz_id=
+                        previous_published.get(
+                            "moodle_quiz_id"
+                        ),
+
+                    moodle_quiz_cmid=
+                        previous_published.get(
+                            "moodle_quiz_cmid"
+                        ),
+
+                    moodle_activities_cmid=
+                        previous_published.get(
+                            "moodle_activities_cmid"
+                        ),
+
+                    moodle_recap_cmid=
+                        previous_published.get(
+                            "moodle_recap_cmid"
+                        )
                 )
 
                 print(

@@ -100,14 +100,31 @@ def run_pipeline(
         print("Lessons    :", len(request.lesson_rows))
         print("=" * 60)
 
+        print(
+            "Progress Job:",
+            request.progress_job_id
+            or "NONE"
+        )
+
+        print(
+            "Progress URL:",
+            request.progress_url
+            or "NONE"
+        )
+
         result = builder.run(
 
             request.build_root,
 
             request.build_name,
 
-            request.lesson_rows
+            request.lesson_rows,
 
+            progress_job_id=
+                request.progress_job_id,
+
+            progress_url=
+                request.progress_url
         )
 
         return result
