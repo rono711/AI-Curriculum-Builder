@@ -131,6 +131,194 @@ class PipelineBuilder:
         finally:
 
             workbook.close()
+    
+    # ======================================================
+    # Moodle Publication Status Writer
+    # ======================================================
+
+    @staticmethod
+    def _set_publication_status(
+            workbook_path,
+            lesson_package_id,
+            status,
+            needs_sync="YES"
+    ):
+
+        workbook = load_workbook(
+            workbook_path
+        )
+
+        try:
+
+            if "Moodle_Publish" not in workbook.sheetnames:
+                raise RuntimeError(
+                    "Moodle_Publish worksheet not found."
+                )
+
+            sheet = workbook[
+                "Moodle_Publish"
+            ]
+
+            headers = {}
+
+            for cell in sheet[1]:
+
+                if not cell.value:
+                    continue
+
+                key = (
+                    str(cell.value)
+                    .strip()
+                    .lower()
+                    .replace(" ", "_")
+                    .replace("-", "_")
+                )
+
+                headers[key] = cell.column
+
+            required = [
+                "lesson_package_id",
+                "publication_status",
+                "needs_sync"
+            ]
+
+            for column in required:
+
+                if column not in headers:
+                    raise RuntimeError(
+                        f"Moodle_Publish column missing: {column}"
+                    )
+
+            found = False
+
+            for row in range(
+                    2,
+                    sheet.max_row + 1
+            ):
+
+                value = sheet.cell(
+                    row=row,
+                    column=headers[
+                        "lesson_package_id"
+                    ]
+                ).value
+
+                if str(value) != str(
+                        lesson_package_id
+                ):
+                    continue
+
+                sheet.cell(
+                    row=row,
+                    column=headers[
+                        "publication_status"
+                    ]
+                ).value = status
+
+                sheet.cell(
+                    row=row,
+                    column=headers[
+                        "needs_sync"
+                    ]
+                ).value = needs_sync
+
+                found = True
+                break
+
+            if not found:
+                raise RuntimeError(
+                    "Lesson package not found in "
+                    "Moodle_Publish: "
+                    f"{lesson_package_id}"
+                )
+
+            workbook.save(
+                workbook_path
+            )
+
+        finally:
+
+            workbook.close()
+
+
+    # ======================================================
+    # Safe Moodle Publisher Call
+    # ======================================================
+
+    @staticmethod
+    def _call_publisher_safely(
+            engine_build_root,
+            engine_build_name,
+            lesson_package_id
+    ):
+
+        try:
+
+            response = requests.post(
+                PUBLISHER_ENGINE_URL,
+                json={
+                    "build_root":
+                        engine_build_root,
+
+                    "build_name":
+                        engine_build_name,
+
+                    "lesson_package_id":
+                        lesson_package_id
+                },
+                timeout=ENGINE_TIMEOUT
+            )
+
+            print(
+                "Publisher",
+                response.status_code
+            )
+
+            if response.status_code != 200:
+                print(response.text)
+
+            response.raise_for_status()
+
+            publisher_result = response.json()
+
+            if (
+                publisher_result.get("status")
+                != "SUCCESS"
+            ):
+
+                raise RuntimeError(
+                    "Publisher Engine did not "
+                    "return SUCCESS for "
+                    f"{lesson_package_id}: "
+                    f"{publisher_result}"
+                )
+
+            return {
+                "success": True,
+                "result": publisher_result
+            }
+
+        except Exception as exc:
+
+            print("=" * 60)
+            print("MOODLE PUBLICATION FAILED")
+            print("Lesson :", lesson_package_id)
+            print("Error  :", str(exc))
+            print(
+                "Content generation remains successful."
+            )
+            print("=" * 60)
+
+            return {
+                "success": False,
+                "result": {
+                    "status": "FAILED",
+                    "reason":
+                        "MOODLE_PUBLICATION_FAILED",
+                    "error":
+                        str(exc)
+                }
+            }
 
     # ======================================================
     # Build Progress Reporter
@@ -1042,122 +1230,120 @@ class PipelineBuilder:
                 print("=" * 60)
                 print("CALLING PUBLISHER ENGINE")
                 print("=" * 60)
-
-                response = requests.post(
-                    PUBLISHER_ENGINE_URL,
-                    json={
-                        "build_root":
-                            engine_build_root,
-
-                        "build_name":
-                            engine_build_name,
-
-                        "lesson_package_id":
-                            lesson_package_id
-                    },
-                    timeout=ENGINE_TIMEOUT
+                self._set_publication_status(
+                    build["path"],
+                    lesson_package_id,
+                    "PUBLISHING",
+                    "YES"
+                )
+                publish_call = (
+                    self._call_publisher_safely(
+                        engine_build_root,
+                        engine_build_name,
+                        lesson_package_id
+                    )
                 )
 
-                print(
-                    "Publisher",
-                    response.status_code
+                publisher_result = (
+                    publish_call["result"]
                 )
 
-                if response.status_code != 200:
-                    print(response.text)
-
-                response.raise_for_status()
-
-                publisher_result = response.json()
-
-                if (
-                    publisher_result.get("status")
-                    != "SUCCESS"
-                ):
-
-                    raise RuntimeError(
-                        "Publisher Engine did not "
-                        "return SUCCESS for "
-                        f"{lesson_package_id}: "
-                        f"{publisher_result}"
-                
-                )
-                    
-                self._report_progress(
-                    progress_url,
-                    progress_job_id,
-                    "REGISTRY",
-                    "Recording Moodle publication...",
-                    95
+                publication_succeeded = (
+                    publish_call["success"]
                 )
 
-                mark_published(
+                if not publication_succeeded:
 
-                    record_id=
+                    self._set_publication_status(
+                        build["path"],
+                        lesson_package_id,
+                        "FAILED",
+                        "YES"
+                    )
+
+                    self._report_progress(
+                        progress_url,
+                        progress_job_id,
+                        "MOODLE_PUBLISH_FAILED",
+                        "Content generated, but Moodle publication failed.",
+                        95
+                    )
+
+                else:
+
+                    self._report_progress(
+                        progress_url,
+                        progress_job_id,
+                        "REGISTRY",
+                        "Recording Moodle publication...",
+                        95
+                    )
+
+                    mark_published(
+                        record_id=
+                            registry_record_id,
+
+                        moodle_course_id=
+                            publisher_result.get(
+                                "courseid"
+                            ),
+
+                        moodle_section_id=
+                            publisher_result.get(
+                                "strandsectionid"
+                            ),
+
+                        moodle_subsection_cmid=
+                            publisher_result.get(
+                                "subsectioncmid"
+                            ),
+
+                        moodle_subsection_section_id=
+                            publisher_result.get(
+                                "subsectionsectionid"
+                            ),
+
+                        moodle_content_description_cmid=
+                            publisher_result.get(
+                                "contentdescriptioncmid"
+                            ),
+
+                        moodle_lesson_content_cmid=
+                            publisher_result.get(
+                                "lessoncontentcmid"
+                            ),
+
+                        moodle_did_you_know_cmid=
+                            publisher_result.get(
+                                "didyouknowcmid"
+                            ),
+
+                        moodle_quiz_id=
+                            publisher_result.get(
+                                "quizid"
+                            ),
+
+                        moodle_quiz_cmid=
+                            publisher_result.get(
+                                "quizcmid"
+                            ),
+
+                        moodle_activities_cmid=
+                            publisher_result.get(
+                                "activitiescmid"
+                            ),
+
+                        moodle_recap_cmid=
+                            publisher_result.get(
+                                "recapcmid"
+                            )
+                    )
+
+                    print(
+                        "REGISTRY RECORD:",
                         registry_record_id,
-
-                    moodle_course_id=
-                        publisher_result.get(
-                            "courseid"
-                        ),
-
-                    moodle_section_id=
-                        publisher_result.get(
-                            "strandsectionid"
-                        ),
-
-                    moodle_subsection_cmid=
-                        publisher_result.get(
-                            "subsectioncmid"
-                        ),
-
-                    moodle_subsection_section_id=
-                        publisher_result.get(
-                            "subsectionsectionid"
-                        ),
-
-                    moodle_content_description_cmid=
-                        publisher_result.get(
-                            "contentdescriptioncmid"
-                        ),
-
-                    moodle_lesson_content_cmid=
-                        publisher_result.get(
-                            "lessoncontentcmid"
-                        ),
-
-                    moodle_did_you_know_cmid=
-                        publisher_result.get(
-                            "didyouknowcmid"
-                        ),
-
-                    moodle_quiz_id=
-                        publisher_result.get(
-                            "quizid"
-                        ),
-
-                    moodle_quiz_cmid=
-                        publisher_result.get(
-                            "quizcmid"
-                        ),
-
-                    moodle_activities_cmid=
-                        publisher_result.get(
-                            "activitiescmid"
-                        ),
-
-                    moodle_recap_cmid=
-                        publisher_result.get(
-                            "recapcmid"
-                        )
-
-                )
-
-                print(
-                    "REGISTRY RECORD:",
-                    registry_record_id,
-                    "STATUS: PUBLISHED"
-                )
+                        "STATUS: PUBLISHED"
+                    )
             #
             # Finished
             #
