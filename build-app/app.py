@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from api.workbook_reader import WorkbookReader
 import httpx
 from fastapi.responses import FileResponse
+from publish_generated import publish_generated_lesson
 
 from build_registry import (
     get_connection,
@@ -351,3 +352,17 @@ async def build_status(job_id: str):
         )
 
     return job
+
+
+# ==========================================================
+# Publish Generated Lesson
+# ==========================================================
+
+@app.post("/api/publish-generated")
+async def publish_generated(request: Request):
+
+    payload = await request.json()
+
+    return await publish_generated_lesson(
+        payload
+    )
