@@ -1707,6 +1707,18 @@ Build ${lesson.pending_build_id}
 
 Package ${lesson.pending_lesson_package_id}
 
+<br><br>
+
+<button
+    type="button"
+    class="publish-now-button"
+    onclick="publishGeneratedLesson(
+        '${lesson.pending_lesson_package_id}',
+        this
+    )">
+    Publish Now
+</button>
+
 </span>
 
 `;
@@ -1759,6 +1771,89 @@ ${lesson.lesson}
     /* ==========================================================
        Select All
     ========================================================== */
+
+    async function publishGeneratedLesson(
+        lessonPackageId,
+        button
+    ) {
+
+        if (!lessonPackageId) {
+            alert(
+                "Generated lesson package ID is missing."
+            );
+            return;
+        }
+
+        const originalText =
+            button.textContent;
+
+        button.disabled = true;
+        button.textContent =
+            "Publishing...";
+
+        try {
+
+            const response = await fetch(
+                "/api/publish-generated",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        lesson_package_id:
+                            lessonPackageId
+                    })
+                }
+            );
+
+            const result =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    result.detail
+                    ||
+                    "Moodle publication failed."
+                );
+            }
+
+            if (result.status !== "SUCCESS") {
+
+                throw new Error(
+                    "Publisher did not return SUCCESS."
+                );
+            }
+
+            showStatus(
+                "Lesson published successfully.",
+                true
+            );
+
+            await loadLessons();
+
+        }
+        catch (error) {
+
+            console.error(
+                "Publish generated lesson failed:",
+                error
+            );
+
+            showStatus(
+                "Moodle publication failed: "
+                + error.message,
+                false
+            );
+
+            button.disabled = false;
+            button.textContent =
+                originalText;
+        }
+    }
+
 
     function selectAllLessons() {
 
