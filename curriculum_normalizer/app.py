@@ -20,6 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from build_registry import (
     make_elaboration_key,
+    get_generated_build,
     get_published_build
 )
 
@@ -325,6 +326,26 @@ def lessons(
             elaboration_key
 
         )
+        generated_build = get_generated_build(
+            elaboration_key
+        )
+
+        generated_pending = (
+            generated_build is not None
+        )
+
+        pending_build_id = None
+        pending_lesson_package_id = None
+
+        if generated_pending:
+
+            pending_build_id = generated_build.get(
+                "build_id"
+            )
+
+            pending_lesson_package_id = generated_build.get(
+                "lesson_package_id"
+            )
 
         already_built = (
 
@@ -346,10 +367,12 @@ def lessons(
 
         else:
 
-            build_status = "NOT_BUILT"
+            if generated_pending:
+                build_status = "GENERATED"
+            else:
+                build_status = "NOT_BUILT"
 
             build_id = None
-
             lesson_package_id = None
 
         results.append({
@@ -386,7 +409,11 @@ def lessons(
 
             "can_build":
 
-                not already_built,
+                (
+                    not already_built
+                    and
+                    not generated_pending
+                ),
 
             "can_update":
 
@@ -398,7 +425,19 @@ def lessons(
 
             "previous_lesson_package_id":
 
-                lesson_package_id
+                lesson_package_id,
+
+            "generated_pending":
+
+                generated_pending,
+
+            "pending_build_id":
+
+                pending_build_id,
+
+            "pending_lesson_package_id":
+
+                pending_lesson_package_id
 
         })
 

@@ -811,7 +811,30 @@
 
             </div>
 
-            <button
+                        <div class="form-group">
+                <label>
+                    Moodle Publication
+                </label>
+
+                <label>
+                    <input
+                        type="radio"
+                        name="publication_mode"
+                        value="IMMEDIATE"
+                        checked>
+                    Publish immediately
+                </label>
+
+                <label>
+                    <input
+                        type="radio"
+                        name="publication_mode"
+                        value="GENERATE_ONLY">
+                    Generate only
+                </label>
+            </div>
+
+<button
                     type="submit"
                     id="buildButton">
 
@@ -1646,6 +1669,50 @@ Update / Rebuild
              * =============================================
              */
 
+            else if (lesson.generated_pending) {
+
+                div.classList.add(
+                    "lesson-generated"
+                );
+
+                div.innerHTML = `
+
+<label>
+
+<input
+    type="checkbox"
+    value="${lesson.lesson_number}"
+    data-topic="${lesson.topic_id}"
+    disabled>
+
+<strong>
+Lesson ${lesson.lesson_number}
+</strong>
+
+<br>
+
+${lesson.lesson}
+
+</label>
+
+<span class="generated-status">
+
+✓ Generated — Awaiting Publication
+
+<br>
+
+Build ${lesson.pending_build_id}
+
+<br>
+
+Package ${lesson.pending_lesson_package_id}
+
+</span>
+
+`;
+
+            }
+
             else {
 
                 div.classList.add(
@@ -1698,7 +1765,7 @@ ${lesson.lesson}
         document
 
             .querySelectorAll(
-                "#lessons input[type=checkbox]:checked:not(:disabled)"
+                "#lessons input[type=checkbox]:not(:disabled)"
             )
 
             .forEach(
@@ -1988,7 +2055,7 @@ ${lesson.lesson}
         const checked =
 
             document.querySelectorAll(
-                "#lessons input[type=checkbox]:not(:disabled)"
+                "#lessons input[type=checkbox]:not(:disabled):checked"
             );
 
         if (checked.length === 0) {
@@ -2067,7 +2134,13 @@ ${lesson.lesson}
 
             lesson_numbers:
 
-            lessonNumbers
+            lessonNumbers,
+
+            publication_mode:
+
+            document.querySelector(
+                'input[name="publication_mode"]:checked'
+            ).value
 
         };
 
@@ -2515,7 +2588,12 @@ ${lesson.lesson}
                         "UPDATE",
 
                     update_components:
-                        components
+                        components,
+
+                    publication_mode:
+                        document.querySelector(
+                            'input[name="publication_mode"]:checked'
+                        ).value
 
                 };
 

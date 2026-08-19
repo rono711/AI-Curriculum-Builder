@@ -259,7 +259,20 @@ class LessonPackageBuilder:
                 "NEW"
             )
         ).strip().upper()
-
+        publication_mode = str(
+            request.get(
+                "publication_mode",
+                "IMMEDIATE"
+            )
+        ).strip().upper()
+        if publication_mode not in (
+                "IMMEDIATE",
+                "GENERATE_ONLY"
+        ):
+            raise ValueError(
+                "Invalid publication_mode. "
+                "Expected IMMEDIATE or GENERATE_ONLY."
+            )
         update_components = request.get(
             "update_components",
             []
@@ -417,6 +430,10 @@ class LessonPackageBuilder:
         print("ELABORATION BUILD VALIDATION")
         print("Build Mode:", build_mode)
         print(
+            "Publication Mode:",
+            publication_mode
+        )
+        print(
             "Update Components:",
             update_components
             or "NONE"
@@ -548,6 +565,9 @@ class LessonPackageBuilder:
 
             lesson["update_components"] = (
                 list(update_components)
+            )
+            lesson["publication_mode"] = (
+                publication_mode
             )
 
             if published_build:

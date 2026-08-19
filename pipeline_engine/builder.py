@@ -21,6 +21,7 @@ from build_registry import (
     mark_published,
     mark_update_ready,
     get_published_build,
+    mark_generated,
     get_previous_published_build,
     inherit_moodle_identity
 )
@@ -485,7 +486,22 @@ class PipelineBuilder:
                     "NEW"
                 )
             ).strip().upper()
-
+            publication_mode = str(
+                lesson.get(
+                    "publication_mode",
+                    "IMMEDIATE"
+                )
+            ).strip().upper()
+            
+            if publication_mode not in (
+                    "IMMEDIATE",
+                    "GENERATE_ONLY"
+            ):
+                raise RuntimeError(
+                    "Invalid publication_mode for "
+                    f"{lesson_package_id}: "
+                    f"{publication_mode}"
+                )
             update_components = (
                 lesson.get(
                     "update_components",
@@ -497,6 +513,10 @@ class PipelineBuilder:
             print("=" * 60)
             print("PIPELINE EXECUTION MODE")
             print("Build Mode:", build_mode)
+            print(
+                "Publication Mode:",
+                publication_mode
+            )
             print(
                 "Update Components:",
                 update_components
@@ -1091,6 +1111,64 @@ class PipelineBuilder:
                 })
 
                 continue
+            
+            # ==================================================
+            # Generate Only - Skip Moodle Publication
+            # ==================================================
+
+            
+            if publication_mode == "GENERATE_ONLY":
+                mark_generated(
+                    registry_record_id
+                )
+
+                print(
+                    "REGISTRY RECORD:",
+                    registry_record_id,
+                    "STATUS: GENERATED"
+                )
+
+                self._set_publication_status(
+                    build["path"],
+                    lesson_package_id,
+                    "PENDING",
+                    "YES"
+                )
+
+                print("=" * 60)
+                print("MOODLE PUBLICATION SKIPPED")
+                print("Lesson :", lesson_package_id)
+                print("Reason : GENERATE_ONLY")
+                print("=" * 60)
+
+                publisher_result = {
+                    "status": "SKIPPED",
+                    "reason": "GENERATE_ONLY"
+                }
+
+                results.append({
+                    "lesson_package_id":
+                        lesson_package_id,
+
+                    "status":
+                        "SUCCESS",
+
+                    "prompts":
+                        prompt_results,
+
+                    "publisher":
+                        publisher_result
+                })
+
+                print("=" * 60)
+                print("LESSON PACKAGE BUILD COMPLETED")
+                print("Build ID :", build["build_id"])
+                print("Lesson   :", lesson_package_id)
+                print("Publication: PENDING")
+                print("=" * 60)
+
+                continue
+
             # ==================================================
             # Moodle Publication
             # ==================================================

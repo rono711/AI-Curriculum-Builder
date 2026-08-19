@@ -12,6 +12,11 @@ from api.workbook_reader import WorkbookReader
 import httpx
 from fastapi.responses import FileResponse
 
+from build_registry import (
+    get_connection,
+    mark_published
+)
+
 # ==========================================================
 # Service URLs
 # ==========================================================
@@ -19,6 +24,11 @@ from fastapi.responses import FileResponse
 LESSON_PACKAGE_BUILDER_URL = os.getenv(
     "LESSON_PACKAGE_BUILDER_URL",
     "http://192.168.1.108:8003/build"
+)
+
+PUBLISHER_ENGINE_URL = os.getenv(
+    "PUBLISHER_ENGINE_URL",
+    "http://publisher-engine:8012/publish"
 )
 
 # ==========================================================

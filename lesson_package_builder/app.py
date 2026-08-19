@@ -75,10 +75,13 @@ class BuildRequest(BaseModel):
 
     update_components: List[str] = []
 
+    publication_mode: str = "IMMEDIATE"
+
     progress_job_id: str = ""
 
     progress_url: str = ""
-
+    
+    
 # ==========================================================
 # Home
 # ==========================================================

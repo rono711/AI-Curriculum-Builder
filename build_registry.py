@@ -267,6 +267,38 @@ def get_published_build(elaboration_key):
         return dict(row)
 
 # ==========================================================
+# Current Generated Build Awaiting Publication
+# ==========================================================
+
+def get_generated_build(elaboration_key):
+
+    initialize_registry()
+
+    with get_connection() as connection:
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM elaboration_builds
+
+            WHERE elaboration_key = ?
+              AND status = 'GENERATED'
+
+            ORDER BY id DESC
+
+            LIMIT 1
+            """,
+            (
+                elaboration_key,
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return dict(row)
+
+# ==========================================================
 # Previous Published Build With Moodle Identity
 # ==========================================================
 
@@ -710,6 +742,18 @@ def inherit_moodle_identity(
                 "moodle_recap_cmid"
             )
     )
+
+# ==========================================================
+# Mark Generated - Awaiting Publication
+# ==========================================================
+
+def mark_generated(record_id):
+
+    update_status(
+        record_id=record_id,
+        status="GENERATED"
+    )
+
 
 # ==========================================================
 # Mark Failed
