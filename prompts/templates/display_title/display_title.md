@@ -35,7 +35,8 @@ Elaboration:
 
 Requirements
 
-Create ONE lesson title.
+Create ONE lesson title based on Elaboration:
+{{ELABORATION}}.
 
 The title should be:
 

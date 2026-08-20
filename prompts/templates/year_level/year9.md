@@ -1,6 +1,7 @@
 # Year 9 Learners
 
-The lesson is for Year 9 students. Design every aspect of the lesson for secondary learners and ensure curriculum content remains appropriate to Year 9.
+The lesson is for Year 9 students. Design every aspect of the lesson for secondary learners and ensure curriculum content remains appropriate to Year 9 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

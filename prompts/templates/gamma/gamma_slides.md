@@ -49,7 +49,8 @@ THE COMPLETE LESSON
 {{LESSON_CONTENT}}
 
 ------------------------------------------------
-Create a modern, colorful presentation.
+Create a modern, colorful presentation based on Elaboration:
+{{elaboration}}
 
 Use vibrant colors.
 
@@ -61,7 +62,8 @@ Use attractive layouts.
 
 Keep slides visually engaging.
 
-Create a presentation that faithfully follows the lesson above.
+Create a presentation that faithfully follows the Elaboration:
+{{elaboration}} above.
 Do not invent a different topic.
 Keep the terminology, examples, learning intention and success criteria aligned with the lesson.
 Maintain the learning intention.

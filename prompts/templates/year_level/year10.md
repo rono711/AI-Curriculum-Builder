@@ -1,6 +1,7 @@
 # Year 10 Learners
 
-The lesson is for Year 10 students. Design every aspect of the lesson for secondary learners and ensure curriculum content remains appropriate to Year 10.
+The lesson is for Year 10 students. Design every aspect of the lesson for secondary learners and ensure curriculum content remains appropriate to Year 10 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

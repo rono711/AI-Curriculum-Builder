@@ -6,7 +6,8 @@ You are an experienced Australian teacher.
 
 ## Objective
 
-Write a short description encouraging students to complete the learning activities.
+Write a short description encouraging students to complete the learning activities based on Elaboration:
+{{elaboration}}.
 
 ## Requirements
 

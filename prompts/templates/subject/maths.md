@@ -8,7 +8,8 @@ Generate engaging, curriculum-aligned Mathematics learning experiences that deve
 
 # Teaching Approach
 
-Mathematics should help students make sense of mathematical ideas and use them confidently.
+Mathematics should help students make sense of mathematical ideas and use them confidently Elaboration:
+{{ELABORATION}}.
 
 Integrate where appropriate:
 

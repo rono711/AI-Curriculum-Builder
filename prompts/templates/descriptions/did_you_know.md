@@ -6,7 +6,8 @@ You are an experienced Australian teacher.
 
 ## Objective
 
-Write a short introduction for the **Did You Know?** page.
+Write a short introduction for the **Did You Know?** page based on Elaboration:
+{{elaboration}}.
 
 Students will then read the lesson content.
 

@@ -1,6 +1,7 @@
 # Year 5 Learners
 
-The lesson is for Year 5 students. Design every aspect of the lesson for upper primary learners and ensure curriculum content remains appropriate to Year 5.
+The lesson is for Year 5 students. Design every aspect of the lesson for upper primary learners and ensure curriculum content remains appropriate to Year 5 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

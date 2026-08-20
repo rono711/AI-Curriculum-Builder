@@ -1,6 +1,7 @@
 # Year 2 Learners
 
-The lesson is for Year 2 students. Design every aspect of the lesson for early primary learners and ensure curriculum content remains appropriate to Year 2.
+The lesson is for Year 2 students. Design every aspect of the lesson for early primary learners and ensure curriculum content remains appropriate to Year 2 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

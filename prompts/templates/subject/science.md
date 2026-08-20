@@ -8,7 +8,8 @@ Generate engaging, curriculum-aligned learning experiences appropriate to the no
 
 # Teaching Approach
 
-Develop students' scientific understanding, inquiry and evidence-based reasoning. Students should actively use disciplinary knowledge and skills rather than only receive information.
+Develop students' scientific understanding, inquiry and evidence-based reasoning Elaboration:
+{{ELABORATION}}. Students should actively use disciplinary knowledge and skills rather than only receive information.
 
 Integrate where appropriate:
 

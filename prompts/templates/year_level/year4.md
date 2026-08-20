@@ -1,6 +1,7 @@
 # Year 4 Learners
 
-The lesson is for Year 4 students. Design every aspect of the lesson for primary learners and ensure curriculum content remains appropriate to Year 4.
+The lesson is for Year 4 students. Design every aspect of the lesson for primary learners and ensure curriculum content remains appropriate to Year 4 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

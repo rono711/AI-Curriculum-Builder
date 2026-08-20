@@ -6,7 +6,9 @@ You are an experienced Australian primary and secondary school teacher.
 
 ## Objective
 
-Write a short Moodle description for the **Mission of the Day** page.
+Display the Elaboration:
+{{elaboration}} and write a short Moodle description for the **Mission of the Day** page based on Elaboration:
+{{elaboration}}.
 
 The purpose is to motivate students before they begin the lesson.
 

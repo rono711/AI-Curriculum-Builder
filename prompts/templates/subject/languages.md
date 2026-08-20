@@ -8,7 +8,8 @@ Generate engaging, curriculum-aligned learning experiences appropriate to the no
 
 # Teaching Approach
 
-Develop students' communicative competence, intercultural understanding and confident use of the target language. Students should actively use disciplinary knowledge and skills rather than only receive information.
+Develop students' communicative competence, intercultural understanding and confident use of the target language Elaboration:
+{{ELABORATION}}. Students should actively use disciplinary knowledge and skills rather than only receive information.
 
 Integrate where appropriate:
 

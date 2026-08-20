@@ -1,6 +1,7 @@
 # Year 7 Learners
 
-The lesson is for Year 7 students. Design every aspect of the lesson for early secondary learners and ensure curriculum content remains appropriate to Year 7.
+The lesson is for Year 7 students. Design every aspect of the lesson for early secondary learners and ensure curriculum content remains appropriate to Year 7 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

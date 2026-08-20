@@ -8,7 +8,8 @@ Generate engaging, curriculum-aligned learning experiences appropriate to the no
 
 # Teaching Approach
 
-Develop students' health literacy, movement competence, wellbeing, relationships and safe participation. Students should actively use disciplinary knowledge and skills rather than only receive information.
+Develop students' health literacy, movement competence, wellbeing, relationships and safe participation Elaboration:
+{{ELABORATION}}. Students should actively use disciplinary knowledge and skills rather than only receive information.
 
 Integrate where appropriate:
 

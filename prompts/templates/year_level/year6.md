@@ -1,6 +1,7 @@
 # Year 6 Learners
 
-The lesson is for Year 6 students. Design every aspect of the lesson for upper primary learners and ensure curriculum content remains appropriate to Year 6.
+The lesson is for Year 6 students. Design every aspect of the lesson for upper primary learners and ensure curriculum content remains appropriate to Year 6 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

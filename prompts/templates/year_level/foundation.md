@@ -2,7 +2,8 @@
 
 The lesson is for Foundation Year students.
 
-Design every aspect of the lesson to suit learners who are typically beginning formal schooling.
+Design every aspect of the lesson to suit learners who are typically beginning formal schooling Elaboration:
+{{ELABORATION}}.
 
 ## Characteristics
 

@@ -1,6 +1,7 @@
 # Moodle GIFT Quiz Generator
 
-Please read the following lesson and generate multiple-choice questions in Moodle GIFT format.
+Please read the following lesson and generate multiple-choice questions in Moodle GIFT format based on Elaboration:
+{{ELABORATION}}.
 
 Rules
 

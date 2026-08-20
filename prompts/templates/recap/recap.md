@@ -30,9 +30,13 @@ THE COMPLETE LESSON
 
 {{LESSON_CONTENT}}
 
+Elaboration:
+{{ELABORATION}}
+
 ------------------------------------------------
 
-Generate a student-friendly lesson recap.
+Generate a student-friendly lesson recap based on Elaboration:
+{{ELABORATION}} .
 
 The lesson above is the ONLY source of truth.
 

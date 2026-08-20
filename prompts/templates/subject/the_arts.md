@@ -8,7 +8,8 @@ Generate engaging, curriculum-aligned learning experiences appropriate to the no
 
 # Teaching Approach
 
-Develop students' creative practice, expression, interpretation and responding. Students should actively use disciplinary knowledge and skills rather than only receive information.
+Develop students' creative practice, expression, interpretation and responding Elaboration:
+{{ELABORATION}}. Students should actively use disciplinary knowledge and skills rather than only receive information.
 
 Integrate where appropriate:
 

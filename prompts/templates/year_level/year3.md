@@ -1,6 +1,7 @@
 # Year 3 Learners
 
-The lesson is for Year 3 students. Design every aspect of the lesson for primary learners and ensure curriculum content remains appropriate to Year 3.
+The lesson is for Year 3 students. Design every aspect of the lesson for primary learners and ensure curriculum content remains appropriate to Year 3 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

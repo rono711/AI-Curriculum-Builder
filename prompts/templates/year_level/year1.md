@@ -1,6 +1,7 @@
 # Year 1 Learners
 
-The lesson is for Year 1 students. Design every aspect of the lesson for early primary learners and ensure curriculum content remains appropriate to Year 1.
+The lesson is for Year 1 students. Design every aspect of the lesson for early primary learners and ensure curriculum content remains appropriate to Year 1 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

@@ -41,7 +41,8 @@ Elaboration:
 THE COMPLETE LESSON
 
 {{LESSON_CONTENT}}
-
+based on Elaboration:
+{{elaboration}}
 ------------------------------------------------
 
 Instructions
@@ -68,7 +69,8 @@ Maintain alignment with:
 
 ------------------------------------------------
 
-Generate the following classroom activities.
+Generate the following classroom activities based on Elaboration:
+{{elaboration}}.
 
 # Activity 1
 
@@ -162,7 +164,8 @@ EAL/D suggestions
 
 Teacher Notes
 
-Provide practical classroom advice.
+Provide practical classroom advice for Elaboration:
+{{elaboration}}.
 
 Mention
 

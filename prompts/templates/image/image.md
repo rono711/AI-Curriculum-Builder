@@ -1,6 +1,7 @@
 # CONTENT DESCRIPTION IMAGE PROMPT
 
-You are creating an educational illustration for an Australian school curriculum Content Description.
+You are creating an educational illustration for an Australian school curriculum Content Description:
+{{CONTENT_DESCRIPTION}}.
 
 Generate ONE visually engaging, age-appropriate educational image that represents the meaning and learning context of the CONTENT DESCRIPTION provided below.
 

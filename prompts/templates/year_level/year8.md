@@ -1,6 +1,7 @@
 # Year 8 Learners
 
-The lesson is for Year 8 students. Design every aspect of the lesson for early secondary learners and ensure curriculum content remains appropriate to Year 8.
+The lesson is for Year 8 students. Design every aspect of the lesson for early secondary learners and ensure curriculum content remains appropriate to Year 8 Elaboration:
+{{ELABORATION}}.
 
 ## Learner Profile
 

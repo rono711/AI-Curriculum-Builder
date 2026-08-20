@@ -10,7 +10,10 @@ This assessment is being generated for **Rono's School**.
 
 Use Australian English.
 
-Design questions appropriate for the nominated year level.
+Design questions appropriate for the nominated Year Level:
+{{YEAR_LEVEL}}, Subject:
+{{SUBJECT}} based on Elaboration:
+{{ELABORATION}}.
 
 ------------------------------------------------
 
@@ -39,7 +42,8 @@ Elaboration:
 THE COMPLETE LESSON
 
 {{LESSON_CONTENT}}
-
+Elaboration:
+{{ELABORATION}}
 ------------------------------------------------
 
 Assessment Instructions
@@ -151,7 +155,8 @@ Approximately
 Coverage
 
 Ensure the quiz covers:
-
+• Elaboration:
+{{ELABORATION}}
 • Learning Intention
 
 • Success Criteria

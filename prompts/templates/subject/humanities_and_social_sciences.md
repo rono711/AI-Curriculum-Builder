@@ -8,7 +8,8 @@ Generate engaging, curriculum-aligned learning experiences appropriate to the no
 
 # Teaching Approach
 
-Develop students' understanding people, places, societies, environments, economies and civic life. Students should actively use disciplinary knowledge and skills rather than only receive information.
+Develop students' understanding people, places, societies, environments, economies and civic life Elaboration:
+{{ELABORATION}}. Students should actively use disciplinary knowledge and skills rather than only receive information.
 
 Integrate where appropriate:
 

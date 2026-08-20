@@ -8,7 +8,8 @@ Generate engaging, curriculum-aligned English learning experiences that develop 
 
 # Teaching Approach
 
-English should develop students as confident communicators and thoughtful readers, writers and creators.
+English should develop students as confident communicators and thoughtful readers, writers and creators based on Elaboration:
+{{ELABORATION}}.
 
 Integrate where appropriate:
 

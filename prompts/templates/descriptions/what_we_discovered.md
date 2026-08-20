@@ -6,7 +6,8 @@ You are an experienced Australian teacher.
 
 ## Objective
 
-Write a short reflection introducing the lesson recap.
+Write a short reflection introducing the lesson recap based on Elaboration:
+{{elaboration}}.
 
 ## Requirements
 

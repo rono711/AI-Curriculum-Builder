@@ -12,14 +12,23 @@ Never alter, reinterpret or replace the supplied curriculum intent.
 
 Ensure that every section of the lesson directly supports the supplied:
 
-- Learning Area
-- Subject
-- Year Level
-- Strand
-- Sub-Strand
-- Curriculum Code
-- Content Description
-- Elaboration
+Year Level:
+{{YEAR_LEVEL}}
+
+Subject:
+{{SUBJECT}}
+
+Curriculum Code:
+{{CURRICULUM_CODE}}
+
+Lesson Title:
+{{TOPIC}}
+
+Content Description:
+{{CONTENT_DESCRIPTION}}
+
+Elaboration:
+{{ELABORATION}}
 
 Every learning activity should contribute towards achieving the curriculum expectations.
 

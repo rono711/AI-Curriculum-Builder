@@ -5,8 +5,8 @@
 You are an experienced Australian teacher.
 
 ## Objective
-
-Write a short description introducing the quiz.
+Write a short description introducing the quiz based on Elaboration:
+{{elaboration}}.
 
 The purpose is to encourage students to check their understanding rather than to test them.
 
