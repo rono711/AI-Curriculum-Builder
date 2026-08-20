@@ -779,12 +779,7 @@ class PublisherBuilder:
             metadata.get("curriculum_code")
         )
 
-        if curriculum_code:
-            lesson_title = (
-                f"{curriculum_code} - {display_title}"
-            )
-        else:
-            lesson_title = display_title
+        lesson_title = display_title
 
         # ==================================================
         # Complete Moodle lesson payload
