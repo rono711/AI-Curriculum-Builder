@@ -779,6 +779,20 @@ class PublisherBuilder:
             metadata.get("curriculum_code")
         )
 
+        elaboration = self._text(
+            metadata.get("elaboration")
+        )
+
+        if not curriculum_code:
+            raise RuntimeError(
+                "Curriculum code is empty."
+            )
+
+        if not elaboration:
+            raise RuntimeError(
+                "Curriculum elaboration is empty."
+            )
+
         lesson_title = display_title
 
         # ==================================================
@@ -858,6 +872,12 @@ class PublisherBuilder:
                 self._text(
                     metadata.get("sub_strand")
                 ),
+
+            "curriculumcode":
+                curriculum_code,
+
+            "elaboration":
+                elaboration,
 
             "contentdescription":
                 self._text(

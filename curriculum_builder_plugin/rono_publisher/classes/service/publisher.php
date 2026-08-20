@@ -114,6 +114,8 @@ class publisher {
         int $courseid,
         string $strand,
         string $substrand,
+        string $curriculumcode,
+        string $elaboration,
         string $contentdescription,
         string $parentcode,
         string $contentdescriptionimagename,
@@ -144,6 +146,18 @@ class publisher {
         if (trim($substrand) === '') {
             throw new moodle_exception(
                 'Sub-strand cannot be empty.'
+            );
+        }
+
+        if (trim($curriculumcode) === '') {
+            throw new moodle_exception(
+                'Curriculum code cannot be empty.'
+            );
+        }
+
+        if (trim($elaboration) === '') {
+            throw new moodle_exception(
+                'Curriculum elaboration cannot be empty.'
             );
         }
 

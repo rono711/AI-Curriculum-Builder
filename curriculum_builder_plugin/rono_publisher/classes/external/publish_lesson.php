@@ -55,6 +55,16 @@ class publish_lesson extends external_api {
                 'Curriculum sub-strand used as the Moodle subsection title'
             ),
 
+            'curriculumcode' => new external_value(
+                PARAM_TEXT,
+                'Lesson curriculum/elaboration code'
+            ),
+
+            'elaboration' => new external_value(
+                PARAM_RAW,
+                'Curriculum elaboration for this lesson'
+            ),
+
             'contentdescription' => new external_value(
                 PARAM_RAW,
                 'Curriculum content description displayed as Text and Media'
@@ -187,6 +197,8 @@ class publish_lesson extends external_api {
         int $courseid,
         string $strand,
         string $substrand,
+        string $curriculumcode,
+        string $elaboration,
         string $contentdescription,
         string $parentcode,
         string $contentdescriptionimagename,
@@ -208,6 +220,8 @@ class publish_lesson extends external_api {
                 'courseid' => $courseid,
                 'strand' => $strand,
                 'substrand' => $substrand,
+                'curriculumcode' => $curriculumcode,
+                'elaboration' => $elaboration,
                 'contentdescription' => $contentdescription,
                 'parentcode' => $parentcode,
                 'contentdescriptionimagename' =>
@@ -272,6 +286,8 @@ class publish_lesson extends external_api {
                 (int)$course->id,
                 $params['strand'],
                 $params['substrand'],
+                $params['curriculumcode'],
+                $params['elaboration'],
                 $params['contentdescription'],
                 $params['parentcode'],
                 $params['contentdescriptionimagename'],
