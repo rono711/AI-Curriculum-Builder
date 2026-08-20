@@ -288,76 +288,70 @@ class PromptAssembler:
 
         ).lower()
 
+        # Map every Australian school year level to its own guidance file.
+        # Expected files: foundation.md, year1.md ... year12.md
         if "foundation" in year:
-
-            templates.append(
-
-                self.templates.year_level(
-
-                    "foundation.md"
-
-                )
-
-            )
-
-        elif "year 1" in year or "year 2" in year:
-
-            templates.append(
-
-                self.templates.year_level(
-
-                    "primary.md"
-
-                )
-
-            )
-
+            year_file = "foundation.md"
         else:
-
-            templates.append(
-
-                self.templates.year_level(
-
-                    "secondary.md"
-
+            import re
+            match = re.search(r"year\s*(\d{1,2})", year)
+            if not match:
+                raise ValueError(
+                    f"Unsupported year level: {context['year_level']}"
                 )
 
+            year_number = int(match.group(1))
+            if not 1 <= year_number <= 12:
+                raise ValueError(
+                    f"Unsupported year level: {context['year_level']}"
+                )
+
+            year_file = f"year{year_number}.md"
+
+        print("YEAR GUIDANCE:", year_file)
+
+        templates.append(
+            self.templates.year_level(
+                year_file
             )
+        )
 
         #
         # Subject
         #
 
-        subject = (
+        # Map workbook subject names to subject-guidance files.
+        # Add aliases here when workbook labels differ from filenames.
+        raw_subject = str(context["subject"]).strip().lower()
 
-                str(
+        subject_aliases = {
+            "math": "maths.md",
+            "maths": "maths.md",
+            "mathematics": "maths.md",
+            "english": "english.md",
+            "science": "science.md",
+            "humanities and social sciences": "humanities_and_social_sciences.md",
+            "hass": "humanities_and_social_sciences.md",
+            "the arts": "the_arts.md",
+            "arts": "the_arts.md",
+            "technologies": "technologies.md",
+            "health and physical education": "health_and_physical_education.md",
+            "hpe": "health_and_physical_education.md",
+            "languages": "languages.md",
+            "arabic": "arabic.md",
+        }
 
-                    context["subject"]
-
-                )
-
-                .lower()
-
-                .replace(
-
-                    " ",
-
-                    "_"
-
-                )
-
-                + ".md"
-
+        subject = subject_aliases.get(
+            raw_subject,
+            raw_subject.replace("&", "and").replace(" ", "_") + ".md"
         )
 
+        print("SUBJECT GUIDANCE:", subject)
+
         templates.append(
-
             self.templates.subject(
-
                 subject
-
             )
-
         )
 
         #
