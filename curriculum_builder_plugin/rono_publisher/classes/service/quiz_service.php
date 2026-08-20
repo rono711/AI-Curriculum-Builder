@@ -149,7 +149,11 @@ class quiz_service {
 
         $moduleinfo->introformat =
             FORMAT_HTML;
-
+        /*
+         * Display the generated Quiz description
+         * directly on the Moodle course page.
+        */
+        $moduleinfo->showdescription = 1;
         /*
          * ---------------------------------------------------------
          * Basic Quiz settings.

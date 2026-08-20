@@ -564,8 +564,14 @@ class page_service {
         /*
          * Activity description.
          */
-        $moduleinfo->intro = $description;
-        $moduleinfo->introformat = FORMAT_HTML;
+       $moduleinfo->intro = $description;
+       $moduleinfo->introformat = FORMAT_HTML;
+
+        /*
+         * Display the generated activity description
+         * directly on the Moodle course page.
+       */
+        $moduleinfo->showdescription = 1;
 
         /*
          * Actual Page body.
