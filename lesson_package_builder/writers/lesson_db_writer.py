@@ -136,6 +136,39 @@ def selected_lessons(request):
         )
 
         ]
+        # ======================================================
+    # Sub-Strand Fallback
+    # ======================================================
+    #
+    # Some Master Lesson DB rows do not contain Sub-Strand,
+    # although the Build Form has already resolved and sent
+    # the selected sub-strand.
+    #
+    # Preserve a populated Master DB value when available.
+    # Otherwise use the validated Build Form value.
+    #
+
+    requested_sub_strand = str(
+        request.get(
+            "sub_strand",
+            ""
+        )
+    ).strip()
+
+    if requested_sub_strand:
+
+        df = df.copy()
+
+        df["Sub-Strand"] = (
+            df["Sub-Strand"]
+            .fillna("")
+            .apply(
+                lambda value:
+                    value
+                    if str(value).strip()
+                    else requested_sub_strand
+            )
+        )
 
     df = df.sort_values(
 
@@ -340,8 +373,16 @@ def write_lesson_db(
 
             "sub_strand":
 
-                lesson["Sub-Strand"],
-
+                (
+                    lesson["Sub-Strand"]
+                    if str(
+                        lesson["Sub-Strand"]
+                    ).strip()
+                    else request.get(
+                        "sub_strand",
+                        ""
+                    )
+                ),
             "parent_code":
 
                 lesson["Parent Code"],
