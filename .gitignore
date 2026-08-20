@@ -74,3 +74,6 @@ data/build_registry.db
 
 # Accidental shell output
 /head
+
+# Generated Moodle plugin packages
+curriculum_builder_plugin/*.zip
