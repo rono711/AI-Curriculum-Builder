@@ -165,6 +165,29 @@ class section_service {
         }
 
         /*
+         * Learner-facing subsection title:
+         * capitalise the first Unicode character while preserving
+         * the remainder of the curriculum text.
+         */
+        $substrand =
+            mb_strtoupper(
+                mb_substr(
+                    $substrand,
+                    0,
+                    1,
+                    'UTF-8'
+                ),
+                'UTF-8'
+            )
+            .
+            mb_substr(
+                $substrand,
+                1,
+                null,
+                'UTF-8'
+            );
+
+        /*
          * Moodle Subsection is a real activity module (mod_subsection).
          *
          * The subsection activity lives in the parent strand section.
@@ -209,9 +232,58 @@ class section_service {
         );
 
         foreach ($records as $record) {
+
+            $existingname =
+                trim((string)$record->name);
+
+            /*
+             * Match case-insensitively so an existing subsection
+             * is reused rather than duplicated only because its
+             * first character previously used lowercase.
+             */
             if (
-                trim((string)$record->name) === $substrand
+                mb_strtolower(
+                    $existingname,
+                    'UTF-8'
+                )
+                ===
+                mb_strtolower(
+                    $substrand,
+                    'UTF-8'
+                )
             ) {
+
+                /*
+                 * Upgrade the existing learner-facing title while
+                 * retaining the same subsection instance and CMID.
+                 */
+                if ($existingname !== $substrand) {
+
+                    $existing =
+                        $DB->get_record(
+                            'subsection',
+                            [
+                                'id' =>
+                                    (int)$record->instance,
+                            ],
+                            '*',
+                            MUST_EXIST
+                        );
+
+                    $existing->name =
+                        $substrand;
+
+                    $DB->update_record(
+                        'subsection',
+                        $existing
+                    );
+
+                    rebuild_course_cache(
+                        $courseid,
+                        true
+                    );
+                }
+
                 return $this->get_subsection_result(
                     $courseid,
                     (int)$record->instance,
