@@ -278,8 +278,8 @@ class publisher {
                 ->find_or_create_content_description(
                     $course->id,
                     $lessonsection,
-                    $contentdescription,
-                    $parentcode,
+                    $elaboration,
+                    $curriculumcode,
                     $contentdescriptionimagename,
                     $contentdescriptionimage
                 );

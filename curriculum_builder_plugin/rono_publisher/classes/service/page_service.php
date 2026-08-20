@@ -100,30 +100,37 @@ class page_service {
             ]
         );
 
+        /*
+         * Each lesson/elaboration has its own Text & Media activity.
+         * The curriculum code is the stable lesson-level identity.
+         */
         $targettext = trim(
-            strip_tags($contentdescription)
+            $parentcode
         );
 
         foreach ($records as $record) {
 
-            $existingtext = trim(
-                strip_tags((string)$record->intro)
+            $existingname = trim(
+                (string)$record->name
             );
 
             /*
-             * Existing records may already contain an image.
-             * Therefore compare the beginning of the visible
-             * Content Description rather than the whole HTML.
+             * Curriculum code is the stable lesson-level identity.
+             * Use an exact case-insensitive match so E1 cannot
+             * accidentally match E10.
              */
             if (
                 $targettext !== ''
                 &&
-                mb_stripos(
-                    $existingtext,
-                    $targettext,
-                    0,
+                mb_strtolower(
+                    $existingname,
                     'UTF-8'
-                ) === 0
+                )
+                ===
+                mb_strtolower(
+                    $targettext,
+                    'UTF-8'
+                )
             ) {
 				
 				
@@ -202,17 +209,27 @@ class page_service {
         $moduleinfo->course = $course->id;
         $moduleinfo->section = $section->section;
 
-        $moduleinfo->name = shorten_text(
-            trim(strip_tags($contentdescription)),
-            100
-        );
+        /*
+         * Stable internal identity for this lesson banner.
+         */
+        $moduleinfo->name =
+            $parentcode;
 
         /*
          * Temporary H3 only.
          * The image is attached immediately after creation.
          */
         $moduleinfo->intro =
-            '<h3 style="color: blue;">' .
+            '<h3 style="' .
+            'margin: 0 0 14px 0; ' .
+            'color: #1F4E5F; ' .
+            'font-weight: 600; ' .
+            'line-height: 1.4;' .
+            '">' .
+            '<strong>' .
+            s($parentcode) .
+            '</strong>' .
+            ' &mdash; ' .
             s($contentdescription) .
             '</h3>';
 
@@ -314,10 +331,12 @@ class page_service {
             $contentdescription
         );
 
-        $label->name = shorten_text(
-            trim(strip_tags($contentdescription)),
-            100
-        );
+        /*
+         * Preserve the curriculum code as the stable internal
+         * identity when this lesson banner is updated.
+         */
+        $label->name =
+            $parentcode;
 
         $label->intro =
             $this->build_content_description_html(
@@ -472,7 +491,16 @@ class page_service {
         );
 
         $heading =
-            '<h3 style="color: blue;">' .
+            '<h3 style="' .
+            'margin: 0 0 14px 0; ' .
+            'color: #1F4E5F; ' .
+            'font-weight: 600; ' .
+            'line-height: 1.4;' .
+            '">' .
+            '<strong>' .
+            s($parentcode) .
+            '</strong>' .
+            ' &mdash; ' .
             s($contentdescription) .
             '</h3>';
 
