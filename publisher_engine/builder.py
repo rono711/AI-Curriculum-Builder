@@ -799,10 +799,9 @@ class PublisherBuilder:
         # Complete Moodle lesson payload
         # ==================================================
         # ==================================================
-        # Content Description Image
+        # Lesson Elaboration Image
         #
-        # ONE image belongs to the parent Content Description,
-        # not to an individual elaboration / lesson.
+        # ONE image belongs to this curriculum elaboration.
         # ==================================================
 
         parent_code = self._text(
@@ -815,46 +814,46 @@ class PublisherBuilder:
                 "Parent curriculum code is empty."
             )
 
-        content_description_image = (
+        elaboration_image = (
             Path(build_root)
             / "Images"
             / build_name
-            / f"{parent_code}_content_description.png"
+            / f"{curriculum_code}_elaboration.png"
         )
 
-        if not content_description_image.exists():
+        if not elaboration_image.exists():
 
             raise RuntimeError(
-                "Content Description image not found: "
-                f"{content_description_image}"
+                "Lesson elaboration image not found: "
+                f"{elaboration_image}"
             )
 
         image_bytes = (
-            content_description_image.read_bytes()
+            elaboration_image.read_bytes()
         )
 
         if not image_bytes:
 
             raise RuntimeError(
-                "Content Description image is empty: "
-                f"{content_description_image}"
+                "Lesson elaboration image is empty: "
+                f"{elaboration_image}"
             )
 
-        content_description_image_base64 = (
+        elaboration_image_base64 = (
             base64.b64encode(
                 image_bytes
             ).decode("ascii")
         )
 
-        content_description_image_name = (
-            content_description_image.name
+        elaboration_image_name = (
+            elaboration_image.name
         )
 
         
         print("=" * 60)
-        print("CONTENT DESCRIPTION IMAGE")
+        print("LESSON ELABORATION IMAGE")
         print("Parent Code:", parent_code)
-        print("Image:", content_description_image)
+        print("Image:", elaboration_image)
         print("Bytes:", len(image_bytes))
         print("=" * 60)
 
@@ -890,10 +889,10 @@ class PublisherBuilder:
                 parent_code,
 
             "contentdescriptionimagename":
-                content_description_image_name,
+                elaboration_image_name,
 
             "contentdescriptionimage":
-                content_description_image_base64,
+                elaboration_image_base64,
                 
             "lesson[title]":
                 lesson_title,
@@ -1010,7 +1009,7 @@ class PublisherBuilder:
             "contentdescriptionimage":
                 (
                     f"<BASE64 "
-                    f"{len(content_description_image_base64)} chars>"
+                    f"{len(elaboration_image_base64)} chars>"
                 ),
 
             "lesson[quizcontent]":

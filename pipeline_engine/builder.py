@@ -763,7 +763,7 @@ class PipelineBuilder:
                 ),
                 "Image": (
                     "IMAGE",
-                    "Generating Content Description image...",
+                    "Generating lesson elaboration image...",
                     80
                 ),
             }
@@ -809,6 +809,20 @@ class PipelineBuilder:
                         "parent_code"
                     ] = lesson.get(
                         "parent_code",
+                        ""
+                    )
+
+                    engine_payload[
+                        "curriculum_code"
+                    ] = lesson.get(
+                        "curriculum_code",
+                        ""
+                    )
+
+                    engine_payload[
+                        "elaboration"
+                    ] = lesson.get(
+                        "elaboration",
                         ""
                     )
 

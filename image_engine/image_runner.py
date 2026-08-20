@@ -30,6 +30,10 @@ class ImageRunner:
 
             parent_code,
 
+            curriculum_code,
+
+            elaboration,
+
             force_regenerate=False
 
     ):
@@ -57,6 +61,26 @@ class ImageRunner:
                 "IMAGE prompt file is empty."
             )
 
+        curriculum_code = (
+            curriculum_code or ""
+        ).strip()
+
+        elaboration = (
+            elaboration or ""
+        ).strip()
+
+        if not curriculum_code:
+
+            raise RuntimeError(
+                "curriculum_code cannot be empty."
+            )
+
+        if not elaboration:
+
+            raise RuntimeError(
+                "elaboration cannot be empty."
+            )
+
         writer = ImageWriter(
             output_folder
         )
@@ -69,19 +93,19 @@ class ImageRunner:
                 not force_regenerate
                 and
                 writer.image_exists(
-                    parent_code
+                    curriculum_code
                 )
         ):
 
             existing_image = (
                 writer.image_path(
-                    parent_code
+                    curriculum_code
                 )
             )
 
             existing_prompt = (
                 writer.prompt_path(
-                    parent_code
+                    curriculum_code
                 )
             )
 
@@ -106,7 +130,13 @@ class ImageRunner:
                     lesson_package_id,
                  
                 "parent_code":
-                    parent_code,    
+                    parent_code,
+
+                "curriculum_code":
+                    curriculum_code,
+
+                "elaboration":
+                    elaboration,
 
                 "image_file":
 
@@ -127,9 +157,23 @@ class ImageRunner:
         # Final Image Prompt
         # ==================================================
 
+        lesson_image_context = f"""
+
+CURRENT LESSON IDENTITY
+
+Curriculum code:
+{curriculum_code}
+
+Specific Elaboration:
+{elaboration}
+
+Generate the image for this specific Elaboration.
+"""
+
         prompt_result = (
             self.client.generate_image_prompt(
                 assembled_prompt
+                + lesson_image_context
             )
         )
 
@@ -138,8 +182,8 @@ class ImageRunner:
         )
 
         saved_prompt = (
-            writer.write_prompt(    
-                parent_code,
+            writer.write_prompt(
+                curriculum_code,
                 final_prompt
             )
         )
@@ -157,7 +201,7 @@ class ImageRunner:
 
         saved_image = (
             writer.write_image(
-                parent_code,
+                curriculum_code,
                 image_result["bytes"]
             )
         )
@@ -185,6 +229,12 @@ class ImageRunner:
 
             "parent_code":
                 parent_code,
+
+            "curriculum_code":
+                curriculum_code,
+
+            "elaboration":
+                elaboration,
 
             "provider":
 

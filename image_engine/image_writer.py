@@ -32,28 +32,28 @@ class ImageWriter:
 
             self,
 
-            parent_code
+            curriculum_code
 
     ):
 
         return (
             self.output_folder
             /
-            f"{parent_code}_image_prompt.txt"
+            f"{curriculum_code}_elaboration_image_prompt.txt"
         )
 
     def image_path(
 
             self,
 
-            parent_code
+            curriculum_code
 
     ):
 
         return (
             self.output_folder
             /
-            f"{parent_code}_content_description.png"
+            f"{curriculum_code}_elaboration.png"
         )
 
     # ======================================================
@@ -64,12 +64,12 @@ class ImageWriter:
 
             self,
 
-            parent_code
+            curriculum_code
 
     ):
 
         path = self.image_path(
-            parent_code
+            curriculum_code
         )
 
         return (
@@ -88,14 +88,14 @@ class ImageWriter:
 
             self,
 
-            parent_code,
+            curriculum_code,
 
             prompt
 
     ):
 
         path = self.prompt_path(
-            parent_code
+            curriculum_code
         )
 
         path.write_text(
@@ -117,14 +117,14 @@ class ImageWriter:
 
             self,
 
-            parent_code,
+            curriculum_code,
 
             image_bytes
 
     ):
 
         path = self.image_path(
-            parent_code
+            curriculum_code
         )
 
         path.write_bytes(

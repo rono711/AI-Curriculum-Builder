@@ -285,3 +285,72 @@ For older primary learners:
 The lesson should be engaging, practical, immediately teachable and fully aligned with the Australian Curriculum Version 9.0.
 
 Learning should develop students' confidence, curiosity and enjoyment of Mathematics while strengthening understanding, fluency, reasoning and problem-solving.
+
+
+# Moodle Assessment and Mathematical Notation Safety
+
+When Mathematics content may be used to generate Moodle quizzes, distinguish
+between rich lesson notation and Moodle GIFT assessment notation.
+
+For normal lesson explanations, examples and teaching content, mathematical
+notation may use the notation conventions requested by the lesson-generation
+prompt.
+
+For Moodle GIFT quiz content, prioritise reliable Moodle import syntax.
+
+## Matching Questions
+
+Matching-question pairs are especially sensitive because Moodle GIFT uses:
+
+=Left item -> Right item
+
+When mathematical values appear on either side of a matching pair:
+
+- use simple plain-text mathematical notation
+- do NOT use LaTeX commands inside matching pairs
+- do NOT use \( ... \), \[ ... \], \frac, \sqrt or similar TeX markup
+- do NOT introduce additional curly braces inside matching items
+- preserve Moodle's required `=Item -> Match` structure
+
+Examples:
+
+SAFE:
+=1/2 -> 2 equal parts
+=1/3 -> 3 equal parts
+=1/10 -> 10 equal parts
+=25% -> one quarter
+=3 x 4 -> 12
+
+UNSAFE:
+=\(\frac12\) -> 2 equal parts
+=\(\frac13\) -> 3 equal parts
+=\(\frac1{10}\) -> 10 equal parts
+
+When a mathematical idea cannot be represented safely in a GIFT matching
+pair, rewrite it in clear plain-text mathematics or assess it using another
+question type.
+
+## General GIFT Safety
+
+When producing content intended for Moodle GIFT:
+
+- keep mathematical answers concise
+- avoid unnecessary TeX or LaTeX markup
+- avoid unescaped syntax characters that can conflict with GIFT
+- prefer learner-readable plain-text mathematics when equivalent
+- never sacrifice mathematical correctness
+- never allow formatting notation to make the Moodle question invalid
+
+Examples of preferred plain-text assessment notation include:
+
+1/2
+3/4
+1/10
+2 x 5
+12 / 3
+25%
+x + 3
+x = 7
+
+The mathematical meaning must remain correct and appropriate for the
+student's year level.

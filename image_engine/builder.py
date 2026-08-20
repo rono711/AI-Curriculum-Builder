@@ -29,6 +29,10 @@ class ImageBuilder:
 
             parent_code,
 
+            curriculum_code,
+
+            elaboration,
+
             force_regenerate=False
 
     ):
@@ -54,6 +58,18 @@ class ImageBuilder:
 
             raise RuntimeError(
                 "parent_code cannot be empty."
+            )
+
+        if not curriculum_code:
+
+            raise RuntimeError(
+                "curriculum_code cannot be empty."
+            )
+
+        if not elaboration:
+
+            raise RuntimeError(
+                "elaboration cannot be empty."
             )
 
 
@@ -109,6 +125,10 @@ class ImageBuilder:
             lesson_package_id=lesson_package_id,
 
             parent_code=parent_code,
+
+            curriculum_code=curriculum_code,
+
+            elaboration=elaboration,
 
             force_regenerate=force_regenerate
 

@@ -1,10 +1,8 @@
-# CONTENT DESCRIPTION IMAGE PROMPT
+# LESSON ELABORATION IMAGE PROMPT
 
-You are creating an educational illustration for an Australian school curriculum Content Description:
-{{CONTENT_DESCRIPTION}}.
+You are creating ONE educational illustration for an Australian school curriculum lesson.
 
-Generate ONE visually engaging, age-appropriate educational image that represents the meaning and learning context of the CONTENT DESCRIPTION provided below.
-
+The specific curriculum Elaboration is the PRIMARY visual target.
 
 ## CURRICULUM CONTEXT
 
@@ -26,198 +24,122 @@ Curriculum Code:
 Lesson Title:
 {{TOPIC}}
 
-Content Description:
+Parent Content Description:
 {{CONTENT_DESCRIPTION}}
 
-Elaboration:
+Lesson Elaboration:
 {{ELABORATION}}
 
+## PRIMARY VISUAL FOCUS
 
-## PRIMARY FOCUS
+The image MUST primarily communicate the meaning of this specific Elaboration:
 
-The image MUST primarily communicate the meaning of:
+{{ELABORATION}}
 
-"{{CONTENT_DESCRIPTION}}"
+The Elaboration is the PRIMARY source for deciding the scene, objects,
+people, actions, relationships, examples, processes and learning situation.
 
-The Content Description is the PRIMARY source for deciding what should appear in the image.
+Use the parent Content Description:
 
-Use the following only as supporting curriculum context:
+{{CONTENT_DESCRIPTION}}
 
-- Year Level: {{YEAR_LEVEL}}
-- Subject: {{SUBJECT}}
-- Strand: {{STRAND}}
-- Sub-strand: {{SUB_STRAND}}
-- Curriculum Code: {{CURRICULUM_CODE}}
-- Lesson Title: {{TOPIC}}
-- Elaboration: {{ELABORATION}}
+as broader curriculum context only.
 
-Do NOT create a generic image representing only the Subject, Strand, Sub-strand, Lesson Title, or broader curriculum area.
+The image must be specific enough that another elaboration belonging to the
+same Content Description would reasonably produce a different illustration.
 
-The illustration must specifically represent the concept, knowledge, skill, interaction, situation, process, relationship, or learning described by the Content Description.
+Do NOT create merely a generic image of the Subject, Strand, Sub-strand,
+Content Description or Lesson Title.
 
-A learner viewing the image should be able to make a meaningful visual connection between the illustration and the Content Description.
+A learner should be able to make a meaningful visual connection between the
+illustration and this particular Elaboration.
 
-
-## IMAGE SIZE AND FORMAT
-
-Generate the image using these specifications:
-
-- Image size: 1536 × 1024 pixels
-- Aspect ratio: 3:2
-- Orientation: Landscape
-- Preferred format: PNG
-- High-quality educational illustration
-- Suitable for display directly inside a Moodle course page
-
-The composition must remain clear when the image is scaled down for Moodle.
-
-Keep the primary subjects and important visual information within the central area of the image.
-
-Do not place important visual elements close to the edges.
-
-Avoid excessive empty space.
-
-The image should have a clear visual focal point.
-
-
-## EDUCATIONAL IMAGE REQUIREMENTS
+## EDUCATIONAL ACCURACY
 
 The image must:
 
-- clearly represent the Content Description
+- accurately represent the specific Elaboration
 - be appropriate for {{YEAR_LEVEL}} learners
-- reflect the educational context of {{SUBJECT}}
-- be consistent with the {{STRAND}} strand
-- be consistent with the {{SUB_STRAND}} sub-strand
-- use the Elaboration as supporting context where useful
-- visually communicate the central learning idea
-- show meaningful people, objects, environments, actions, relationships, processes, or concepts where appropriate
-- use an engaging and professional educational illustration style
-- use inclusive representation of learners, families, communities, and educators where people are shown
-- have a clean and uncluttered composition
-- have one clear central visual idea
-- be visually engaging without becoming distracting
-- be suitable for a school learning environment
-- work well when displayed directly underneath the Content Description in Moodle
+- remain consistent with {{SUBJECT}}
+- remain consistent with {{STRAND}}
+- remain consistent with {{SUB_STRAND}}
+- remain compatible with the parent Content Description
+- show meaningful objects, actions, processes, relationships or examples
+- have one clear educational visual idea
+- avoid irrelevant decorative elements
+- remain understandable when displayed in Moodle
 
+## PEOPLE AND AUSTRALIAN SCHOOL DIVERSITY
+
+When people are educationally relevant, represent a natural, inclusive and
+multicultural Australian school community.
+
+Across generated lesson images, vary the cultural and ethnic representation
+of students, teachers, families and community members.
+
+Where appropriate, naturally include:
+
+- Muslim girls or women wearing hijab
+- Muslim boys or men wearing a kufi, taqiyah or appropriate Muslim cap
+- Sikh students, teachers or community members wearing turbans where appropriate
+- Bangladeshi and other South Asian students and teachers
+- East Asian and Southeast Asian students and teachers
+- African and African-diaspora students and teachers
+- European-background students and teachers
+- people with varied skin tones, hair types and facial features
+
+Representation must feel natural to the educational scene rather than staged.
+
+Do NOT place every cultural group into every image merely to satisfy a checklist.
+
+For group scenes, use a genuinely diverse group where appropriate.
+
+For scenes involving only one or two people, vary cultural backgrounds across
+different lesson images instead of repeatedly depicting the same demographic.
+
+Teachers and adults must also vary in cultural background. Across the image
+set, naturally include Bangladeshi teachers and educators from other diverse
+Australian communities where appropriate.
+
+Represent religious and cultural clothing respectfully and realistically,
+without stereotypes, caricatures or tokenism.
+
+Do not associate curriculum ability, behaviour, occupation or educational
+role with any particular ethnic, cultural or religious group.
+
+If people are not useful for explaining the Elaboration, do not add them
+merely for decoration or diversity.
 
 ## AGE APPROPRIATENESS
 
-Adapt the illustration to the specified Year Level:
+Adapt the illustration to:
 
 {{YEAR_LEVEL}}
 
 For younger learners:
 
-- use friendly and easily recognisable situations
+- use friendly, recognisable situations
 - use concrete visual examples
-- use clear characters, objects, and environments
+- use clear objects, characters and environments
 - avoid unnecessary complexity
-- use engaging and approachable educational imagery
 
-For middle primary learners:
+For middle-primary learners:
 
 - use recognisable real-world and classroom contexts
 - show meaningful interactions and relationships
-- introduce greater visual detail where it supports understanding
+- include useful visual detail without clutter
 
 For older learners:
 
 - use more sophisticated visual concepts
 - use realistic or conceptually meaningful situations
-- represent abstract concepts visually where appropriate
+- represent abstract ideas visually where appropriate
 - maintain a professional educational appearance
-
-The image must always remain appropriate for the developmental level of the specified learners.
-
-
-## SUBJECT CONTEXT
-
-Use:
-
-{{SUBJECT}}
-
-to help determine appropriate:
-
-- environments
-- objects
-- learning situations
-- people
-- actions
-- concepts
-- visual relationships
-
-However, the Subject must NOT override the specific meaning of the Content Description.
-
-
-## STRAND CONTEXT
-
-Use:
-
-{{STRAND}}
-
-to understand the broader curriculum learning area represented by the Content Description.
-
-Do not create an image representing the Strand generally.
-
-The Content Description remains the primary visual focus.
-
-
-## SUB-STRAND CONTEXT
-
-Use:
-
-{{SUB_STRAND}}
-
-to provide additional context for interpreting the Content Description.
-
-Use this context to make the illustration more educationally accurate.
-
-Do not create a generic illustration of the Sub-strand.
-
-The visual scene must still directly represent:
-
-{{CONTENT_DESCRIPTION}}
-
-
-## ELABORATION CONTEXT
-
-Use:
-
-{{ELABORATION}}
-
-only as supporting context for interpreting the Content Description.
-
-The Elaboration may help identify:
-
-- suitable examples
-- meaningful situations
-- appropriate actions
-- relationships
-- learning contexts
-- real-world applications
-
-Do NOT allow the Elaboration to replace or override the Content Description.
-
-The Content Description remains the primary source for the image.
-
-
-## PEOPLE AND LEARNING CONTEXTS
-
-Where the Content Description involves people, communication, relationships, collaboration, families, communities, classrooms, or social interaction:
-
-- show natural and meaningful interactions
-- represent diversity appropriately
-- use age-appropriate learners
-- use realistic educational or everyday situations
-- clearly communicate relationships through visual actions and context
-
-Where people are not necessary to communicate the Content Description, do not add people merely for decoration.
-
 
 ## VISUAL STYLE
 
-Use a polished educational illustration style suitable for a modern school learning platform.
+Use a polished contemporary educational illustration style suitable for a
+modern Australian school learning platform.
 
 The illustration should be:
 
@@ -227,96 +149,104 @@ The illustration should be:
 - clear
 - contemporary
 - age appropriate
+- inclusive
 - educational rather than decorative
+- visually coherent
+- uncluttered
 
-Avoid overly childish imagery for older learners.
+Use realistic human proportions and natural poses.
 
-Avoid overly complex or technical imagery for younger learners.
+Avoid distorted hands, faces, limbs or anatomy.
 
+## COMPOSITION FOR THE FINAL MOODLE BANNER
 
-## IMPORTANT VISUAL RULES
+The generated source image may be larger than the final Moodle asset.
+
+Compose the scene so that it can later be converted safely into a wide
+3:1 banner measuring exactly 1536 x 512 pixels.
+
+Therefore:
+
+- use a wide horizontal composition
+- keep the primary educational subjects near the horizontal centre
+- keep important faces, hands, objects and learning materials within the central vertical band
+- leave safe visual margins near the top and bottom
+- do not place essential visual information near the top or bottom edges
+- avoid tall compositions that depend on information near vertical edges
+- distribute important subjects naturally across the horizontal space
+- maintain one clear focal area
+- ensure the composition remains understandable after a centre crop to 3:1
+- preferred final format is PNG
+
+The image-generation API currently creates a larger source image.
+The final 1536 x 512 Moodle banner will be produced deterministically after
+generation.
+
+## NO TEXT INSIDE THE IMAGE
 
 Do NOT include:
 
-- written text
-- the Content Description as text
+- written curriculum text
+- curriculum codes
+- the Elaboration as written text
+- the Content Description as written text
 - headings
 - titles
 - labels
 - captions
 - speech bubbles containing text
-- curriculum codes
 - lesson titles
 - subject names
 - strand names
 - sub-strand names
 - year-level labels
-- Moodle branding
 - school logos
 - company logos
+- Moodle branding
 - watermarks
 - signatures
 - decorative typography
 
-Do NOT attempt to render educational text inside the image.
+Do not attempt to render educational text inside the image.
 
-The image itself must communicate the concept visually.
-
+The learning concept must be communicated visually.
 
 ## AVOID
 
 Avoid:
 
-- generic classroom scenes that do not represent the Content Description
+- generic classroom scenes unrelated to the Elaboration
+- generic images representing only the parent Content Description
 - unrelated educational imagery
-- stock-photo-style compositions
-- unnecessary decorative objects
-- cluttered backgrounds
+- stereotypical cultural representation
+- tokenistic diversity
+- stock-photo-style arrangements
 - excessive visual complexity
-- distorted people
-- unrealistic hands or facial features
+- cluttered backgrounds
 - meaningless icons
-- floating text
-- random letters or numbers
+- floating letters or numbers
+- distorted people
+- unrealistic hands or faces
 - logos
 - watermarks
 
-Every important visual element should contribute to communicating the Content Description.
+Every important visual element should contribute to communicating the
+specific Elaboration.
 
+## FINAL OBJECTIVE
 
-## FINAL IMAGE OBJECTIVE
+Create ONE production-ready educational image-generation prompt for this
+specific curriculum Elaboration:
 
-The final image will appear in a Moodle Text & Media activity directly underneath the Content Description.
+{{ELABORATION}}
 
-The Moodle presentation will be:
-
-Content Description:
-- Heading level: H3
-- Font weight: Bold
-- Font colour: Blue
-- First visible letter capitalised
-
-Generated Illustration:
-- positioned immediately underneath the Content Description
-- source image size: 1536 × 1024 pixels
-- landscape 3:2 aspect ratio
-- displayed responsively in Moodle
-
-The generated illustration must complement the Content Description rather than repeat it.
-
-The illustration must visually reinforce the learning concept so that the learner can connect the written Content Description with an appropriate visual representation.
-
-
-## OUTPUT
+The image must visually distinguish this lesson from other elaborations under
+the same parent Content Description while remaining educationally accurate,
+age appropriate, inclusive and suitable for an Australian school Moodle course.
 
 Return ONLY the final image-generation prompt.
 
 Do not provide explanations.
-
 Do not provide markdown.
-
 Do not provide commentary.
-
-Do not return multiple prompt alternatives.
-
-Return one complete, production-ready image-generation prompt.
+Do not provide alternatives.

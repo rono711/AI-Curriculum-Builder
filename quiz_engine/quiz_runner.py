@@ -71,6 +71,108 @@ class QuizRunner:
                     f"{question[:200]}"
                 )
 
+            #
+            # Matching-question safety
+            #
+            # Moodle GIFT matching pairs use:
+            #
+            # =Left item -> Right item
+            #
+            # TeX/LaTeX markup can introduce braces and other
+            # characters that interfere with Moodle's GIFT parser.
+            # Mathematical matching items must therefore use
+            # plain-text notation such as 1/2, 3/4 or 25%.
+            #
+            if "->" in question:
+
+                lines = question.splitlines()
+
+                matching_lines = [
+                    line.strip()
+                    for line in lines
+                    if "->" in line
+                ]
+
+                if not matching_lines:
+
+                    raise RuntimeError(
+                        f"GIFT matching question {index} "
+                        "contains no matching pairs."
+                    )
+
+                for matching_line in matching_lines:
+
+                    if not matching_line.startswith("="):
+
+                        raise RuntimeError(
+                            f"GIFT matching question {index} "
+                            "contains an invalid matching pair: "
+                            f"{matching_line}"
+                        )
+
+                    if matching_line.count("->") != 1:
+
+                        raise RuntimeError(
+                            f"GIFT matching question {index} "
+                            "must contain exactly one -> separator "
+                            "per matching pair: "
+                            f"{matching_line}"
+                        )
+
+                    left, right = matching_line[1:].split(
+                        "->",
+                        1
+                    )
+
+                    left = left.strip()
+                    right = right.strip()
+
+                    if not left or not right:
+
+                        raise RuntimeError(
+                            f"GIFT matching question {index} "
+                            "contains an empty matching item: "
+                            f"{matching_line}"
+                        )
+
+                    unsafe_math_tokens = (
+                        "\\(",
+                        "\\)",
+                        "\\[",
+                        "\\]",
+                        "\\frac",
+                        "\\sqrt",
+                        "\\begin",
+                        "\\end",
+                    )
+
+                    if any(
+                        token in left or token in right
+                        for token in unsafe_math_tokens
+                    ):
+
+                        raise RuntimeError(
+                            f"GIFT matching question {index} "
+                            "contains unsupported LaTeX/TeX "
+                            "markup. Use plain-text mathematics "
+                            "inside matching pairs: "
+                            f"{matching_line}"
+                        )
+
+                    if (
+                        "{" in left
+                        or "}" in left
+                        or "{" in right
+                        or "}" in right
+                    ):
+
+                        raise RuntimeError(
+                            f"GIFT matching question {index} "
+                            "contains unsafe braces inside a "
+                            "matching pair: "
+                            f"{matching_line}"
+                        )
+
         return content
 
     # ======================================================

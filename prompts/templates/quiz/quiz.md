@@ -97,6 +97,56 @@ Matching:
 =Item 3 -> Match 3
 }
 
+CRITICAL MATCHING QUESTION SAFETY:
+
+Matching questions use the Moodle GIFT syntax:
+
+=Left item -> Right item
+
+Do NOT place LaTeX or TeX mathematical markup inside either side of a
+matching pair.
+
+In matching pairs, do NOT use:
+
+- \\( ... \\)
+- \\[ ... \\]
+- \\frac
+- \\sqrt
+- TeX commands
+- mathematical markup containing additional curly braces
+
+For Mathematics matching questions, convert mathematical expressions to
+clear plain-text notation.
+
+CORRECT:
+
+::M1::Match each fraction to the number of equal parts. {
+=1/2 -> 2
+=1/3 -> 3
+=1/5 -> 5
+=1/10 -> 10
+}
+
+WRONG:
+
+::M1::Match each fraction to the number of equal parts. {
+=\\(\\frac12\\) -> 2
+=\\(\\frac13\\) -> 3
+=\\(\\frac15\\) -> 5
+=\\(\\frac1{10}\\) -> 10
+}
+
+If an expression cannot be represented safely in plain text, use another
+question type rather than generating an unsafe matching question.
+
+Before returning the quiz, inspect every matching pair and confirm that:
+
+1. it begins with =
+2. it contains exactly one -> matching separator
+3. both sides contain meaningful text
+4. neither side contains LaTeX/TeX markup
+5. neither side introduces GIFT-breaking answer braces
+
 Short answer:
 
 ::SA1::Question text {=Correct answer}

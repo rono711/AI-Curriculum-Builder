@@ -81,6 +81,10 @@ class ImageRequest(BaseModel):
 
     parent_code: str
 
+    curriculum_code: str
+
+    elaboration: str
+
     force_regenerate: bool = False
 
 # ==========================================================
@@ -144,6 +148,10 @@ def generate(
             lesson_package_id=request.lesson_package_id,
 
             parent_code=request.parent_code,
+
+            curriculum_code=request.curriculum_code,
+
+            elaboration=request.elaboration,
 
             force_regenerate=request.force_regenerate
 
