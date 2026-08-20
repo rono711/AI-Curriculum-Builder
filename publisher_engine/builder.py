@@ -1244,11 +1244,16 @@ class PublisherBuilder:
 
 
         lesson = None
+        descriptions = {}
 
-        if (
-            "slides" in update_components
-            or
-            "activities" in update_components
+        if any(
+            component in update_components
+            for component in (
+                "lesson_content",
+                "slides",
+                "activities",
+                "recap",
+            )
         ):
 
             workbook = (
@@ -1260,6 +1265,11 @@ class PublisherBuilder:
             lesson = self.reader.read(
                 workbook,
                 lesson_package_id
+            )
+
+            descriptions = (
+                lesson.get("descriptions")
+                or {}
             )
 
         # ==================================================
@@ -1293,6 +1303,18 @@ class PublisherBuilder:
                     "Generated Lesson Content is empty."
                 )
 
+            mission_description = (
+                descriptions.get(
+                    "mission_description"
+                )
+                or ""
+            ).strip()
+
+            if not mission_description:
+
+                raise RuntimeError(
+                    "Generated Mission description is empty."
+                )
             print("=" * 60)
             print("PUBLISHER SELECTIVE UPDATE")
             print("Component : lesson_content")
@@ -1323,6 +1345,9 @@ class PublisherBuilder:
 
                     "content":
                         lesson_content,
+
+                    "description":
+                        mission_description,
                 })
             )
 
@@ -1388,6 +1413,18 @@ class PublisherBuilder:
                 raise RuntimeError(
                     "Generated Did You Know content is empty."
                 )
+            slides_description = (
+                descriptions.get(
+                    "slides_description"
+                )
+                or ""
+            ).strip()
+
+            if not slides_description:
+
+                raise RuntimeError(
+                    "Generated Slides description is empty."
+                )
 
             print("=" * 60)
             print("PUBLISHER SELECTIVE UPDATE")
@@ -1417,6 +1454,9 @@ class PublisherBuilder:
 
                     "content":
                         did_you_know_content,
+
+                    "description":
+                        slides_description,
                 })
             )
 
@@ -1466,11 +1506,24 @@ class PublisherBuilder:
                     lesson["activities"]
                 )
             )
-
+            
             if not activities_content:
 
                 raise RuntimeError(
                     "Generated Activities content is empty."
+                )
+
+            activities_description = (
+                descriptions.get(
+                    "activities_description"
+                )
+                or ""
+            ).strip()
+
+            if not activities_description:
+
+                raise RuntimeError(
+                    "Generated Activities description is empty."
                 )
 
             print("=" * 60)
@@ -1501,7 +1554,9 @@ class PublisherBuilder:
 
                     "content":
                         activities_content,
-                })
+                     "description":
+                        activities_description,
+                    })
             )
 
             if result.get("status") != "success":
@@ -1561,6 +1616,19 @@ class PublisherBuilder:
                     + str(recap_file)
                 )
 
+            recap_description = (
+                descriptions.get(
+                    "recap_description"
+                )
+                or ""
+            ).strip()
+
+            if not recap_description:
+
+                raise RuntimeError(
+                    "Generated Recap description is empty."
+                )
+
             print("=" * 60)
             print("PUBLISHER SELECTIVE UPDATE")
             print("Component : recap")
@@ -1586,7 +1654,9 @@ class PublisherBuilder:
 
                     "content":
                         recap_content,
-                })
+                    "description":
+                        recap_description,
+                    })
             )
 
             if (
