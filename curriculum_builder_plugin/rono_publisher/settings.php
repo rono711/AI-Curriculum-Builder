@@ -9,15 +9,25 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-/*
- * Rono Publisher currently has no configurable administration
- * settings.
- *
- * This file is intentionally kept minimal so Moodle can load
- * the plugin cleanly through Site administration.
- *
- * Configuration options can be added here later if required.
- */
 if ($hassiteconfig) {
-    // No administration settings are required at this stage.
+
+    $settings = new admin_settingpage(
+        'local_rono_publisher_settings',
+        get_string('pluginname', 'local_rono_publisher')
+    );
+
+    $settings->add(
+        new admin_setting_configtext(
+            'local_rono_publisher/rootcoursecategory',
+            'Root Course Category ID',
+            'Moodle category under which curriculum categories and courses are automatically created.',
+            '25',
+            PARAM_INT
+        )
+    );
+
+    $ADMIN->add(
+        'localplugins',
+        $settings
+    );
 }

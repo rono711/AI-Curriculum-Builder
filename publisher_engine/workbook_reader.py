@@ -181,49 +181,44 @@ class WorkbookReader:
         ).strip()
 
         if year in [
-
+            "Foundation",
             "Foundation Year",
-
             "Year 1",
-
             "Year 2"
-
         ]:
 
-            metadata["school_level"] = "Primary"
+            metadata["school_level"] = "Lower Primary"
 
         elif year in [
-
             "Year 3",
-
             "Year 4",
-
             "Year 5",
-
             "Year 6"
-
         ]:
 
             metadata["school_level"] = "Upper Primary"
 
         elif year in [
-
             "Year 7",
-
             "Year 8",
-
             "Year 9",
-
             "Year 10"
-
         ]:
 
             metadata["school_level"] = "Secondary"
 
-        else:
+        elif year in [
+            "Year 11",
+            "Year 12"
+        ]:
 
             metadata["school_level"] = "Senior Secondary"
 
+        else:
+
+            raise ValueError(
+                f"Unsupported Year Level: {year!r}"
+            )
         lesson = {
 
             "metadata":

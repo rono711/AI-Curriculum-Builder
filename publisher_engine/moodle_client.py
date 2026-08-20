@@ -168,23 +168,28 @@ class MoodleClient:
         )
 
     # ======================================================
-    # Course
+    # Rono Publisher - Ensure Course
     # ======================================================
 
-    def publish_course(
-
+    def ensure_course(
             self,
-
-            payload
-
+            school_level,
+            subject,
+            year_level
     ):
 
         return self.call(
+            "local_rono_publisher_ensure_course",
+            {
+                "school_level":
+                    school_level,
 
-            "local_rono_curriculumbuilder_publish_course",
+                "subject":
+                    subject,
 
-            payload
-
+                "year_level":
+                    year_level,
+            }
         )
 
     # ======================================================

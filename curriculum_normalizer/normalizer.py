@@ -1010,42 +1010,49 @@ def school_level(self):
 
     for year in self.df["Year Level"]:
 
-        year = str(year)
+        year = str(year).strip()
 
         if year in [
-
             "Foundation",
-
             "Foundation Year",
-
             "Year 1",
-
-            "Year 2",
-
-            "Year 3",
-
-            "Year 4",
-
-            "Year 5",
-
-            "Year 6"
-
+            "Year 2"
         ]:
+            school_level = "Lower Primary"
 
-            school_levels.append(
+        elif year in [
+            "Year 3",
+            "Year 4",
+            "Year 5",
+            "Year 6"
+        ]:
+            school_level = "Upper Primary"
 
-                "Primary"
+        elif year in [
+            "Year 7",
+            "Year 8",
+            "Year 9",
+            "Year 10"
+        ]:
+            school_level = "Secondary"
 
-            )
+        elif year in [
+            "Year 11",
+            "Year 12"
+        ]:
+            school_level = "Senior Secondary"
 
         else:
-
-            school_levels.append(
-
-                "Secondary"
-
+            raise ValueError(
+                f"Unsupported Year Level: {year!r}"
             )
+
+        school_levels.append(
+            school_level
+        )
+
     self.df["School Level"] = school_levels
+
     return self
 
 

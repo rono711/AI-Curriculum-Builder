@@ -51,11 +51,31 @@ $functions = [
             false,
     ],
 
+    'local_rono_publisher_ensure_course' => [
+        'classname' =>
+            'local_rono_publisher\external\ensure_course',
+
+        'methodname' =>
+            'execute',
+
+        'description' =>
+            'Creates or reuses the Moodle category hierarchy and curriculum course.',
+
+        'type' =>
+            'write',
+
+        'capabilities' =>
+            'moodle/course:create',
+
+        'ajax' =>
+            false,
+    ],
 ];
 $services = [
 
     'Rono Publisher Service' => [
         'functions' => [
+            'local_rono_publisher_ensure_course',
             'local_rono_publisher_publish_lesson',
             'local_rono_publisher_update_component',
         ],

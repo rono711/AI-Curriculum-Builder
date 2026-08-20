@@ -386,8 +386,13 @@ class PublisherBuilder:
     def _resolve_course(
             self,
             subject,
-            year_level
+            year_level,
+            build_id,
+            lesson_package_id,
+            school_level
     ):
+
+        from openpyxl import load_workbook
 
         mapping_file = (
             PROJECT_ROOT
@@ -401,7 +406,9 @@ class PublisherBuilder:
                 f"{mapping_file}"
             )
 
-        from openpyxl import load_workbook
+        # ==================================================
+        # First try existing mapping
+        # ==================================================
 
         workbook = load_workbook(
             mapping_file,
@@ -512,14 +519,6 @@ class PublisherBuilder:
                         "name": course_name,
                     })
 
-            if not matches:
-
-                raise RuntimeError(
-                    "No Moodle course mapping found for "
-                    f"subject={subject!r}, "
-                    f"year_level={year_level!r}"
-                )
-
             if len(matches) > 1:
 
                 raise RuntimeError(
@@ -528,13 +527,105 @@ class PublisherBuilder:
                     f"year_level={year_level!r}"
                 )
 
-            return matches[0]
+            if matches:
+
+                print("=" * 60)
+                print("EXISTING MOODLE COURSE MAPPING FOUND")
+                print("Subject :", subject)
+                print("Year    :", year_level)
+                print("Course  :", matches[0]["courseid"])
+                print("=" * 60)
+
+                return matches[0]
 
         finally:
 
             workbook.close()
 
-    # ======================================================
+        # ==================================================
+        # Mapping missing - create/reuse Moodle course
+        # ==================================================
+
+        print("=" * 60)
+        print("MOODLE COURSE MAPPING NOT FOUND")
+        print("Creating or reusing Moodle course")
+        print("Subject :", subject)
+        print("Year    :", year_level)
+        print("=" * 60)
+
+        result = self.moodle.ensure_course(
+            self._text(school_level),
+            self._text(subject),
+            self._text(year_level)
+        )
+
+        if not isinstance(result, dict):
+
+            raise RuntimeError(
+                "Moodle publish_course returned "
+                "an invalid response."
+            )
+
+        if result.get("status") != "SUCCESS":
+
+            raise RuntimeError(
+                "Moodle course creation/reuse failed: "
+                f"{result}"
+            )
+
+        courseid = result.get("courseid")
+
+        if not courseid:
+
+            raise RuntimeError(
+                "Moodle publish_course did not return "
+                "a courseid."
+            )
+
+        course_name = self._text(
+            result.get("fullname")
+        )
+
+        # ==================================================
+        # Save new Moodle mapping
+        # ==================================================
+
+        workbook = load_workbook(
+            mapping_file
+        )
+
+        try:
+
+            sheet = workbook["Course_Mapping"]
+
+            sheet.append([
+                self._text(subject),
+                self._text(year_level),
+                int(courseid),
+                course_name,
+            ])
+
+            workbook.save(
+                mapping_file
+            )
+
+        finally:
+
+            workbook.close()
+
+        print("=" * 60)
+        print("NEW MOODLE COURSE MAPPING SAVED")
+        print("Subject :", subject)
+        print("Year    :", year_level)
+        print("Course  :", courseid)
+        print("Name    :", course_name)
+        print("=" * 60)
+
+        return {
+            "courseid": int(courseid),
+            "name": course_name,
+    
+        }
     # Publish
     # ======================================================
 
@@ -579,7 +670,10 @@ class PublisherBuilder:
 
         course = self._resolve_course(
             metadata["subject"],
-            metadata["year_level"]
+            metadata["year_level"],
+            build_name,
+            lesson_package_id,
+            metadata.get("school_level", "")
         )
 
         courseid = int(
