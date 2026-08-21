@@ -31,6 +31,26 @@ $functions = [
             false,
     ],
 
+    'local_rono_publisher_update_elaboration_banner' => [
+        'classname' =>
+            'local_rono_publisher\\external\\update_elaboration_banner',
+
+        'methodname' =>
+            'execute',
+
+        'description' =>
+            'Updates one existing elaboration Text and Media banner by exact Moodle CMID.',
+
+        'type' =>
+            'write',
+
+        'capabilities' =>
+            'local/rono_publisher:publishlesson',
+
+        'ajax' =>
+            false,
+    ],
+
     'local_rono_publisher_update_component' => [
         'classname' =>
             'local_rono_publisher\external\update_component',
@@ -78,6 +98,7 @@ $services = [
             'local_rono_publisher_ensure_course',
             'local_rono_publisher_publish_lesson',
             'local_rono_publisher_update_component',
+            'local_rono_publisher_update_elaboration_banner',
         ],
 
         'restrictedusers' => 1,

@@ -377,6 +377,18 @@ def lessons(
 
         results.append({
 
+            "parent_code":
+
+                row["Parent Code"],
+
+            "curriculum_code":
+
+                row["Curriculum Code"],
+
+            "content_description":
+
+                row["Content Description"],
+
             "topic_id":
 
                 row["Topic ID"],

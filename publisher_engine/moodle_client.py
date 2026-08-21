@@ -326,6 +326,28 @@ class MoodleClient:
 
         )
     # ======================================================
+    # Rono Publisher - Update Elaboration Banner
+    # ======================================================
+
+    def update_elaboration_banner(
+            self,
+            payload
+    ):
+
+        """
+        Update the exact existing Moodle Text & Media
+        elaboration banner by CMID.
+
+        Moodle function:
+            local_rono_publisher_update_elaboration_banner
+        """
+
+        return self.call(
+            "local_rono_publisher_update_elaboration_banner",
+            payload
+        )
+
+    # ======================================================
     # Synchronise
     # ======================================================
 

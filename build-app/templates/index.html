@@ -757,7 +757,7 @@
 
             <label>
 
-                Curriculum Topic
+                Content Description
 
                 <span class="required">*</span>
 
@@ -767,7 +767,7 @@
 
                 <option>
 
-                    Select Curriculum Focus
+                    Select Content Description
 
                 </option>
 
@@ -775,37 +775,33 @@
 
             <label>
 
-                Lessons
+                Curriculum ID
 
                 <span class="required">*</span>
 
             </label>
 
-            <div class="actions">
+            <select id="curriculum_id">
 
-                <button
-                        type="button"
-                        id="select_all">
+                <option value="">
 
-                    Select All
+                    Select Curriculum ID
 
-                </button>
+                </option>
 
-                <button
-                        type="button"
-                        id="clear_all">
+            </select>
 
-                    Clear All
+            <label>
 
-                </button>
+                Lesson / Elaboration
 
-            </div>
+            </label>
 
             <div id="lessons">
 
                 <div class="lesson">
 
-                    Waiting for Curriculum Topic...
+                    Waiting for Curriculum ID...
 
                 </div>
 
@@ -861,6 +857,15 @@
         <p>
             Select what you want to regenerate:
         </p>
+
+        <label class="update-option">
+            <input
+                type="checkbox"
+                class="update-component"
+                value="image">
+
+            Elaboration Image
+        </label>
 
         <label class="update-option">
             <input
@@ -986,9 +991,14 @@
 
     function clearLessons() {
 
+        clearSelect(
+            "curriculum_id",
+            "Select Curriculum ID"
+        );
+
         document.getElementById("lessons").innerHTML =
 
-            "<div class='lesson'>Waiting for Curriculum Topic...</div>";
+            "<div class='lesson'>Waiting for Curriculum ID...</div>";
 
     }
 
@@ -1108,7 +1118,7 @@
         clearSelect(
             "topic",
 
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
         clearLessons();
@@ -1188,7 +1198,7 @@
         clearSelect(
             "topic",
 
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
         clearLessons();
@@ -1268,12 +1278,12 @@
 
         clearSelect(
             "sub_strand",
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
         clearSelect(
             "topic",
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
         clearLessons();
@@ -1363,7 +1373,7 @@
 
         clearSelect(
             "topic",
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
         clearLessons();
@@ -1433,7 +1443,7 @@
 
         clearSelect(
             "sub_strand",
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
         values.forEach(value => {
@@ -1453,7 +1463,7 @@
 
 
     /* ==========================================================
-       Curriculum Topics
+       Content Descriptions
        (Elaborations)
     ========================================================== */
 
@@ -1544,7 +1554,7 @@
 
         clearSelect(
             "topic",
-            "Select Curriculum Topic"
+            "Select Content Description"
         );
 
         topics.forEach(topic => {
@@ -1569,208 +1579,163 @@
        Lessons
     ========================================================== */
 
+    let curriculumLessons = [];
+    let selectedCurriculumLesson = null;
+
+
     async function loadLessons() {
 
         const parentCode =
             document.getElementById("topic").value;
 
+        curriculumLessons = [];
+        selectedCurriculumLesson = null;
+
+        clearSelect(
+            "curriculum_id",
+            parentCode
+                ? "Loading Curriculum IDs..."
+                : "Select Content Description first"
+        );
+
+        document.getElementById("lessons").innerHTML =
+            "<div class='lesson'>Waiting for Curriculum ID...</div>";
+
         if (!parentCode) {
             return;
         }
 
-        const container =
-            document.getElementById("lessons");
-
-        container.innerHTML =
-            "<div>Loading Lessons...</div>";
-
-        const response = await fetch(
-
-            API_BASE +
-
-            "/lessons?parent_code=" +
-
-            encodeURIComponent(parentCode)
-
+        const lessons = await fetchJSON(
+            API_BASE
+            + "/lessons?parent_code="
+            + encodeURIComponent(parentCode)
         );
 
-        const lessons =
-            await response.json();
+        curriculumLessons = lessons;
 
-        container.innerHTML = "";
+        clearSelect(
+            "curriculum_id",
+            "Select Curriculum ID"
+        );
 
-        lessons.forEach(lesson => {
+        const curriculumSelect =
+            document.getElementById("curriculum_id");
 
-            const div =
-                document.createElement("div");
+        curriculumLessons.forEach(lesson => {
 
-            div.className = "lesson";
+            const option =
+                document.createElement("option");
 
+            option.value =
+                lesson.curriculum_code;
 
-            /*
-             * =============================================
-             * Previously Published Elaboration
-             * =============================================
-             */
+            option.textContent =
+                lesson.curriculum_code;
 
-            if (lesson.already_built) {
-
-                div.classList.add(
-                    "lesson-published"
-                );
-
-                div.innerHTML = `
-
-<label>
-
-<input
-    type="checkbox"
-    value="${lesson.lesson_number}"
-    data-topic="${lesson.topic_id}"
-    disabled>
-
-<strong>
-Lesson ${lesson.lesson_number}
-</strong>
-
-<br>
-
-${lesson.lesson}
-
-</label>
-
-<span class="published-status">
-
-✓ Already Published — Build ${lesson.previous_build_id}
-
-</span>
-
-<button
-    type="button"
-    class="update-elaboration"
-    data-lesson-number="${lesson.lesson_number}"
-    data-topic="${lesson.topic_id}"
-    data-elaboration-key="${lesson.elaboration_key}"
-    data-previous-build-id="${lesson.previous_build_id}"
-    data-previous-package-id="${lesson.previous_lesson_package_id}">
-
-Update / Rebuild
-
-</button>
-
-`;
-
-            }
-
-
-            /*
-             * =============================================
-             * New / Available Elaboration
-             * =============================================
-             */
-
-            else if (lesson.generated_pending) {
-
-                div.classList.add(
-                    "lesson-generated"
-                );
-
-                div.innerHTML = `
-
-<label>
-
-<input
-    type="checkbox"
-    value="${lesson.lesson_number}"
-    data-topic="${lesson.topic_id}"
-    disabled>
-
-<strong>
-Lesson ${lesson.lesson_number}
-</strong>
-
-<br>
-
-${lesson.lesson}
-
-</label>
-
-<span class="generated-status">
-
-✓ Generated — Awaiting Publication
-
-<br>
-
-Build ${lesson.pending_build_id}
-
-<br>
-
-Package ${lesson.pending_lesson_package_id}
-
-<br><br>
-
-<button
-    type="button"
-    class="publish-now-button"
-    onclick="publishGeneratedLesson(
-        '${lesson.pending_lesson_package_id}',
-        this
-    )">
-    Publish Now
-</button>
-
-</span>
-
-`;
-
-            }
-
-            else {
-
-                div.classList.add(
-                    "lesson-available"
-                );
-
-                div.innerHTML = `
-
-<label>
-
-<input
-    type="checkbox"
-    value="${lesson.lesson_number}"
-    data-topic="${lesson.topic_id}">
-
-<strong>
-Lesson ${lesson.lesson_number}
-</strong>
-
-<br>
-
-${lesson.lesson}
-
-</label>
-
-`;
-
-            }
-
-            container.appendChild(div);
+            curriculumSelect.appendChild(option);
 
         });
 
     }
-    /* ==========================================================
-       Lessons
-    ========================================================== */
-
-    
 
 
+    function displaySelectedCurriculumLesson() {
 
+        const curriculumCode =
+            document.getElementById("curriculum_id").value;
 
-    /* ==========================================================
-       Select All
-    ========================================================== */
+        const container =
+            document.getElementById("lessons");
+
+        selectedCurriculumLesson =
+            curriculumLessons.find(
+                lesson =>
+                    lesson.curriculum_code === curriculumCode
+            ) || null;
+
+        if (!selectedCurriculumLesson) {
+            container.innerHTML =
+                "<div class='lesson'>Waiting for Curriculum ID...</div>";
+            return;
+        }
+
+        const lesson = selectedCurriculumLesson;
+        const div = document.createElement("div");
+        div.className = "lesson";
+
+        const lessonText = document.createElement("div");
+        lessonText.textContent = lesson.lesson;
+        div.appendChild(lessonText);
+
+        if (lesson.already_built) {
+
+            div.classList.add("lesson-published");
+
+            const status = document.createElement("span");
+            status.className = "published-status";
+            status.textContent =
+                "✓ Already Published — Build "
+                + lesson.previous_build_id;
+            div.appendChild(status);
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "update-elaboration";
+            button.textContent = "Update / Rebuild";
+
+            button.dataset.lessonNumber = lesson.lesson_number;
+            button.dataset.topic = lesson.topic_id;
+            button.dataset.curriculumCode = lesson.curriculum_code;
+            button.dataset.elaborationKey = lesson.elaboration_key;
+            button.dataset.previousBuildId = lesson.previous_build_id;
+            button.dataset.previousPackageId =
+                lesson.previous_lesson_package_id;
+
+            div.appendChild(button);
+
+        } else if (lesson.generated_pending) {
+
+            div.classList.add("lesson-generated");
+
+            const status = document.createElement("span");
+            status.className = "generated-status";
+            status.textContent =
+                "✓ Generated — Awaiting Publication — Build "
+                + lesson.pending_build_id;
+            div.appendChild(status);
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "publish-now-button";
+            button.textContent = "Publish Now";
+
+            button.addEventListener(
+                "click",
+                function () {
+                    publishGeneratedLesson(
+                        lesson.pending_lesson_package_id,
+                        button
+                    );
+                }
+            );
+
+            div.appendChild(button);
+
+        } else {
+
+            div.classList.add("lesson-available");
+
+            const status = document.createElement("span");
+            status.textContent = "Available for new build";
+            div.appendChild(status);
+
+        }
+
+        container.innerHTML = "";
+        container.appendChild(div);
+
+    }
+
 
     async function publishGeneratedLesson(
         lessonPackageId,
@@ -1832,7 +1797,21 @@ ${lesson.lesson}
                 true
             );
 
+            const publishedCurriculumCode =
+                selectedCurriculumLesson
+                    ? selectedCurriculumLesson.curriculum_code
+                    : null;
+
             await loadLessons();
+
+            if (publishedCurriculumCode) {
+
+                document.getElementById(
+                    "curriculum_id"
+                ).value = publishedCurriculumCode;
+
+                displaySelectedCurriculumLesson();
+            }
 
         }
         catch (error) {
@@ -1853,46 +1832,6 @@ ${lesson.lesson}
                 originalText;
         }
     }
-
-
-    function selectAllLessons() {
-
-        document
-
-            .querySelectorAll(
-                "#lessons input[type=checkbox]:not(:disabled)"
-            )
-
-            .forEach(
-                checkbox =>
-
-                    checkbox.checked = true
-            );
-
-    }
-
-
-    /* ==========================================================
-       Clear All
-    ========================================================== */
-
-    function clearAllLessons() {
-
-        document
-
-            .querySelectorAll(
-                "#lessons input[type=checkbox]"
-            )
-
-            .forEach(
-                checkbox =>
-
-                    checkbox.checked = false
-            );
-
-    }
-
-
     /* ==========================================================
        Event Wiring
     ========================================================== */
@@ -1989,27 +1928,15 @@ ${lesson.lesson}
     document
 
         .getElementById(
-            "select_all"
+            "curriculum_id"
         )
 
         .addEventListener(
-            "click",
+            "change",
 
-            selectAllLessons
+            displaySelectedCurriculumLesson
         );
 
-
-    document
-
-        .getElementById(
-            "clear_all"
-        )
-
-        .addEventListener(
-            "click",
-
-            clearAllLessons
-        );
 
     /* ==========================================================
        Progress Dialog
@@ -2146,38 +2073,36 @@ ${lesson.lesson}
     async function submitBuild(event) {
 
         event.preventDefault();
-
-        const checked =
-
-            document.querySelectorAll(
-                "#lessons input[type=checkbox]:not(:disabled):checked"
-            );
-
-        if (checked.length === 0) {
+        if (!selectedCurriculumLesson) {
 
             alert(
-                "Please select at least one lesson."
+                "Please select a Curriculum ID."
             );
 
             return;
-
         }
 
-        const lessonNumbers = [];
+        if (!selectedCurriculumLesson.can_build) {
 
-        checked.forEach(item => {
-
-            lessonNumbers.push(
-                parseInt(
-                    item.value
-                )
+            alert(
+                "The selected Curriculum ID has already been built "
+                + "or is awaiting publication."
             );
 
-        });
+            return;
+        }
+
+        const lessonNumbers = [
+
+            parseInt(
+                selectedCurriculumLesson.lesson_number
+            )
+
+        ];
 
         const topicId =
 
-            checked[0].dataset.topic;
+            selectedCurriculumLesson.topic_id;
 
         const payload = {
 
@@ -2408,7 +2333,7 @@ ${lesson.lesson}
 
 
 
-       function closeUpdateModal(clearSelection = true) {
+    function closeUpdateModal(clearSelection = true) {
 
         const overlay =
             document.getElementById(
@@ -2418,8 +2343,8 @@ ${lesson.lesson}
         overlay.style.display = "none";
 
         if (clearSelection) {
-    selectedUpdateLesson = null;
-    }
+            selectedUpdateLesson = null;
+        }
 
         document
             .querySelectorAll(
@@ -2872,13 +2797,13 @@ ${lesson.lesson}
         clearSelect(
             "sub_strand",
 
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
         clearSelect(
             "topic",
 
-            "Select Curriculum Focus"
+            "Select Content Description"
         );
 
     }

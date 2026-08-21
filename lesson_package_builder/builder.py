@@ -314,6 +314,7 @@ class LessonPackageBuilder:
         # ==================================================
 
         supported_components = {
+            "image",
             "lesson_content",
             "slides",
             "activities",
@@ -321,6 +322,7 @@ class LessonPackageBuilder:
         }
 
         known_components = {
+            "image",
             "lesson_content",
             "slides",
             "quiz",
@@ -512,6 +514,9 @@ class LessonPackageBuilder:
                 # ==========================================
 
                 required_moodle_ids = {
+
+                    "image":
+                        "moodle_content_description_cmid",
 
                     "lesson_content":
                         "moodle_lesson_content_cmid",

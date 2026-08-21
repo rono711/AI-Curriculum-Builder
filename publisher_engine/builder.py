@@ -1221,6 +1221,7 @@ class PublisherBuilder:
             "slides",
             "activities",
             "recap",
+            "image",
         }
 
         unsupported = (
@@ -1267,6 +1268,7 @@ class PublisherBuilder:
                 "slides",
                 "activities",
                 "recap",
+                "image",
             )
         ):
 
@@ -1285,6 +1287,139 @@ class PublisherBuilder:
                 lesson.get("descriptions")
                 or {}
             )
+
+        # ==================================================
+        # Elaboration Text & Media Banner / Image
+        # ==================================================
+
+        if "image" in update_components:
+
+            banner_cmid = (
+                moodle_identity.get(
+                    "moodle_content_description_cmid"
+                )
+            )
+
+            if not banner_cmid:
+                raise ValueError(
+                    "UPDATE elaboration banner CMID is missing."
+                )
+
+            metadata = (
+                lesson.get("metadata")
+                or {}
+            )
+
+            curriculum_code = self._text(
+                metadata.get("curriculum_code")
+            )
+
+            parent_code = self._text(
+                metadata.get("parent_code")
+            )
+
+            elaboration = self._text(
+                metadata.get("elaboration")
+            )
+
+            if not curriculum_code:
+                raise RuntimeError(
+                    "UPDATE curriculum code is empty."
+                )
+
+            if not parent_code:
+                raise RuntimeError(
+                    "UPDATE parent code is empty."
+                )
+
+            if not elaboration:
+                raise RuntimeError(
+                    "UPDATE curriculum elaboration is empty."
+                )
+
+            elaboration_image = (
+                Path(build_root)
+                / "Images"
+                / build_name
+                / f"{curriculum_code}_elaboration.png"
+            )
+
+            if not elaboration_image.exists():
+                raise RuntimeError(
+                    "UPDATE elaboration image not found: "
+                    f"{elaboration_image}"
+                )
+
+            image_bytes = (
+                elaboration_image.read_bytes()
+            )
+
+            if not image_bytes:
+                raise RuntimeError(
+                    "UPDATE elaboration image is empty: "
+                    f"{elaboration_image}"
+                )
+
+            elaboration_image_base64 = (
+                base64.b64encode(
+                    image_bytes
+                ).decode("ascii")
+            )
+
+            print("=" * 60)
+            print("PUBLISHER SELECTIVE UPDATE")
+            print("Component : image")
+            print("Course    :", courseid)
+            print("CMID      :", banner_cmid)
+            print("Code      :", curriculum_code)
+            print("Parent    :", parent_code)
+            print("Image     :", elaboration_image)
+            print("Bytes     :", len(image_bytes))
+            print("=" * 60)
+
+            result = (
+                self.moodle.update_elaboration_banner({
+                    "courseid":
+                        int(courseid),
+
+                    "cmid":
+                        int(banner_cmid),
+
+                    "curriculumcode":
+                        curriculum_code,
+
+                    "parentcode":
+                        parent_code,
+
+                    "elaboration":
+                        elaboration,
+
+                    "imagename":
+                        elaboration_image.name,
+
+                    "image":
+                        elaboration_image_base64,
+                })
+            )
+
+            if result.get("status") != "success":
+                raise RuntimeError(
+                    "Moodle elaboration banner UPDATE "
+                    "did not return success: "
+                    f"{result}"
+                )
+
+            if (
+                int(result.get("cmid", 0))
+                !=
+                int(banner_cmid)
+            ):
+                raise RuntimeError(
+                    "Moodle elaboration banner UPDATE "
+                    "returned an unexpected CMID."
+                )
+
+            results["image"] = result
 
         # ==================================================
         # Lesson Content / Mission

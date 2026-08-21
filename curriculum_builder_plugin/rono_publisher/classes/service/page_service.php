@@ -226,10 +226,6 @@ class page_service {
             'font-weight: 600; ' .
             'line-height: 1.4;' .
             '">' .
-            '<strong>' .
-            s($parentcode) .
-            '</strong>' .
-            ' &mdash; ' .
             s($contentdescription) .
             '</h3>';
 
@@ -497,10 +493,6 @@ class page_service {
             'font-weight: 600; ' .
             'line-height: 1.4;' .
             '">' .
-            '<strong>' .
-            s($parentcode) .
-            '</strong>' .
-            ' &mdash; ' .
             s($contentdescription) .
             '</h3>';
 
@@ -683,6 +675,162 @@ class page_service {
      * @param string|null $description Optional replacement description.
      * @return stdClass Existing course module.
      */
+    /**
+     * Update an existing elaboration Text & Media banner in place.
+     *
+     * Uses the exact existing CMID and preserves the curriculum
+     * code as the internal label identity.
+     *
+     * NEW and UPDATE share build_content_description_html(),
+     * ensuring identical learner-facing heading/image layout.
+     */
+    public function update_elaboration_banner(
+        int $courseid,
+        int $cmid,
+        string $curriculumcode,
+        string $parentcode,
+        string $elaboration,
+        string $imagename,
+        string $image
+    ): stdClass {
+        global $DB;
+
+        $curriculumcode = trim($curriculumcode);
+        $parentcode = trim($parentcode);
+        $elaboration = trim($elaboration);
+
+        if ($courseid <= 0) {
+            throw new moodle_exception(
+                'Invalid Moodle course ID.'
+            );
+        }
+
+        if ($cmid <= 0) {
+            throw new moodle_exception(
+                'Invalid Moodle course module ID.'
+            );
+        }
+
+        if ($curriculumcode === '') {
+            throw new moodle_exception(
+                'Curriculum code cannot be empty.'
+            );
+        }
+
+        if ($parentcode === '') {
+            throw new moodle_exception(
+                'Parent code cannot be empty.'
+            );
+        }
+
+        if ($elaboration === '') {
+            throw new moodle_exception(
+                'Curriculum elaboration cannot be empty.'
+            );
+        }
+
+        $course = $DB->get_record(
+            'course',
+            ['id' => $courseid],
+            '*',
+            MUST_EXIST
+        );
+
+        $cm = $DB->get_record(
+            'course_modules',
+            [
+                'id' => $cmid,
+                'course' => $course->id,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        $module = $DB->get_record(
+            'modules',
+            ['id' => $cm->module],
+            '*',
+            MUST_EXIST
+        );
+
+        if ($module->name !== 'label') {
+            throw new moodle_exception(
+                'Target course module is not Text & Media.'
+            );
+        }
+
+        $label = $DB->get_record(
+            'label',
+            ['id' => $cm->instance],
+            '*',
+            MUST_EXIST
+        );
+
+        if (
+            mb_strtolower(
+                trim((string)$label->name),
+                'UTF-8'
+            )
+            !==
+            mb_strtolower(
+                $parentcode,
+                'UTF-8'
+            )
+        ) {
+            throw new moodle_exception(
+                'Text & Media curriculum identity does not match.'
+            );
+        }
+
+        /*
+         * Parent code remains the stable Moodle Text & Media identity.
+         * It is not rendered in the learner-facing heading.
+         */
+        $label->name = $parentcode;
+
+        $elaboration =
+            $this->capitalise_first(
+                $elaboration
+            );
+
+        /*
+         * Use exactly the same renderer as NEW publication.
+         */
+        $label->intro =
+            $this->build_content_description_html(
+                $courseid,
+                $cmid,
+                $elaboration,
+                $parentcode,
+                $imagename,
+                $image
+            );
+
+        $label->introformat = FORMAT_HTML;
+
+        $DB->update_record(
+            'label',
+            $label
+        );
+
+        rebuild_course_cache(
+            $courseid,
+            true
+        );
+
+        return $DB->get_record(
+            'course_modules',
+            [
+                'id' => $cmid,
+                'course' => $course->id,
+                'instance' => $label->id,
+            ],
+            '*',
+            MUST_EXIST
+        );
+    }
+
+
     public function update_page(
         int $courseid,
         int $cmid,

@@ -579,6 +579,10 @@ class PipelineBuilder:
                     "recap": [
                         "RECAP",
                         "WHAT_WE_DISCOVERED"
+                    ],
+
+                    "image": [
+                        "IMAGE"
                     ]
 
                 }
@@ -714,6 +718,11 @@ class PipelineBuilder:
                     "recap": (
                         "Recap",
                         RECAP_ENGINE_URL
+                    ),
+
+                    "image": (
+                        "Image",
+                        IMAGE_ENGINE_URL
                     )
 
                 }
@@ -824,6 +833,12 @@ class PipelineBuilder:
                     ] = lesson.get(
                         "elaboration",
                         ""
+                    )
+
+                    engine_payload[
+                        "force_regenerate"
+                    ] = (
+                        build_mode == "UPDATE"
                     )
 
                 response = requests.post(
@@ -960,6 +975,11 @@ class PipelineBuilder:
                                 "moodle_course_id":
                                     published_build.get(
                                         "moodle_course_id"
+                                    ),
+
+                                "moodle_content_description_cmid":
+                                    published_build.get(
+                                        "moodle_content_description_cmid"
                                     ),
 
                                 "moodle_lesson_content_cmid":
