@@ -22,6 +22,7 @@ from build_registry import (
     mark_update_ready,
     get_published_build,
     mark_generated,
+    mark_failed,
     get_previous_published_build,
     inherit_moodle_identity
 )
@@ -1219,6 +1220,8 @@ class PipelineBuilder:
             print("=" * 60)
 
             publisher_result = None
+            moodle_result = None
+            lesson_result_status = "SUCCESS"
 
             if publication_status == "PUBLISHED":
 
@@ -1364,6 +1367,24 @@ class PipelineBuilder:
                     publish_call["success"]
                 )
 
+                if publication_succeeded:
+                    moodle_result = publisher_result.get(
+                        "publisher"
+                    )
+
+                    if (
+                        not isinstance(moodle_result, dict)
+                        or moodle_result.get("status") != "success"
+                    ):
+                        publication_succeeded = False
+                        publisher_result = {
+                            "status": "FAILED",
+                            "reason":
+                                "INVALID_MOODLE_PUBLISHER_RESULT",
+                            "error":
+                                "Missing successful Moodle result."
+                        }
+
                 if not publication_succeeded:
 
                     self._set_publication_status(
@@ -1372,6 +1393,12 @@ class PipelineBuilder:
                         "FAILED",
                         "YES"
                     )
+
+                    mark_failed(
+                        registry_record_id
+                    )
+
+                    lesson_result_status = "FAILED"
 
                     self._report_progress(
                         progress_url,
@@ -1396,57 +1423,57 @@ class PipelineBuilder:
                             registry_record_id,
 
                         moodle_course_id=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "courseid"
                             ),
 
                         moodle_section_id=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "strandsectionid"
                             ),
 
                         moodle_subsection_cmid=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "subsectioncmid"
                             ),
 
                         moodle_subsection_section_id=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "subsectionsectionid"
                             ),
 
                         moodle_content_description_cmid=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "contentdescriptioncmid"
                             ),
 
                         moodle_lesson_content_cmid=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "lessoncontentcmid"
                             ),
 
                         moodle_did_you_know_cmid=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "didyouknowcmid"
                             ),
 
                         moodle_quiz_id=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "quizid"
                             ),
 
                         moodle_quiz_cmid=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "quizcmid"
                             ),
 
                         moodle_activities_cmid=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "activitiescmid"
                             ),
 
                         moodle_recap_cmid=
-                            publisher_result.get(
+                            moodle_result.get(
                                 "recapcmid"
                             )
                     )
@@ -1471,7 +1498,7 @@ class PipelineBuilder:
                     lesson_package_id,
 
                 "status":
-                    "SUCCESS",
+                    lesson_result_status,
 
                 "prompts":
                     prompt_results,
@@ -1480,9 +1507,19 @@ class PipelineBuilder:
                     publisher_result
             })
 
+        failed_lessons = [
+            item
+            for item in results
+            if item.get("status") == "FAILED"
+        ]
+
         return {
 
-            "status": "SUCCESS",
+            "status": (
+                "PARTIAL_FAILURE"
+                if failed_lessons
+                else "SUCCESS"
+            ),
 
             "build_id": build["build_id"],
 

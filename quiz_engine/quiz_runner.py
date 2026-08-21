@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import re
 
 from shared.ai_client import AIClient
 
@@ -24,6 +25,26 @@ class QuizRunner:
         content = str(
             content or ""
         ).strip()
+
+        #
+        # Escape mathematical equality signs inside GIFT text.
+        #
+        # GIFT uses an unescaped equals sign as an answer marker.
+        # Convert mathematical equality such as:
+        #
+        #     4 x 3 = 12
+        #
+        # to:
+        #
+        #     4 x 3 \= 12
+        #
+        # Existing escaped equality signs are preserved.
+        #
+        content = re.sub(
+            r"(?<!\\)(?<=\s)=(?=\s)",
+            lambda match: r"\=",
+            content
+        )
 
         if not content:
 
@@ -126,6 +147,21 @@ class QuizRunner:
 
                     left = left.strip()
                     right = right.strip()
+
+                    #
+                    # Reject remaining unescaped equals signs.
+                    #
+                    if (
+                        re.search(r"(?<!\\)=", left)
+                        or re.search(r"(?<!\\)=", right)
+                    ):
+
+                        raise RuntimeError(
+                            f"GIFT matching question {index} "
+                            "contains an unescaped equals sign. "
+                            "Use \\= for mathematical equality: "
+                            f"{matching_line}"
+                        )
 
                     if not left or not right:
 
