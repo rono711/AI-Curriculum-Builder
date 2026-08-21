@@ -773,29 +773,10 @@
 
             </select>
 
-            <label>
-
-                Curriculum ID
-
-                <span class="required">*</span>
-
-            </label>
-
-            <select id="curriculum_id">
-
-                <option value="">
-
-                    Select Curriculum ID
-
-                </option>
-
-            </select>
-
-            <label>
-
-                Lesson / Elaboration
-
-            </label>
+            <div class="lesson-selection-actions">
+                  <button type="button" id="selectAllLessons">Select All</button>
+                  <button type="button" id="clearAllLessons">Clear All</button>
+              </div>
 
             <div id="lessons">
 
@@ -990,16 +971,12 @@
     }
 
     function clearLessons() {
-
-        clearSelect(
-            "curriculum_id",
-            "Select Curriculum ID"
-        );
+        curriculumLessons = [];
+        selectedCurriculumLesson = null;
+        selectedCurriculumLessons = [];
 
         document.getElementById("lessons").innerHTML =
-
-            "<div class='lesson'>Waiting for Curriculum ID...</div>";
-
+            "<div class='lesson'>Select a Content Description first...</div>";
     }
 
     function removeNan(values) {
@@ -1581,6 +1558,7 @@
 
     let curriculumLessons = [];
     let selectedCurriculumLesson = null;
+      let selectedCurriculumLessons = [];
 
 
     async function loadLessons() {
@@ -1590,84 +1568,90 @@
 
         curriculumLessons = [];
         selectedCurriculumLesson = null;
+        selectedCurriculumLessons = [];
 
-        clearSelect(
-            "curriculum_id",
-            parentCode
-                ? "Loading Curriculum IDs..."
-                : "Select Content Description first"
-        );
-
-        document.getElementById("lessons").innerHTML =
-            "<div class='lesson'>Waiting for Curriculum ID...</div>";
+        const container =
+            document.getElementById("lessons");
 
         if (!parentCode) {
+            container.innerHTML =
+                "<div class='lesson'>Select a Content Description first...</div>";
             return;
         }
 
-        const lessons = await fetchJSON(
+        container.innerHTML =
+            "<div class='lesson'>Loading lessons...</div>";
+
+        curriculumLessons = await fetchJSON(
             API_BASE
             + "/lessons?parent_code="
             + encodeURIComponent(parentCode)
         );
 
-        curriculumLessons = lessons;
-
-        clearSelect(
-            "curriculum_id",
-            "Select Curriculum ID"
-        );
-
-        const curriculumSelect =
-            document.getElementById("curriculum_id");
-
-        curriculumLessons.forEach(lesson => {
-
-            const option =
-                document.createElement("option");
-
-            option.value =
-                lesson.curriculum_code;
-
-            option.textContent =
-                lesson.curriculum_code;
-
-            curriculumSelect.appendChild(option);
-
-        });
-
+        displaySelectedCurriculumLesson();
     }
+
+
+
 
 
     function displaySelectedCurriculumLesson() {
 
-        const curriculumCode =
-            document.getElementById("curriculum_id").value;
-
         const container =
             document.getElementById("lessons");
 
-        selectedCurriculumLesson =
-            curriculumLessons.find(
-                lesson =>
-                    lesson.curriculum_code === curriculumCode
-            ) || null;
+        container.innerHTML = "";
 
-        if (!selectedCurriculumLesson) {
-            container.innerHTML =
-                "<div class='lesson'>Waiting for Curriculum ID...</div>";
-            return;
-        }
+        selectedCurriculumLessons = [];
+        selectedCurriculumLesson = null;
 
-        const lesson = selectedCurriculumLesson;
-        const div = document.createElement("div");
-        div.className = "lesson";
+        curriculumLessons.forEach(lesson => {
 
-        const lessonText = document.createElement("div");
-        lessonText.textContent = lesson.lesson;
-        div.appendChild(lessonText);
+            const div =
+                document.createElement("div");
 
-        if (lesson.already_built) {
+            div.className = "lesson";
+
+            const label =
+                document.createElement("label");
+
+            if (lesson.can_build) {
+
+                const box =
+                    document.createElement("input");
+
+                box.type = "checkbox";
+                box.className =
+                    "lesson-select-checkbox";
+
+                box.dataset.curriculumCode =
+                    lesson.curriculum_code;
+
+                box.addEventListener(
+                    "change",
+                    syncLessonSelection
+                );
+
+                label.appendChild(box);
+            }
+
+            const code =
+                document.createElement("strong");
+
+            code.textContent =
+                lesson.curriculum_code;
+
+            label.appendChild(code);
+
+            label.appendChild(
+                document.createTextNode(
+                    " — " + lesson.lesson
+                )
+            );
+
+            div.appendChild(label);
+
+if (lesson.already_built) {
 
             div.classList.add("lesson-published");
 
@@ -1731,10 +1715,69 @@
 
         }
 
-        container.innerHTML = "";
-        container.appendChild(div);
 
+
+            container.appendChild(div);
+        });
+
+        syncLessonSelection();
     }
+
+
+    function syncLessonSelection() {
+
+        const selectedCodes =
+            new Set(
+                Array.from(
+                    document.querySelectorAll(
+                        ".lesson-select-checkbox:checked"
+                    )
+                ).map(
+                    box =>
+                        box.dataset.curriculumCode
+                )
+            );
+
+        selectedCurriculumLessons =
+            curriculumLessons.filter(
+                lesson =>
+                    selectedCodes.has(
+                        String(lesson.curriculum_code)
+                    )
+            );
+
+        selectedCurriculumLesson =
+            selectedCurriculumLessons.length === 1
+                ? selectedCurriculumLessons[0]
+                : null;
+    }
+
+
+    function selectAllLessons() {
+
+        document.querySelectorAll(
+            ".lesson-select-checkbox"
+        ).forEach(
+            box => box.checked = true
+        );
+
+        syncLessonSelection();
+    }
+
+
+    function clearAllLessons() {
+
+        document.querySelectorAll(
+            ".lesson-select-checkbox"
+        ).forEach(
+            box => box.checked = false
+        );
+
+        syncLessonSelection();
+    }
+
+
+
 
 
     async function publishGeneratedLesson(
@@ -1797,21 +1840,7 @@
                 true
             );
 
-            const publishedCurriculumCode =
-                selectedCurriculumLesson
-                    ? selectedCurriculumLesson.curriculum_code
-                    : null;
-
             await loadLessons();
-
-            if (publishedCurriculumCode) {
-
-                document.getElementById(
-                    "curriculum_id"
-                ).value = publishedCurriculumCode;
-
-                displaySelectedCurriculumLesson();
-            }
 
         }
         catch (error) {
@@ -1926,15 +1955,17 @@
 
 
     document
-
-        .getElementById(
-            "curriculum_id"
-        )
-
+        .getElementById("selectAllLessons")
         .addEventListener(
-            "change",
+            "click",
+            selectAllLessons
+        );
 
-            displaySelectedCurriculumLesson
+    document
+        .getElementById("clearAllLessons")
+        .addEventListener(
+            "click",
+            clearAllLessons
         );
 
 
@@ -2073,36 +2104,43 @@
     async function submitBuild(event) {
 
         event.preventDefault();
-        if (!selectedCurriculumLesson) {
 
+        syncLessonSelection();
+
+        if (!selectedCurriculumLessons.length) {
             alert(
-                "Please select a Curriculum ID."
+                "Please select at least one lesson / elaboration."
             );
-
             return;
         }
 
-        if (!selectedCurriculumLesson.can_build) {
-
-            alert(
-                "The selected Curriculum ID has already been built "
-                + "or is awaiting publication."
+        const invalidLesson =
+            selectedCurriculumLessons.find(
+                lesson => !lesson.can_build
             );
 
+        if (invalidLesson) {
+            alert(
+                "One or more selected lessons cannot be built."
+            );
             return;
         }
 
-        const lessonNumbers = [
+        const lessonNumbers =
+            selectedCurriculumLessons.map(
+                lesson =>
+                    parseInt(lesson.lesson_number)
+            );
 
-            parseInt(
-                selectedCurriculumLesson.lesson_number
-            )
-
-        ];
-
+        /*
+         * All displayed lessons were loaded using the currently
+         * selected parent_code, so they already belong to the
+         * selected Content Description.
+         *
+         * Individual elaborations may have different topic_id values.
+         */
         const topicId =
-
-            selectedCurriculumLesson.topic_id;
+            selectedCurriculumLessons[0].topic_id;
 
         const payload = {
 
@@ -2622,7 +2660,7 @@
                 updateButton.disabled = true;
 
                 closeUpdateModal(false);
- 
+
                 showProgress(
                     "Preparing selected update...",
                     15
@@ -2742,7 +2780,7 @@
 
             }
         );
-    
+
 	/* ==========================================================
        Build Button
     ========================================================== */
@@ -2821,4 +2859,4 @@
 
 </body>
 
-</html>	
+</html>
