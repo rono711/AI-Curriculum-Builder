@@ -1,4 +1,5 @@
 import base64
+from pathlib import Path
 
 from openai import OpenAI
 
@@ -107,7 +108,9 @@ class ImageClient:
 
             self,
 
-            prompt
+            prompt,
+            reference_images=None,
+            reference_people=None
 
     ):
 
@@ -119,21 +122,136 @@ class ImageClient:
         print("FORMAT  :", IMAGE_FORMAT)
         print("=" * 60)
 
-        response = self.client.images.generate(
+        reference_images = [
+            str(path)
+            for path in (reference_images or [])
+            if Path(path).is_file()
+        ]
 
-            model=self.image_model,
-
-            prompt=prompt,
-
-            size=IMAGE_SIZE,
-
-            quality=IMAGE_QUALITY,
-
-            output_format=IMAGE_FORMAT,
-
-            n=1
-
+        reference_people = (
+            reference_people or []
         )
+
+        person_traits = []
+
+        for person in reference_people:
+
+            person_key = person.get(
+                "person_key",
+                ""
+            )
+
+            if person_key == "teacher_001":
+
+                person_traits.append(
+                    "For the referenced adult male teacher, "
+                    "preserve a natural beard as a consistent "
+                    "facial characteristic."
+                )
+
+        if reference_images:
+
+            print("REFERENCE IMAGES:")
+            for path in reference_images:
+                print("  -", path)
+
+            opened_files = []
+
+            try:
+
+                opened_files = [
+                    open(path, "rb")
+                    for path in reference_images
+                ]
+
+                reference_prompt = (
+                    prompt
+                    + "\n\nREFERENCE PEOPLE INSTRUCTIONS:\n"
+                    + "The supplied image files are visual references for people, "
+                    + "not source scenes to copy. Preserve the recognisable appearance "
+                    + "of the referenced person or people when they are included in "
+                    + "the educational scene. Create a new scene appropriate to the "
+                    + "lesson prompt. Do not copy backgrounds, passport-photo framing, "
+                    + "or unrelated objects from the reference photographs. "
+                    + "Use natural poses, expressions, clothing and interactions "
+                    + "appropriate to the educational context. Do not duplicate a "
+                    + "referenced person to create multiple different people."
+                    + (
+                        "\n\nPERSON-SPECIFIC APPEARANCE REQUIREMENTS:\n"
+                        + "\n".join(person_traits)
+                        if person_traits
+                        else ""
+                    )
+                )
+
+                response = self.client.images.edit(
+
+                    model=self.image_model,
+
+                    image=opened_files,
+
+                    prompt=reference_prompt,
+
+                    size=IMAGE_SIZE,
+
+                    quality=IMAGE_QUALITY,
+
+                    output_format=IMAGE_FORMAT,
+
+                    input_fidelity="high",
+
+                    n=1
+
+                )
+
+                print("REFERENCE IMAGE GENERATION: SUCCESS")
+
+            except Exception as exc:
+
+                print("=" * 60)
+                print("REFERENCE IMAGE GENERATION FAILED")
+                print(str(exc))
+                print("FALLING BACK TO TEXT-ONLY IMAGE GENERATION")
+                print("=" * 60)
+
+                response = self.client.images.generate(
+
+                    model=self.image_model,
+
+                    prompt=prompt,
+
+                    size=IMAGE_SIZE,
+
+                    quality=IMAGE_QUALITY,
+
+                    output_format=IMAGE_FORMAT,
+
+                    n=1
+
+                )
+
+            finally:
+
+                for file_handle in opened_files:
+                    file_handle.close()
+
+        else:
+
+            response = self.client.images.generate(
+
+                model=self.image_model,
+
+                prompt=prompt,
+
+                size=IMAGE_SIZE,
+
+                quality=IMAGE_QUALITY,
+
+                output_format=IMAGE_FORMAT,
+
+                n=1
+
+            )
 
         if not response.data:
 

@@ -46,6 +46,11 @@ class update_elaboration_banner extends external_api {
                 'Stable Content Description parent code'
             ),
 
+            'contentdescription' => new external_value(
+                PARAM_RAW,
+                'Curriculum Content Description'
+            ),
+
             'elaboration' => new external_value(
                 PARAM_RAW,
                 'Learner-facing curriculum elaboration'
@@ -68,6 +73,7 @@ class update_elaboration_banner extends external_api {
         int $cmid,
         string $curriculumcode,
         string $parentcode,
+        string $contentdescription,
         string $elaboration,
         string $imagename,
         string $image
@@ -81,6 +87,7 @@ class update_elaboration_banner extends external_api {
                 'cmid' => $cmid,
                 'curriculumcode' => $curriculumcode,
                 'parentcode' => $parentcode,
+                'contentdescription' => $contentdescription,
                 'elaboration' => $elaboration,
                 'imagename' => $imagename,
                 'image' => $image,
@@ -115,6 +122,7 @@ class update_elaboration_banner extends external_api {
                 (int)$params['cmid'],
                 $params['curriculumcode'],
                 $params['parentcode'],
+                $params['contentdescription'],
                 $params['elaboration'],
                 $params['imagename'],
                 $params['image']

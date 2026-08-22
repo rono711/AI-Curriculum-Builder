@@ -2,6 +2,7 @@ from pathlib import Path
 
 from image_client import ImageClient
 from image_writer import ImageWriter
+from people_selector import select_reference_people
 
 
 # ==========================================================
@@ -193,9 +194,53 @@ Generate the image for this specific Elaboration.
         # Image
         # ==================================================
 
+        people_selection = (
+            select_reference_people(
+                final_prompt
+            )
+        )
+
+        print("=" * 60)
+        print("PEOPLE REFERENCE SELECTION")
+        print("MODE :", people_selection["mode"])
+        print(
+            "TEACHER RELEVANT:",
+            people_selection.get("teacher_relevant", False)
+        )
+        print(
+            "STUDENT RELEVANT:",
+            people_selection.get("student_relevant", False)
+        )
+
+        if people_selection["selected"]:
+
+            for person in people_selection["selected"]:
+
+                print(
+                    "PERSON:",
+                    person["role"],
+                    person["person_key"],
+                    "->",
+                    person["reference"].name
+                )
+
+        else:
+
+            print(
+                "PERSON: AI-generated / prompt-controlled"
+            )
+
+        print("=" * 60)
+
         image_result = (
             self.client.generate_image(
-                final_prompt
+                final_prompt,
+                reference_images=(
+                    people_selection["references"]
+                ),
+                reference_people=(
+                    people_selection["selected"]
+                )
             )
         )
 

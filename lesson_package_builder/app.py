@@ -76,6 +76,7 @@ class BuildRequest(BaseModel):
     update_components: List[str] = []
 
     publication_mode: str = "IMMEDIATE"
+    execution_mode: str = "FULL"
 
     progress_job_id: str = ""
 

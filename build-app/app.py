@@ -15,7 +15,8 @@ from publish_generated import publish_generated_lesson
 
 from build_registry import (
     get_connection,
-    mark_published
+    mark_published,
+    create_build_request
 )
 
 # ==========================================================
@@ -253,6 +254,73 @@ async def get_year_levels():
 async def build(request: Request):
 
     payload = await request.json()
+
+    processing_mode = str(
+        payload.get(
+            "processing_mode",
+            "IMMEDIATE"
+        )
+    ).strip().upper()
+
+    if processing_mode in (
+        "QUEUE_STANDARD",
+        "QUEUE_BATCH"
+    ):
+
+        request_id = create_build_request(
+            requested_by=payload.get(
+                "requested_by",
+                ""
+            ),
+            processing_mode=processing_mode,
+            learning_area=payload.get(
+                "learning_area",
+                ""
+            ),
+            subject=payload.get(
+                "subject",
+                ""
+            ),
+            year_level=payload.get(
+                "year_level",
+                ""
+            ),
+            strand=payload.get(
+                "strand",
+                ""
+            ),
+            sub_strand=payload.get(
+                "sub_strand",
+                ""
+            ),
+            parent_code=payload.get(
+                "parent_code",
+                ""
+            ),
+            lesson_numbers=payload.get(
+                "lesson_numbers",
+                []
+            )
+        )
+
+        return {
+            "status": "QUEUED",
+            "request_id": request_id,
+            "processing_mode": processing_mode,
+            "message":
+                "Build request queued successfully."
+        }
+
+    if processing_mode != "IMMEDIATE":
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid processing_mode. "
+                "Expected IMMEDIATE, "
+                "QUEUE_STANDARD or QUEUE_BATCH."
+            )
+        )
 
     job_id = uuid.uuid4().hex
 

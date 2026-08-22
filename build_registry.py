@@ -9,6 +9,8 @@ Purpose:
 """
 
 import sqlite3
+import json
+import uuid
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -176,6 +178,47 @@ def initialize_registry():
                 ADD COLUMN {column_name} {column_type}
                 """
             )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS build_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id TEXT NOT NULL UNIQUE,
+                requested_by TEXT NOT NULL,
+                processing_mode TEXT NOT NULL,
+                learning_area TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                year_level TEXT NOT NULL,
+                strand TEXT NOT NULL,
+                sub_strand TEXT,
+                parent_code TEXT NOT NULL,
+                lesson_numbers TEXT NOT NULL,
+                status TEXT NOT NULL,
+                openai_batch_id TEXT,
+                error TEXT,
+                created_at TEXT NOT NULL,
+                started_at TEXT,
+                completed_at TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_build_requests_status
+            ON build_requests (status)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_build_requests_requested_by
+            ON build_requests (requested_by)
+            """
+        )
+
         connection.commit()
 
 
@@ -817,3 +860,392 @@ def get_build_history(elaboration_key):
 # ==========================================================
 
 initialize_registry()
+
+
+# ==========================================================
+# Persistent Build Request Queue
+# ==========================================================
+
+def create_build_request(
+        requested_by,
+        processing_mode,
+        learning_area,
+        subject,
+        year_level,
+        strand,
+        sub_strand,
+        parent_code,
+        lesson_numbers
+):
+
+    initialize_registry()
+
+    mode = str(processing_mode).strip().upper()
+
+    if mode not in (
+        "QUEUE_STANDARD",
+        "QUEUE_BATCH"
+    ):
+        raise ValueError(
+            "Invalid queued processing mode."
+        )
+
+    lessons = [
+        int(value)
+        for value in lesson_numbers
+    ]
+
+    if not lessons:
+        raise ValueError(
+            "At least one lesson number is required."
+        )
+
+    request_id = (
+        "REQ_"
+        + datetime.now(timezone.utc).strftime(
+            "%Y%m%d_%H%M%S_"
+        )
+        + uuid.uuid4().hex[:8].upper()
+    )
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        connection.execute(
+            """
+            INSERT INTO build_requests (
+                request_id,
+                requested_by,
+                processing_mode,
+                learning_area,
+                subject,
+                year_level,
+                strand,
+                sub_strand,
+                parent_code,
+                lesson_numbers,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                request_id,
+                str(requested_by).strip(),
+                mode,
+                str(learning_area).strip(),
+                str(subject).strip(),
+                str(year_level).strip(),
+                str(strand).strip(),
+                str(sub_strand or "").strip(),
+                str(parent_code).strip(),
+                json.dumps(lessons),
+                "QUEUED",
+                now,
+                now
+            )
+        )
+
+        connection.commit()
+
+    return request_id
+
+
+def get_queued_requests(
+        processing_mode=None,
+        limit=50
+):
+
+    initialize_registry()
+
+    params = []
+
+    sql = """
+        SELECT *
+        FROM build_requests
+        WHERE status = 'QUEUED'
+    """
+
+    if processing_mode:
+
+        sql += """
+            AND processing_mode = ?
+        """
+
+        params.append(
+            str(processing_mode)
+            .strip()
+            .upper()
+        )
+
+    sql += """
+        ORDER BY id ASC
+        LIMIT ?
+    """
+
+    params.append(
+        int(limit)
+    )
+
+    with get_connection() as connection:
+
+        rows = connection.execute(
+            sql,
+            params
+        ).fetchall()
+
+    results = []
+
+    for row in rows:
+
+        item = dict(row)
+
+        item["lesson_numbers"] = json.loads(
+            item["lesson_numbers"]
+        )
+
+        results.append(item)
+
+    return results
+
+
+def claim_build_request(request_id):
+
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        cursor = connection.execute(
+            """
+            UPDATE build_requests
+
+            SET status = 'PROCESSING',
+                started_at = ?,
+                updated_at = ?,
+                error = NULL
+
+            WHERE request_id = ?
+              AND status = 'QUEUED'
+            """,
+            (
+                now,
+                now,
+                request_id
+            )
+        )
+
+        connection.commit()
+
+        return cursor.rowcount == 1
+
+
+def complete_build_request(request_id):
+
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        connection.execute(
+            """
+            UPDATE build_requests
+
+            SET status = 'PUBLISHED',
+                completed_at = ?,
+                updated_at = ?,
+                error = NULL
+
+            WHERE request_id = ?
+            """,
+            (
+                now,
+                now,
+                request_id
+            )
+        )
+
+        connection.commit()
+
+
+
+def fail_build_request(request_id, error):
+
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        connection.execute(
+            """
+            UPDATE build_requests
+            SET status = 'FAILED',
+                completed_at = ?,
+                updated_at = ?,
+                error = ?
+            WHERE request_id = ?
+            """,
+            (
+                now,
+                now,
+                str(error),
+                request_id
+            )
+        )
+
+        connection.commit()
+
+
+def get_build_request(request_id):
+
+    initialize_registry()
+
+    with get_connection() as connection:
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM build_requests
+            WHERE request_id = ?
+            """,
+            (
+                request_id,
+            )
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    result = dict(row)
+
+    result["lesson_numbers"] = json.loads(
+        result["lesson_numbers"]
+    )
+
+    return result
+
+
+def mark_batch_ready(request_id):
+
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        cursor = connection.execute(
+            """
+            UPDATE build_requests
+
+            SET status = 'BATCH_READY',
+                completed_at = NULL,
+                updated_at = ?,
+                error = NULL
+
+            WHERE request_id = ?
+              AND processing_mode = 'QUEUE_BATCH'
+              AND status IN (
+                  'PROCESSING',
+                  'FAILED'
+              )
+            """,
+            (
+                now,
+                request_id
+            )
+        )
+
+        connection.commit()
+
+        return cursor.rowcount == 1
+
+
+def mark_batch_submitted(
+        request_id,
+        openai_batch_id
+):
+
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        cursor = connection.execute(
+            """
+            UPDATE build_requests
+
+            SET status = 'BATCH_SUBMITTED',
+                openai_batch_id = ?,
+                updated_at = ?,
+                error = NULL
+
+            WHERE request_id = ?
+              AND processing_mode = 'QUEUE_BATCH'
+              AND status = 'BATCH_READY'
+            """,
+            (
+                str(openai_batch_id),
+                now,
+                request_id
+            )
+        )
+
+        connection.commit()
+
+        return cursor.rowcount == 1
+
+
+def set_batch_status(
+        request_id,
+        status,
+        error=None
+):
+
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        cursor = connection.execute(
+            """
+            UPDATE build_requests
+
+            SET status = ?,
+                updated_at = ?,
+                error = ?
+
+            WHERE request_id = ?
+              AND processing_mode = 'QUEUE_BATCH'
+            """,
+            (
+                str(status).strip().upper(),
+                now,
+                error,
+                request_id
+            )
+        )
+
+        connection.commit()
+
+        return cursor.rowcount == 1

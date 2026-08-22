@@ -493,6 +493,9 @@ class page_service {
             'font-weight: 600; ' .
             'line-height: 1.4;' .
             '">' .
+            '<strong>' .
+            s($parentcode) .
+            '</strong> — ' .
             s($contentdescription) .
             '</h3>';
 
@@ -689,6 +692,7 @@ class page_service {
         int $cmid,
         string $curriculumcode,
         string $parentcode,
+        string $contentdescription,
         string $elaboration,
         string $imagename,
         string $image
@@ -697,6 +701,7 @@ class page_service {
 
         $curriculumcode = trim($curriculumcode);
         $parentcode = trim($parentcode);
+        $contentdescription = trim($contentdescription);
         $elaboration = trim($elaboration);
 
         if ($courseid <= 0) {
@@ -720,6 +725,12 @@ class page_service {
         if ($parentcode === '') {
             throw new moodle_exception(
                 'Parent code cannot be empty.'
+            );
+        }
+
+        if ($contentdescription === '') {
+            throw new moodle_exception(
+                'Content Description cannot be empty.'
             );
         }
 
@@ -766,16 +777,76 @@ class page_service {
             MUST_EXIST
         );
 
+        $currentidentity = mb_strtolower(
+            trim((string)$label->name),
+            'UTF-8'
+        );
+
+        $parentidentity = mb_strtolower(
+            $parentcode,
+            'UTF-8'
+        );
+
+        $curriculumidentity = mb_strtolower(
+            $curriculumcode,
+            'UTF-8'
+        );
+
+        /*
+         * Legacy banners stored the shortened Content Description
+         * in label.name before parent-code identities were introduced.
+         */
+        $legacyidentity = mb_strtolower(
+            shorten_text(
+                trim(strip_tags($contentdescription)),
+                100
+            ),
+            'UTF-8'
+        );
+
+        /*
+         * Moodle may derive a legacy label name from the rendered HTML.
+         * Confirm the exact expected Content Description is present
+         * before treating that banner as the requested curriculum item.
+         */
+        $legacyintro = mb_strtolower(
+            trim(
+                preg_replace(
+                    '/\s+/u',
+                    ' ',
+                    html_entity_decode(
+                        strip_tags((string)$label->intro),
+                        ENT_QUOTES | ENT_HTML5,
+                        'UTF-8'
+                    )
+                )
+            ),
+            'UTF-8'
+        );
+
+        $legacydescription = mb_strtolower(
+            trim(preg_replace('/\s+/u', ' ', $contentdescription)),
+            'UTF-8'
+        );
+
+        $legacyintromatch =
+            $legacydescription !== ''
+            &&
+            mb_strpos(
+                $legacyintro,
+                $legacydescription,
+                0,
+                'UTF-8'
+            ) !== false;
+
         if (
-            mb_strtolower(
-                trim((string)$label->name),
-                'UTF-8'
-            )
-            !==
-            mb_strtolower(
-                $parentcode,
-                'UTF-8'
-            )
+            $currentidentity !== $parentidentity
+            &&
+            $currentidentity !== $curriculumidentity
+            &&
+            $currentidentity !== $legacyidentity
+            &&
+            !$legacyintromatch
         ) {
             throw new moodle_exception(
                 'Text & Media curriculum identity does not match.'
@@ -783,10 +854,9 @@ class page_service {
         }
 
         /*
-         * Parent code remains the stable Moodle Text & Media identity.
-         * It is not rendered in the learner-facing heading.
+         * Preserve the specific elaboration Curriculum ID.
          */
-        $label->name = $parentcode;
+        $label->name = $curriculumcode;
 
         $elaboration =
             $this->capitalise_first(

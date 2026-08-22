@@ -60,6 +60,8 @@ class PromptRequest(BaseModel):
 
     prompt_type: str
 
+    generation_mode: str = "IMMEDIATE"
+
 
 # ==========================================================
 # Home
@@ -113,7 +115,8 @@ def prompt(
 
             lesson_package_id=request.lesson_package_id,
 
-            prompt_type=request.prompt_type
+            prompt_type=request.prompt_type,
+              generation_mode=request.generation_mode
 
         )
 

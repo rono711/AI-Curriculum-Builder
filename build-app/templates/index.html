@@ -790,28 +790,36 @@
 
                         <div class="form-group">
                 <label>
-                    Moodle Publication
+                    Processing
                 </label>
 
                 <label>
                     <input
                         type="radio"
-                        name="publication_mode"
+                        name="processing_mode"
                         value="IMMEDIATE"
                         checked>
-                    Publish immediately
+                    Generate &amp; publish now
                 </label>
 
                 <label>
                     <input
                         type="radio"
-                        name="publication_mode"
-                        value="GENERATE_ONLY">
-                    Generate only
+                        name="processing_mode"
+                        value="QUEUE_STANDARD">
+                    Queue — standard processing
+                </label>
+
+                <label>
+                    <input
+                        type="radio"
+                        name="processing_mode"
+                        value="QUEUE_BATCH">
+                    Queue — OpenAI Batch processing
                 </label>
             </div>
 
-<button
+            <button
                     type="submit"
                     id="buildButton">
 
@@ -2194,11 +2202,13 @@ if (lesson.already_built) {
 
             lessonNumbers,
 
-            publication_mode:
-
+            processing_mode:
             document.querySelector(
-                'input[name="publication_mode"]:checked'
-            ).value
+                'input[name="processing_mode"]:checked'
+            ).value,
+
+            publication_mode:
+            "IMMEDIATE"
 
         };
 
@@ -2259,6 +2269,41 @@ if (lesson.already_built) {
 
                     JSON.stringify(accepted)
                 );
+            }
+
+            if (accepted.status === "QUEUED") {
+
+                hideProgress();
+
+                showStatus(
+                    `
+                    <h3>Build Request Queued Successfully</h3>
+
+                    <p>
+                    <strong>Request ID:</strong>
+                    ${accepted.request_id}
+                    </p>
+
+                    <p>
+                    Your request has been saved.
+                    You may close this page.
+                    </p>
+
+                    <p>
+                    Processing mode:
+                    <strong>
+                    ${accepted.processing_mode === "QUEUE_BATCH"
+                        ? "OpenAI Batch"
+                        : "Standard Queue"}
+                    </strong>
+                    </p>
+                    `,
+                    true
+                );
+
+                button.disabled = false;
+
+                return;
             }
 
             if (!accepted.job_id) {
@@ -2648,10 +2693,7 @@ if (lesson.already_built) {
                     update_components:
                         components,
 
-                    publication_mode:
-                        document.querySelector(
-                            'input[name="publication_mode"]:checked'
-                        ).value
+                    publication_mode: "IMMEDIATE"
 
                 };
 

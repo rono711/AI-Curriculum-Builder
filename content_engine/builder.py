@@ -62,6 +62,169 @@ class CONTENTBuilder:
     print("CONTENT BUILDER FILE")
     print(__file__)
     print("=" * 60)
+
+    def save_batch_result(
+            self,
+            request
+    ):
+
+        paths = BuildPaths(
+            request.workbook_path
+        )
+
+        content_folder = paths.content_folder
+        content_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        output_files = {
+            "LESSON_CONTENT": "lesson_output",
+            "DISPLAY_TITLE": "display_title",
+            "MISSION": "mission",
+            "DID_YOU_KNOW": "did_you_know",
+            "CHECKING_YOUR_THINKING":
+                "checking_your_thinking",
+            "LETS_DO_IT": "lets_do_it",
+            "WHAT_WE_DISCOVERED":
+                "what_we_discovered",
+        }
+
+        prompt_type = str(
+            request.prompt_type
+        ).strip().upper()
+
+        if prompt_type not in output_files:
+            raise ValueError(
+                "Unsupported Batch prompt type: "
+                + prompt_type
+            )
+
+        base_name = output_files[
+            prompt_type
+        ]
+
+        result = {
+            "markdown": request.markdown,
+            "provider": "CHATGPT_BATCH",
+            "model": request.model,
+            "tokens": request.tokens,
+            "cost": None,
+        }
+
+        response_md = (
+            content_folder
+            / f"{base_name}.md"
+        )
+
+        response_md.write_text(
+            result["markdown"],
+            encoding="utf-8"
+        )
+
+        response_json = (
+            content_folder
+            / f"{base_name}.json"
+        )
+
+        response_json.write_text(
+            json.dumps(
+                result,
+                indent=4,
+                ensure_ascii=False
+            ),
+            encoding="utf-8"
+        )
+
+        workbook_map = {
+            "LESSON_CONTENT": (
+                "Lesson_Content",
+                "lesson_markdown"
+            ),
+            "DISPLAY_TITLE": (
+                "Descriptions",
+                "display_title"
+            ),
+            "MISSION": (
+                "Descriptions",
+                "mission_description"
+            ),
+            "DID_YOU_KNOW": (
+                "Descriptions",
+                "slides_description"
+            ),
+            "CHECKING_YOUR_THINKING": (
+                "Descriptions",
+                "quiz_description"
+            ),
+            "LETS_DO_IT": (
+                "Descriptions",
+                "activities_description"
+            ),
+            "WHAT_WE_DISCOVERED": (
+                "Descriptions",
+                "recap_description"
+            ),
+        }
+
+        worksheet, field = workbook_map[
+            prompt_type
+        ]
+
+        if prompt_type == "DISPLAY_TITLE":
+
+            update = requests.post(
+                UPDATE_WORKBOOK,
+                json={
+                    "workbook_path":
+                        request.workbook_path,
+                    "worksheet":
+                        "Descriptions",
+                    "lesson_package_id":
+                        request.lesson_package_id,
+                    "values": {
+                        "display_title":
+                            request.markdown.strip()
+                    }
+                },
+                timeout=900
+            )
+
+        else:
+
+            update = requests.post(
+                UPDATE_MARKDOWN,
+                json={
+                    "workbook_path":
+                        request.workbook_path,
+                    "worksheet":
+                        worksheet,
+                    "lesson_package_id":
+                        request.lesson_package_id,
+                    "markdown_file":
+                        str(response_md),
+                    "field":
+                        field
+                },
+                timeout=900
+            )
+
+        update.raise_for_status()
+
+        return {
+            "status": "SUCCESS",
+            "provider": "CHATGPT_BATCH",
+            "lesson_package_id":
+                request.lesson_package_id,
+            "prompt_type": prompt_type,
+            "markdown_file":
+                str(response_md),
+            "json_file":
+                str(response_json),
+            "workbook_path":
+                request.workbook_path
+        }
+
     def generate(
 
         self,

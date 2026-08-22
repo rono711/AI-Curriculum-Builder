@@ -77,3 +77,22 @@ data/build_registry.db
 
 # Generated Moodle plugin packages
 curriculum_builder_plugin/*.zip
+
+# ==========================================================
+# Private local reference-person images
+# ==========================================================
+assets/people/**
+!assets/people/
+!assets/people/teachers/
+!assets/people/students/
+!assets/people/teachers/.gitkeep
+!assets/people/students/.gitkeep
+
+# Runtime queue and batch data
+build-app/data/
+data/batch_test/
+data/batches/
+data/standard_queue.lock
+
+# Local recovery snapshots
+recovery_before_legacy_banner_fix_*/

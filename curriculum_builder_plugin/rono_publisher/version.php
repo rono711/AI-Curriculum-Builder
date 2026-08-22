@@ -19,7 +19,7 @@ $plugin->component = 'local_rono_publisher';
  * 2026-08-10
  * Duplicate Elaboration Protection
  */
-$plugin->version = 2026082002;
+$plugin->version = 2026082202;
 
 /*
  * Minimum supported Moodle version.
@@ -31,4 +31,4 @@ $plugin->requires = 2025100600;
 
 $plugin->maturity = MATURITY_ALPHA;
 
-$plugin->release = '1.5.0-elaboration-image-updates';
+$plugin->release = '1.5.3-curriculum-banner-identity';

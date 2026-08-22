@@ -33,9 +33,22 @@ class PromptBuilder:
 
             lesson_package_id,
 
-            prompt_type
-
+            prompt_type,
+            generation_mode="IMMEDIATE"
     ):
+        generation_mode = str(
+            generation_mode
+        ).strip().upper()
+
+        if generation_mode not in (
+            "IMMEDIATE",
+            "BATCH_PREPARE"
+        ):
+            raise ValueError(
+                "generation_mode must be "
+                "IMMEDIATE or BATCH_PREPARE."
+            )
+
         #
         # Read Workbook
         #
@@ -162,7 +175,9 @@ class PromptBuilder:
 
         ai_result = None
 
-        if prompt_type in [
+        if (
+            generation_mode == "IMMEDIATE"
+            and prompt_type in [
 
             "LESSON_CONTENT",
 
@@ -177,7 +192,8 @@ class PromptBuilder:
             "LETS_DO_IT",
 
             "WHAT_WE_DISCOVERED"
-        ]:
+            ]
+        ):
             ai_response = requests.post(
 
                 CONTENT_ENGINE_URL,
@@ -233,6 +249,10 @@ class PromptBuilder:
             "prompt_type":
 
                 prompt_type,
+
+            "generation_mode":
+
+                generation_mode,
 
             "prompt_file":
 

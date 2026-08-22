@@ -265,6 +265,22 @@ class LessonPackageBuilder:
                 "IMMEDIATE"
             )
         ).strip().upper()
+        execution_mode = str(
+            request.get(
+                "execution_mode",
+                "FULL"
+            )
+        ).strip().upper()
+
+        if execution_mode not in (
+            "FULL",
+            "PREPARE_ONLY"
+        ):
+            close_workbook(workbook)
+            raise ValueError(
+                "Invalid execution_mode. "
+                "Expected FULL or PREPARE_ONLY."
+            )
         if publication_mode not in (
                 "IMMEDIATE",
                 "GENERATE_ONLY"
@@ -864,6 +880,18 @@ class LessonPackageBuilder:
         build_root = str(build["path"].parent.parent)
 
         build_name = build["path"].stem
+
+        if execution_mode == "PREPARE_ONLY":
+
+            return {
+                "status": "PREPARED",
+                "build_id": build["build_id"],
+                "filename": build["filename"],
+                "workbook_path": str(build["path"]),
+                "build_root": build_root,
+                "build_name": build_name,
+                "lesson_rows": lesson_rows
+            }
 
         response = requests.post(
 

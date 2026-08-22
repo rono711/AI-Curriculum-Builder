@@ -150,3 +150,31 @@ def generate(
             detail=str(e)
 
         )
+
+class BatchResultRequest(BaseModel):
+    workbook_path: str
+    lesson_package_id: str
+    prompt_type: str
+    markdown: str
+    model: str
+    tokens: int | None = None
+
+
+@app.post("/save-batch-result")
+def save_batch_result(request: BatchResultRequest):
+
+    try:
+        return builder.save_batch_result(
+            request
+        )
+
+    except Exception:
+
+        import traceback
+
+        print("=" * 60)
+        print("SAVE BATCH RESULT FAILED")
+        traceback.print_exc()
+        print("=" * 60)
+
+        raise

@@ -1318,6 +1318,10 @@ class PublisherBuilder:
                 metadata.get("parent_code")
             )
 
+            content_description = self._text(
+                metadata.get("content_description")
+            )
+
             elaboration = self._text(
                 metadata.get("elaboration")
             )
@@ -1330,6 +1334,11 @@ class PublisherBuilder:
             if not parent_code:
                 raise RuntimeError(
                     "UPDATE parent code is empty."
+                )
+
+            if not content_description:
+                raise RuntimeError(
+                    "UPDATE content description is empty."
                 )
 
             if not elaboration:
@@ -1390,6 +1399,9 @@ class PublisherBuilder:
 
                     "parentcode":
                         parent_code,
+
+                    "contentdescription":
+                        content_description,
 
                     "elaboration":
                         elaboration,
