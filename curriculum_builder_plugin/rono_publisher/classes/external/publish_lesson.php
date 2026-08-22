@@ -382,6 +382,12 @@ class publish_lesson extends external_api {
                         $result['questionids']
                     )
                 ),
+
+            'questions' =>
+                array_values(
+                    $result['questions']
+                ),
+
             /*
  * Quiz question attachment.
  */
@@ -534,6 +540,38 @@ class publish_lesson extends external_api {
                         'Latest imported Moodle question ID'
                     )
                 ),
+
+            'questions' =>
+                new external_multiple_structure(
+                    new external_single_structure(
+                        [
+                            'questionkey' =>
+                                new external_value(
+                                    PARAM_TEXT,
+                                    'Stable Curriculum Builder question key'
+                                ),
+
+                            'questionid' =>
+                                new external_value(
+                                    PARAM_INT,
+                                    'Moodle question ID'
+                                ),
+
+                            'questionbankentryid' =>
+                                new external_value(
+                                    PARAM_INT,
+                                    'Moodle Question Bank entry ID'
+                                ),
+
+                            'qtype' =>
+                                new external_value(
+                                    PARAM_ALPHANUMEXT,
+                                    'Moodle question type'
+                                ),
+                        ]
+                    )
+                ),
+
         /*
  * Quiz question attachment.
  */

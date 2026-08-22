@@ -212,6 +212,85 @@ class QuizRunner:
         return content
 
     # ======================================================
+    # Question Traceability
+    # ======================================================
+
+    @staticmethod
+    def _add_question_traceability(content, lesson_package_id):
+        """
+        Replace generated GIFT question names such as Q1, T1, M1 and SA1
+        with stable Curriculum Builder question keys.
+
+        Example:
+            LP_000238_001 + Q1
+            -> CB_000238_001_Q001
+
+        Only the GIFT question name is changed. Question text, answers
+        and GIFT answer syntax are left untouched.
+        """
+        import re
+
+        package_match = re.fullmatch(
+            r"LP_(\d+)_(\d+)",
+            str(lesson_package_id).strip()
+        )
+
+        if not package_match:
+            raise ValueError(
+                "Invalid lesson_package_id for question traceability: "
+                f"{lesson_package_id}"
+            )
+
+        build_number = package_match.group(1)
+        lesson_number = package_match.group(2)
+
+        prefix = (
+            f"CB_{build_number}_{lesson_number}"
+        )
+
+        pattern = re.compile(
+            r"::(SA|Q|T|M)(\d+)::"
+        )
+
+        seen_keys = set()
+
+        def replace(match):
+            question_type = match.group(1)
+            sequence = int(match.group(2))
+
+            question_key = (
+                f"{prefix}_{question_type}{sequence:03d}"
+            )
+
+            if question_key in seen_keys:
+                raise ValueError(
+                    f"Duplicate generated question key: {question_key}"
+                )
+
+            seen_keys.add(question_key)
+
+            return f"::{question_key}::"
+
+        traced_content, count = pattern.subn(
+            replace,
+            content
+        )
+
+        if count == 0:
+            raise ValueError(
+                "No supported GIFT question names were found "
+                "for traceability."
+            )
+
+        print("=" * 60)
+        print("QUESTION TRACEABILITY")
+        print("Lesson Package:", lesson_package_id)
+        print("Questions Tagged:", count)
+        print("=" * 60)
+
+        return traced_content
+
+    # ======================================================
     # Generate
     # ======================================================
 
@@ -299,6 +378,12 @@ class QuizRunner:
         gift_content = self._validate_gift(
             result["content"]
         )
+
+        gift_content = self._add_question_traceability(
+            gift_content,
+            metadata["lesson_package_id"]
+        )
+
 
         #
         # Description

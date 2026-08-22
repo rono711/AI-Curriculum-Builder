@@ -494,6 +494,15 @@ ob_start();
                 $newentryids
             );
 
+        /*
+         * Build authoritative Moodle question mappings.
+         */
+        $questionmappings =
+            $this->get_question_mappings(
+                $newentryids,
+                $questionids
+            );
+
         return [
 
             'categoryid' =>
@@ -517,6 +526,9 @@ ob_start();
                         $questionids
                     )
                 ),
+
+            'questions' =>
+                $questionmappings,
 
             'questioncount' =>
                 count($newentryids),
@@ -595,6 +607,68 @@ ob_start();
                 $records
             )
         );
+    }
+
+    /**
+     * Build authoritative mappings for imported questions.
+     *
+     * @param array $entryids Question Bank entry IDs.
+     * @param array $questionids Moodle question IDs.
+     * @return array
+     */
+    private function get_question_mappings(
+        array $entryids,
+        array $questionids
+    ): array {
+        global $DB;
+
+        if (count($entryids) !== count($questionids)) {
+            throw new moodle_exception(
+                'Question Bank entry count does not match question ID count.'
+            );
+        }
+
+        $mappings = [];
+
+        foreach ($questionids as $index => $questionid) {
+            $question =
+                $DB->get_record(
+                    'question',
+                    [
+                        'id' => (int)$questionid,
+                    ],
+                    'id,name,qtype',
+                    MUST_EXIST
+                );
+
+            $questionkey =
+                trim(
+                    (string)$question->name
+                );
+
+            if ($questionkey === '') {
+                throw new moodle_exception(
+                    'Imported Moodle question has an empty name: '
+                    . (int)$questionid
+                );
+            }
+
+            $mappings[] = [
+                'questionkey' =>
+                    $questionkey,
+
+                'questionid' =>
+                    (int)$question->id,
+
+                'questionbankentryid' =>
+                    (int)$entryids[$index],
+
+                'qtype' =>
+                    (string)$question->qtype,
+            ];
+        }
+
+        return $mappings;
     }
 
     /**

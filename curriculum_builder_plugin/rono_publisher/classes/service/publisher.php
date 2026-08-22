@@ -597,6 +597,11 @@ class publisher {
                     )
                 ),
 
+            'questions' =>
+                array_values(
+                    $questionresult['questions']
+                ),
+
                         /*
              * Quiz attachment results.
              */
