@@ -24,7 +24,8 @@ from build_registry import (
     mark_generated,
     mark_failed,
     get_previous_published_build,
-    inherit_moodle_identity
+    inherit_moodle_identity,
+    register_quiz_questions
 )
 
 from config import (
@@ -1478,6 +1479,58 @@ class PipelineBuilder:
                             )
                     )
 
+                    published_questions = (
+                        moodle_result.get(
+                            "questions"
+                        )
+                    )
+
+                    if not published_questions:
+                        raise RuntimeError(
+                            "Successful NEW Moodle publication "
+                            "did not return question mappings."
+                        )
+
+                    register_quiz_questions(
+                        build_id=
+                            build["build_id"],
+
+                        lesson_package_id=
+                            lesson_package_id,
+
+                        curriculum_code=
+                            lesson.get(
+                                "curriculum_code"
+                            ),
+
+                        moodle_course_id=
+                            moodle_result.get(
+                                "courseid"
+                            ),
+
+                        moodle_quiz_id=
+                            moodle_result.get(
+                                "quizid"
+                            ),
+
+                        moodle_quiz_cmid=
+                            moodle_result.get(
+                                "quizcmid"
+                            ),
+
+                        questions=
+                            published_questions,
+
+                        source=
+                            "PUBLISH"
+                    )
+
+                    print(
+                        "QUIZ QUESTIONS REGISTERED:",
+                        len(
+                            published_questions
+                        )
+                    )
                     print(
                         "REGISTRY RECORD:",
                         registry_record_id,

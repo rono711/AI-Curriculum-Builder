@@ -116,7 +116,7 @@ def initialize_registry():
             )
             """
         )
-                # ==================================================
+        # ==================================================
         # Non-destructive Registry Schema Migration
         # ==================================================
 
@@ -218,7 +218,76 @@ def initialize_registry():
             ON build_requests (requested_by)
             """
         )
+                # ==================================================
+        # Quiz Question Identity Registry
+        # ==================================================
 
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS quiz_questions (
+
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                question_key TEXT NOT NULL UNIQUE,
+
+                build_id TEXT,
+                lesson_package_id TEXT NOT NULL,
+                curriculum_code TEXT,
+
+                moodle_course_id INTEGER,
+                moodle_quiz_id INTEGER NOT NULL,
+                moodle_quiz_cmid INTEGER,
+
+                moodle_question_id INTEGER NOT NULL UNIQUE,
+
+                moodle_question_bank_entry_id
+                    INTEGER NOT NULL UNIQUE,
+
+                moodle_slot INTEGER,
+
+                question_type TEXT,
+
+                source TEXT NOT NULL,
+
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_quiz_questions_lesson_package
+
+            ON quiz_questions (
+                lesson_package_id
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_quiz_questions_quiz
+
+            ON quiz_questions (
+                moodle_quiz_id
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_quiz_questions_quiz_slot
+
+            ON quiz_questions (
+                moodle_quiz_id,
+                moodle_slot
+            )
+            """
+        )
         connection.commit()
 
 
@@ -1249,3 +1318,186 @@ def set_batch_status(
         connection.commit()
 
         return cursor.rowcount == 1
+
+# ==========================================================
+# Register Quiz Questions
+# ==========================================================
+
+def register_quiz_questions(
+        *,
+        build_id,
+        lesson_package_id,
+        curriculum_code,
+        moodle_course_id,
+        moodle_quiz_id,
+        moodle_quiz_cmid,
+        questions,
+        source="PUBLISH"
+):
+
+    initialize_registry()
+
+    if not lesson_package_id:
+        raise ValueError(
+            "lesson_package_id is required "
+            "for quiz question registration."
+        )
+
+    if not moodle_quiz_id:
+        raise ValueError(
+            "moodle_quiz_id is required "
+            "for quiz question registration."
+        )
+
+    if not questions:
+        raise ValueError(
+            "questions are required "
+            "for quiz question registration."
+        )
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        for slot, question in enumerate(
+                questions,
+                start=1
+        ):
+
+            question_key = str(
+                question.get(
+                    "questionkey",
+                    ""
+                )
+            ).strip()
+
+            moodle_question_id = question.get(
+                "questionid"
+            )
+
+            question_bank_entry_id = question.get(
+                "questionbankentryid"
+            )
+
+            question_type = str(
+                question.get(
+                    "qtype",
+                    ""
+                )
+            ).strip()
+
+            if not question_key:
+                raise ValueError(
+                    f"Missing questionkey at slot {slot}."
+                )
+
+            if not moodle_question_id:
+                raise ValueError(
+                    f"Missing Moodle question ID "
+                    f"for {question_key}."
+                )
+
+            if not question_bank_entry_id:
+                raise ValueError(
+                    f"Missing Question Bank entry ID "
+                    f"for {question_key}."
+                )
+
+            connection.execute(
+                """
+                INSERT INTO quiz_questions (
+
+                    question_key,
+                    build_id,
+                    lesson_package_id,
+                    curriculum_code,
+
+                    moodle_course_id,
+                    moodle_quiz_id,
+                    moodle_quiz_cmid,
+
+                    moodle_question_id,
+                    moodle_question_bank_entry_id,
+
+                    moodle_slot,
+                    question_type,
+
+                    source,
+                    created_at,
+                    updated_at
+
+                )
+
+                VALUES (
+                    ?, ?, ?, ?,
+                    ?, ?, ?,
+                    ?, ?,
+                    ?, ?,
+                    ?, ?, ?
+                )
+
+                ON CONFLICT(question_key)
+                DO UPDATE SET
+
+                    build_id =
+                        excluded.build_id,
+
+                    lesson_package_id =
+                        excluded.lesson_package_id,
+
+                    curriculum_code =
+                        excluded.curriculum_code,
+
+                    moodle_course_id =
+                        excluded.moodle_course_id,
+
+                    moodle_quiz_id =
+                        excluded.moodle_quiz_id,
+
+                    moodle_quiz_cmid =
+                        excluded.moodle_quiz_cmid,
+
+                    moodle_question_id =
+                        excluded.moodle_question_id,
+
+                    moodle_question_bank_entry_id =
+                        excluded.moodle_question_bank_entry_id,
+
+                    moodle_slot =
+                        excluded.moodle_slot,
+
+                    question_type =
+                        excluded.question_type,
+
+                    source =
+                        excluded.source,
+
+                    updated_at =
+                        excluded.updated_at
+                """,
+                (
+                    question_key,
+                    str(build_id),
+                    str(lesson_package_id),
+                    curriculum_code,
+
+                    moodle_course_id,
+                    int(moodle_quiz_id),
+                    moodle_quiz_cmid,
+
+                    int(moodle_question_id),
+                    int(question_bank_entry_id),
+
+                    slot,
+                    question_type,
+
+                    str(source).upper(),
+                    now,
+                    now
+                )
+            )
+
+        connection.commit()
+
