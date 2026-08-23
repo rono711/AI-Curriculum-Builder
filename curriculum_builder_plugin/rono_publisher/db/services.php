@@ -90,6 +90,26 @@ $functions = [
         'ajax' =>
             false,
     ],
+
+    'local_rono_publisher_get_quiz_questions' => [
+        'classname' =>
+            'local_rono_publisher\external\get_quiz_questions',
+
+        'methodname' =>
+            'execute',
+
+        'description' =>
+            'Returns authoritative read-only Question Bank mappings for a Moodle Quiz.',
+
+        'type' =>
+            'read',
+
+        'capabilities' =>
+            'local/rono_publisher:viewanalytics',
+
+        'ajax' =>
+            false,
+    ],
 ];
 $services = [
 

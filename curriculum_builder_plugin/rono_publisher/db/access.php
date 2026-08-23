@@ -24,4 +24,16 @@ $capabilities = [
         ],
     ],
 
+    'local/rono_publisher:viewanalytics' => [
+        'riskbitmask' => 0,
+
+        'captype' => 'read',
+
+        'contextlevel' => CONTEXT_COURSE,
+
+        'archetypes' => [
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW,
+        ],
+    ],
 ];

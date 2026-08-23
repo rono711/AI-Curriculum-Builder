@@ -536,6 +536,150 @@ ob_start();
     }
 
     /**
+     * Return authoritative Question Bank mappings for a Quiz.
+     *
+     * This is read-only. It resolves each Quiz slot through
+     * question_references and the latest usable question version.
+     *
+     * @param int $quizid Moodle Quiz instance ID.
+     * @return array
+     */
+    public function get_quiz_questions(
+        int $quizid
+    ): array {
+        global $DB;
+
+        $quiz =
+            $DB->get_record(
+                'quiz',
+                [
+                    'id' => $quizid,
+                ],
+                'id,course',
+                MUST_EXIST
+            );
+
+        $slots =
+            $DB->get_records(
+                'quiz_slots',
+                [
+                    'quizid' => $quizid,
+                ],
+                'slot ASC',
+                'id,slot'
+            );
+
+        $questions = [];
+
+        foreach ($slots as $slot) {
+
+            $reference =
+                $DB->get_record(
+                    'question_references',
+                    [
+                        'component' =>
+                            'mod_quiz',
+
+                        'questionarea' =>
+                            'slot',
+
+                        'itemid' =>
+                            (int)$slot->id,
+                    ],
+                    'id,questionbankentryid,version',
+                    MUST_EXIST
+                );
+
+            $entryid =
+                (int)$reference->questionbankentryid;
+
+            /*
+             * A Quiz reference may pin a specific version.
+             * If it does not, resolve the latest usable version.
+             */
+            if ($reference->version !== null) {
+
+                $version =
+                    $DB->get_record(
+                        'question_versions',
+                        [
+                            'questionbankentryid' =>
+                                $entryid,
+
+                            'version' =>
+                                (int)$reference->version,
+                        ],
+                        'id,questionid,version,status',
+                        MUST_EXIST
+                    );
+
+                if ($version->status === 'draft') {
+                    throw new moodle_exception(
+                        'Quiz slot references a draft question version.'
+                    );
+                }
+
+                $questionid =
+                    (int)$version->questionid;
+
+            } else {
+
+                $resolved =
+                    $this->get_latest_question_ids(
+                        [$entryid]
+                    );
+
+                $questionid =
+                    (int)$resolved[0];
+            }
+
+            $question =
+                $DB->get_record(
+                    'question',
+                    [
+                        'id' => $questionid,
+                    ],
+                    'id,name,qtype,questiontext',
+                    MUST_EXIST
+                );
+
+            $questions[] = [
+                'slot' =>
+                    (int)$slot->slot,
+
+                'questionid' =>
+                    (int)$question->id,
+
+                'questionbankentryid' =>
+                    $entryid,
+
+                'questionname' =>
+                    (string)$question->name,
+
+                'qtype' =>
+                    (string)$question->qtype,
+
+                'questiontext' =>
+                    (string)$question->questiontext,
+            ];
+        }
+
+        return [
+            'quizid' =>
+                (int)$quiz->id,
+
+            'courseid' =>
+                (int)$quiz->course,
+
+            'questioncount' =>
+                count($questions),
+
+            'questions' =>
+                $questions,
+        ];
+    }
+
+	/**
      * Prepare all questions for one lesson.
      *
      * @param int $courseid Moodle course ID.
