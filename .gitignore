@@ -96,3 +96,6 @@ data/standard_queue.lock
 
 # Local recovery snapshots
 recovery_before_legacy_banner_fix_*/
+
+# Student learning analytics data
+data/learning_analytics.db

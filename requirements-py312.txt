@@ -25,6 +25,9 @@ pandas
 # AI
 openai
 
+# HTML parsing
+beautifulsoup4>=4.12,<5
+
 # Markdown
 markdown
 
