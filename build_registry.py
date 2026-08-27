@@ -228,7 +228,7 @@ def initialize_registry():
 
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-                question_key TEXT NOT NULL UNIQUE,
+                question_key TEXT NOT NULL,
 
                 build_id TEXT,
                 lesson_package_id TEXT NOT NULL,
@@ -250,10 +250,157 @@ def initialize_registry():
                 source TEXT NOT NULL,
 
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+
+                UNIQUE (
+                    moodle_quiz_id,
+                    question_key
+                )
             )
             """
         )
+
+        # ==================================================
+        # Quiz Question Identity Schema Migration
+        # ==================================================
+
+        quiz_questions_schema_row = connection.execute(
+            """
+            SELECT sql
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name = 'quiz_questions'
+            """
+        ).fetchone()
+
+        quiz_questions_schema = (
+            str(quiz_questions_schema_row["sql"])
+            if quiz_questions_schema_row
+            else ""
+        )
+
+        legacy_question_key_unique = (
+            "question_key TEXT NOT NULL UNIQUE"
+            in quiz_questions_schema
+        )
+
+        if legacy_question_key_unique:
+
+            duplicate_scoped_keys = connection.execute(
+                """
+                SELECT
+                    moodle_quiz_id,
+                    question_key,
+                    COUNT(*) AS total
+                FROM quiz_questions
+                GROUP BY
+                    moodle_quiz_id,
+                    question_key
+                HAVING COUNT(*) > 1
+                LIMIT 1
+                """
+            ).fetchone()
+
+            if duplicate_scoped_keys:
+                raise RuntimeError(
+                    "Cannot migrate quiz_questions: "
+                    "duplicate scoped question identity "
+                    f"quiz={duplicate_scoped_keys['moodle_quiz_id']} "
+                    f"key={duplicate_scoped_keys['question_key']}."
+                )
+
+            connection.execute(
+                """
+                CREATE TABLE quiz_questions_migrated (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    question_key TEXT NOT NULL,
+                    build_id TEXT,
+                    lesson_package_id TEXT NOT NULL,
+                    curriculum_code TEXT,
+                    moodle_course_id INTEGER,
+                    moodle_quiz_id INTEGER NOT NULL,
+                    moodle_quiz_cmid INTEGER,
+                    moodle_question_id INTEGER NOT NULL UNIQUE,
+                    moodle_question_bank_entry_id
+                        INTEGER NOT NULL UNIQUE,
+                    moodle_slot INTEGER,
+                    question_type TEXT,
+                    source TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE (
+                        moodle_quiz_id,
+                        question_key
+                    )
+                )
+                """
+            )
+
+            connection.execute(
+                """
+                INSERT INTO quiz_questions_migrated (
+                    id,
+                    question_key,
+                    build_id,
+                    lesson_package_id,
+                    curriculum_code,
+                    moodle_course_id,
+                    moodle_quiz_id,
+                    moodle_quiz_cmid,
+                    moodle_question_id,
+                    moodle_question_bank_entry_id,
+                    moodle_slot,
+                    question_type,
+                    source,
+                    created_at,
+                    updated_at
+                )
+                SELECT
+                    id,
+                    question_key,
+                    build_id,
+                    lesson_package_id,
+                    curriculum_code,
+                    moodle_course_id,
+                    moodle_quiz_id,
+                    moodle_quiz_cmid,
+                    moodle_question_id,
+                    moodle_question_bank_entry_id,
+                    moodle_slot,
+                    question_type,
+                    source,
+                    created_at,
+                    updated_at
+                FROM quiz_questions
+                ORDER BY id
+                """
+            )
+
+            old_count = connection.execute(
+                "SELECT COUNT(*) FROM quiz_questions"
+            ).fetchone()[0]
+
+            new_count = connection.execute(
+                "SELECT COUNT(*) FROM quiz_questions_migrated"
+            ).fetchone()[0]
+
+            if old_count != new_count:
+                raise RuntimeError(
+                    "quiz_questions migration row-count "
+                    f"mismatch: old={old_count}, "
+                    f"new={new_count}."
+                )
+
+            connection.execute(
+                "DROP TABLE quiz_questions"
+            )
+
+            connection.execute(
+                """
+                ALTER TABLE quiz_questions_migrated
+                RENAME TO quiz_questions
+                """
+            )
 
         connection.execute(
             """
@@ -1438,7 +1585,10 @@ def register_quiz_questions(
                     ?, ?, ?
                 )
 
-                ON CONFLICT(question_key)
+                ON CONFLICT(
+                    moodle_quiz_id,
+                    question_key
+                )
                 DO UPDATE SET
 
                     build_id =
@@ -1547,3 +1697,70 @@ def get_quiz_course_id(
     return next(
         iter(course_ids)
     )
+
+
+def get_active_analytics_quizzes():
+    """Return the latest currently published Moodle quizzes."""
+
+    initialize_registry()
+
+    with sqlite3.connect(
+        REGISTRY_DB
+    ) as db:
+        db.row_factory = sqlite3.Row
+
+        rows = db.execute(
+            """
+            SELECT
+                e.curriculum_code,
+                e.parent_code,
+                e.year_level,
+                e.subject,
+                e.moodle_course_id,
+                e.moodle_quiz_id,
+                e.lesson_package_id,
+                e.status,
+                e.updated_at
+            FROM elaboration_builds e
+            INNER JOIN (
+                SELECT
+                    curriculum_code,
+                    MAX(id) AS latest_id
+                FROM elaboration_builds
+                GROUP BY curriculum_code
+            ) latest
+                ON latest.latest_id = e.id
+            WHERE e.status = 'PUBLISHED'
+              AND e.moodle_course_id IS NOT NULL
+              AND e.moodle_quiz_id IS NOT NULL
+            ORDER BY
+                e.moodle_course_id,
+                e.moodle_quiz_id
+            """
+        ).fetchall()
+
+    quizzes = []
+
+    seen_quiz_ids = set()
+
+    for row in rows:
+        quiz_id = int(
+            row["moodle_quiz_id"]
+        )
+
+        if quiz_id in seen_quiz_ids:
+            raise RuntimeError(
+                "Active Moodle quiz is mapped to "
+                "multiple current curriculum builds: "
+                f"{quiz_id}"
+            )
+
+        seen_quiz_ids.add(
+            quiz_id
+        )
+
+        quizzes.append(
+            dict(row)
+        )
+
+    return quizzes

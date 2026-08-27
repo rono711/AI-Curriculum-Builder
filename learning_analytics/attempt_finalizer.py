@@ -2,6 +2,9 @@
 
 from collections import defaultdict
 
+from learning_analytics.config import (
+    MAX_QUIZ_ATTEMPTS,
+)
 from learning_analytics.curriculum_resolver import (
     resolve_curriculum_identity,
 )
@@ -12,7 +15,7 @@ from learning_analytics.database import (
 )
 
 
-MAX_ATTEMPTS = 3
+MAX_ATTEMPTS = MAX_QUIZ_ATTEMPTS
 
 
 def _is_correct(row):
