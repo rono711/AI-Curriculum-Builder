@@ -116,11 +116,35 @@ class LearningAnalyticsOrchestrator:
                 semantic_review_keys
         )
 
+        # The diagnostic tutor must never see questions
+        # already routed to semantic/assessment review.
+        # Keep the complete packet for validation/reporting,
+        # but provide a filtered copy to the AI.
+        diagnostic_packet = {
+            key: value
+            for key, value in packet.items()
+            if key not in {
+                "semantic_review_evidence",
+                "question_histories",
+            }
+        }
+
+        diagnostic_packet[
+            "question_histories"
+        ] = {
+            key: history
+            for key, history in packet.get(
+                "question_histories",
+                {}
+            ).items()
+            if key not in semantic_review_keys
+        }
+
         result = self.diagnostic.analyse(
             student_name=student_name,
             year_level=year_level,
             curriculum_code=curriculum_code,
-            attempts=packet
+            attempts=diagnostic_packet
         )
 
         analysis = result["analysis"]

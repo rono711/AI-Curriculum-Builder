@@ -188,6 +188,26 @@ IMPORTANT RULES
     corrected an earlier misunderstanding on a later
     attempt.
 
+28. student_summary is student-facing text. Write
+    overall_interpretation, strengths, improvements and
+    next_steps directly to the student using "you" and
+    "your". Do not describe the student in third person.
+
+29. Diagnostic evidence, classifications, confidence,
+    question keys, grading issues and technical assessment
+    language are teacher/internal information. Do not put
+    those details into student-facing summary text.
+
+30. Student-facing language must be supportive, specific
+    and instructional. Do not label the student by a
+    weakness or misconception.
+
+31. Do not mention grading reviews, semantic reviews,
+    marking anomalies, flagged answers, possible marking
+    errors, assessment-quality issues or disputed marks in
+    student_summary, strengths, improvements or next_steps.
+    Those belong only in grading_reviews for teachers.
+
 ALLOWED CLASSIFICATIONS
 
 SUPPORTED_CONCERN
