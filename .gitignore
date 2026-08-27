@@ -99,3 +99,7 @@ recovery_before_legacy_banner_fix_*/
 
 # Student learning analytics data
 data/learning_analytics.db
+
+# Generated learning analytics previews
+data/feedback_previews/
+data/delivery_previews/

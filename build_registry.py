@@ -1501,3 +1501,49 @@ def register_quiz_questions(
 
         connection.commit()
 
+
+
+def get_quiz_course_id(
+        moodle_quiz_id
+):
+    """Return the single Moodle course owning a registered quiz."""
+
+    initialize_registry()
+
+    with sqlite3.connect(
+        REGISTRY_DB
+    ) as db:
+        rows = db.execute(
+            """
+            SELECT DISTINCT moodle_course_id
+            FROM quiz_questions
+            WHERE moodle_quiz_id = ?
+              AND moodle_course_id IS NOT NULL
+            """,
+            (
+                int(moodle_quiz_id),
+            )
+        ).fetchall()
+
+    course_ids = {
+        int(row[0])
+        for row in rows
+    }
+
+    if not course_ids:
+        raise RuntimeError(
+            "No registered Moodle course exists "
+            f"for Quiz {moodle_quiz_id}."
+        )
+
+    if len(course_ids) != 1:
+        raise RuntimeError(
+            "Quiz "
+            f"{moodle_quiz_id} maps to multiple "
+            f"Moodle courses: "
+            f"{sorted(course_ids)}"
+        )
+
+    return next(
+        iter(course_ids)
+    )

@@ -17,6 +17,9 @@ from learning_analytics.mail_sender import (
 from learning_analytics.student_resolver import (
     MoodleStudentResolver,
 )
+from build_registry import (
+    get_quiz_course_id,
+)
 
 
 ALLOWED_MODES = {
@@ -229,10 +232,13 @@ class FeedbackDeliveryService:
             self,
             *,
             moodle_user_id,
-            moodle_course_id,
             moodle_quiz_id
     ):
         """Resolve LIVE routing without sending anything."""
+
+        moodle_course_id = get_quiz_course_id(
+            moodle_quiz_id
+        )
 
         report = self._load_validated_report(
             moodle_user_id=moodle_user_id,
@@ -311,4 +317,112 @@ class FeedbackDeliveryService:
 
             "actually_sent":
                 False,
+        }
+
+    def send_live(
+            self,
+            *,
+            moodle_user_id,
+            moodle_quiz_id
+    ):
+        """Send validated feedback to Moodle-resolved student."""
+
+        routing = self.resolve_live_delivery(
+            moodle_user_id=moodle_user_id,
+            moodle_quiz_id=moodle_quiz_id
+        )
+
+        sender = FeedbackMailSender()
+
+        # Hard configuration kill switch.
+        # This check happens before an audit PENDING row
+        # and before any SMTP connection is opened.
+        if not sender.live_enabled:
+            raise RuntimeError(
+                "LIVE feedback delivery is disabled."
+            )
+
+        report = self._load_validated_report(
+            moodle_user_id=moodle_user_id,
+            moodle_quiz_id=moodle_quiz_id
+        )
+
+        if int(report["id"]) != int(
+            routing["report_id"]
+        ):
+            raise RuntimeError(
+                "Resolved report changed during "
+                "LIVE delivery preparation."
+            )
+
+        delivery_id = record_feedback_delivery(
+            feedback_report_id=
+                report["id"],
+            recipient=
+                routing["recipient"],
+            delivery_mode="LIVE",
+            status="PENDING"
+        )
+
+        try:
+            sent = sender.send_live(
+                recipient=
+                    routing["recipient"],
+                subject=
+                    routing["subject"],
+                html=
+                    report["student_html"]
+            )
+
+            update_feedback_delivery(
+                delivery_id,
+                status="SENT",
+                sent_at=utc_now()
+            )
+
+        except Exception as exc:
+            update_feedback_delivery(
+                delivery_id,
+                status="FAILED",
+                error_message=str(exc)
+            )
+
+            raise
+
+        return {
+            "delivery_id":
+                delivery_id,
+
+            "report_id":
+                report["id"],
+
+            "mode":
+                "LIVE",
+
+            "moodle_user_id":
+                routing["moodle_user_id"],
+
+            "moodle_course_id":
+                routing["moodle_course_id"],
+
+            "moodle_quiz_id":
+                routing["moodle_quiz_id"],
+
+            "student_name":
+                routing["student_name"],
+
+            "recipient":
+                sent["recipient"],
+
+            "curriculum_code":
+                routing["curriculum_code"],
+
+            "subject":
+                sent["subject"],
+
+            "validation":
+                routing["validation"],
+
+            "actually_sent":
+                True,
         }
