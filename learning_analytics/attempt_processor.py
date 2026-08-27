@@ -216,3 +216,48 @@ def normalize_attempt(review, user_id):
         "responses":
             responses,
     }
+
+
+def quiz_identity(quiz_id):
+    """Return the single curriculum identity registered to a quiz."""
+
+    mappings = question_registry_for_quiz(
+        quiz_id
+    )
+
+    if not mappings:
+        raise RuntimeError(
+            f"Quiz {quiz_id} has no registered questions."
+        )
+
+    curriculum_codes = {
+        row["curriculum_code"]
+        for row in mappings.values()
+    }
+
+    course_ids = {
+        int(row["moodle_course_id"])
+        for row in mappings.values()
+    }
+
+    if len(curriculum_codes) != 1:
+        raise RuntimeError(
+            f"Quiz {quiz_id} maps to multiple "
+            f"curriculum codes: "
+            f"{sorted(curriculum_codes)}"
+        )
+
+    if len(course_ids) != 1:
+        raise RuntimeError(
+            f"Quiz {quiz_id} maps to multiple "
+            f"Moodle courses: "
+            f"{sorted(course_ids)}"
+        )
+
+    return {
+        "curriculum_code":
+            next(iter(curriculum_codes)),
+
+        "moodle_course_id":
+            next(iter(course_ids)),
+    }

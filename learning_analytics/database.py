@@ -162,6 +162,117 @@ def initialize_database():
             """
         )
 
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS remediation_evidence (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                moodle_user_id INTEGER NOT NULL,
+                moodle_quiz_id INTEGER NOT NULL,
+
+                parent_code TEXT NOT NULL,
+                curriculum_code TEXT NOT NULL,
+                lesson_package_id TEXT,
+
+                question_key TEXT NOT NULL,
+
+                first_attempt_id INTEGER NOT NULL,
+                latest_attempt_id INTEGER NOT NULL,
+                attempts_observed INTEGER NOT NULL,
+
+                evidence_state TEXT NOT NULL,
+                confidence TEXT,
+
+                question_text TEXT,
+                latest_student_response TEXT,
+                correct_response TEXT,
+
+                diagnosis TEXT,
+                concept_name TEXT,
+
+                source_report_id INTEGER,
+
+                promoted_to_final_pool INTEGER
+                    NOT NULL DEFAULT 0,
+
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+
+                UNIQUE (
+                    moodle_user_id,
+                    moodle_quiz_id,
+                    question_key
+                ),
+
+                FOREIGN KEY (
+                    source_report_id
+                )
+                REFERENCES feedback_reports(id)
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_remediation_parent_student
+            ON remediation_evidence (
+                moodle_user_id,
+                parent_code
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS final_quiz_pool (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                moodle_user_id INTEGER NOT NULL,
+
+                parent_code TEXT NOT NULL,
+                curriculum_code TEXT NOT NULL,
+
+                source_question_key TEXT NOT NULL,
+
+                concept_name TEXT,
+                diagnosis TEXT,
+
+                priority TEXT NOT NULL,
+                source_attempt_count INTEGER NOT NULL,
+
+                source_question_text TEXT,
+                source_student_response TEXT,
+                source_correct_response TEXT,
+
+                generation_instruction TEXT NOT NULL,
+
+                status TEXT NOT NULL,
+
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+
+                UNIQUE (
+                    moodle_user_id,
+                    parent_code,
+                    source_question_key
+                )
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_final_quiz_pool_parent_student
+            ON final_quiz_pool (
+                moodle_user_id,
+                parent_code,
+                status
+            )
+            """
+        )
+
         db.commit()
 
 
@@ -622,3 +733,374 @@ def update_feedback_delivery(
             )
 
         db.commit()
+
+
+def save_remediation_evidence(item):
+    """Insert or update longitudinal remediation evidence."""
+
+    now = utc_now()
+
+    values = (
+        item["moodle_user_id"],
+        item["moodle_quiz_id"],
+        item["parent_code"],
+        item["curriculum_code"],
+        item.get("lesson_package_id"),
+        item["question_key"],
+        item["first_attempt_id"],
+        item["latest_attempt_id"],
+        item["attempts_observed"],
+        item["evidence_state"],
+        item.get("confidence"),
+        item.get("question_text"),
+        item.get("latest_student_response"),
+        item.get("correct_response"),
+        item.get("diagnosis"),
+        item.get("concept_name"),
+        item.get("source_report_id"),
+        int(bool(
+            item.get(
+                "promoted_to_final_pool",
+                False
+            )
+        )),
+        now,
+        now,
+    )
+
+    with get_connection() as db:
+        db.execute(
+            """
+            INSERT INTO remediation_evidence (
+                moodle_user_id,
+                moodle_quiz_id,
+                parent_code,
+                curriculum_code,
+                lesson_package_id,
+                question_key,
+                first_attempt_id,
+                latest_attempt_id,
+                attempts_observed,
+                evidence_state,
+                confidence,
+                question_text,
+                latest_student_response,
+                correct_response,
+                diagnosis,
+                concept_name,
+                source_report_id,
+                promoted_to_final_pool,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            ON CONFLICT (
+                moodle_user_id,
+                moodle_quiz_id,
+                question_key
+            )
+            DO UPDATE SET
+                latest_attempt_id =
+                    excluded.latest_attempt_id,
+                attempts_observed =
+                    excluded.attempts_observed,
+                evidence_state =
+                    excluded.evidence_state,
+                confidence =
+                    excluded.confidence,
+                question_text =
+                    excluded.question_text,
+                latest_student_response =
+                    excluded.latest_student_response,
+                correct_response =
+                    excluded.correct_response,
+                diagnosis =
+                    excluded.diagnosis,
+                concept_name =
+                    excluded.concept_name,
+                source_report_id =
+                    excluded.source_report_id,
+                promoted_to_final_pool =
+                    excluded.promoted_to_final_pool,
+                updated_at =
+                    excluded.updated_at
+            """,
+            values
+        )
+
+        row = db.execute(
+            """
+            SELECT id
+            FROM remediation_evidence
+            WHERE moodle_user_id = ?
+              AND moodle_quiz_id = ?
+              AND question_key = ?
+            """,
+            (
+                item["moodle_user_id"],
+                item["moodle_quiz_id"],
+                item["question_key"],
+            )
+        ).fetchone()
+
+        db.commit()
+
+        return int(row["id"])
+
+
+def save_final_quiz_pool_item(item):
+    """Insert or update one final-quiz remediation item."""
+
+    now = utc_now()
+
+    values = (
+        item["moodle_user_id"],
+        item["parent_code"],
+        item["curriculum_code"],
+        item["source_question_key"],
+        item.get("concept_name"),
+        item.get("diagnosis"),
+        item["priority"],
+        item["source_attempt_count"],
+        item.get("source_question_text"),
+        item.get("source_student_response"),
+        item.get("source_correct_response"),
+        item["generation_instruction"],
+        item.get("status", "ACTIVE"),
+        now,
+        now,
+    )
+
+    with get_connection() as db:
+        db.execute(
+            """
+            INSERT INTO final_quiz_pool (
+                moodle_user_id,
+                parent_code,
+                curriculum_code,
+                source_question_key,
+                concept_name,
+                diagnosis,
+                priority,
+                source_attempt_count,
+                source_question_text,
+                source_student_response,
+                source_correct_response,
+                generation_instruction,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?
+            )
+            ON CONFLICT (
+                moodle_user_id,
+                parent_code,
+                source_question_key
+            )
+            DO UPDATE SET
+                curriculum_code =
+                    excluded.curriculum_code,
+                concept_name =
+                    excluded.concept_name,
+                diagnosis =
+                    excluded.diagnosis,
+                priority =
+                    excluded.priority,
+                source_attempt_count =
+                    excluded.source_attempt_count,
+                source_question_text =
+                    excluded.source_question_text,
+                source_student_response =
+                    excluded.source_student_response,
+                source_correct_response =
+                    excluded.source_correct_response,
+                generation_instruction =
+                    excluded.generation_instruction,
+                status =
+                    excluded.status,
+                updated_at =
+                    excluded.updated_at
+            """,
+            values
+        )
+
+        row = db.execute(
+            """
+            SELECT id
+            FROM final_quiz_pool
+            WHERE moodle_user_id = ?
+              AND parent_code = ?
+              AND source_question_key = ?
+            """,
+            (
+                item["moodle_user_id"],
+                item["parent_code"],
+                item["source_question_key"],
+            )
+        ).fetchone()
+
+        db.commit()
+
+        return int(row["id"])
+
+
+def get_student_quiz_responses(
+        *,
+        moodle_user_id,
+        moodle_quiz_id
+):
+    """Return complete stored response history for one student quiz."""
+
+    with get_connection() as db:
+        rows = db.execute(
+            """
+            SELECT
+                moodle_attempt_id,
+                moodle_user_id,
+                moodle_quiz_id,
+                moodle_slot,
+                question_key,
+                moodle_question_id,
+                moodle_question_bank_entry_id,
+                question_type,
+                status,
+                mark,
+                max_mark,
+                question_text,
+                student_response,
+                correct_response
+            FROM question_responses
+            WHERE moodle_user_id = ?
+              AND moodle_quiz_id = ?
+            ORDER BY
+                moodle_attempt_id,
+                moodle_slot
+            """,
+            (
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+            )
+        ).fetchall()
+
+        return [
+            dict(row)
+            for row in rows
+        ]
+
+
+def get_attempt_processing_state(
+        *,
+        moodle_user_id,
+        moodle_quiz_id,
+        moodle_attempt_id
+):
+    """Return whether one attempt completed the analytics pipeline."""
+
+    with get_connection() as db:
+
+        report = db.execute(
+            """
+            SELECT
+                id,
+                status,
+                latest_moodle_attempt_id,
+                attempt_count
+            FROM feedback_reports
+            WHERE moodle_user_id = ?
+              AND moodle_quiz_id = ?
+              AND latest_moodle_attempt_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+                int(moodle_attempt_id),
+            )
+        ).fetchone()
+
+        expected = db.execute(
+            """
+            SELECT COUNT(DISTINCT question_key)
+            FROM question_responses
+            WHERE moodle_user_id = ?
+              AND moodle_quiz_id = ?
+              AND moodle_attempt_id = ?
+            """,
+            (
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+                int(moodle_attempt_id),
+            )
+        ).fetchone()[0]
+
+        finalized = db.execute(
+            """
+            SELECT COUNT(DISTINCT r.question_key)
+            FROM remediation_evidence r
+            WHERE r.moodle_user_id = ?
+              AND r.moodle_quiz_id = ?
+              AND r.latest_attempt_id >= ?
+              AND r.question_key IN (
+                  SELECT question_key
+                  FROM question_responses
+                  WHERE moodle_user_id = ?
+                    AND moodle_quiz_id = ?
+                    AND moodle_attempt_id = ?
+              )
+            """,
+            (
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+                int(moodle_attempt_id),
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+                int(moodle_attempt_id),
+            )
+        ).fetchone()[0]
+
+    report_validated = (
+        report is not None
+        and report["status"] == "VALIDATED"
+    )
+
+    remediation_complete = (
+        expected > 0
+        and finalized == expected
+    )
+
+    return {
+        "moodle_attempt_id":
+            int(moodle_attempt_id),
+
+        "report_id":
+            (
+                int(report["id"])
+                if report
+                else None
+            ),
+
+        "report_validated":
+            report_validated,
+
+        "expected_questions":
+            int(expected),
+
+        "finalized_questions":
+            int(finalized),
+
+        "remediation_complete":
+            remediation_complete,
+
+        "fully_processed":
+            (
+                report_validated
+                and remediation_complete
+            ),
+    }

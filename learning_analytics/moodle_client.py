@@ -107,3 +107,44 @@ class MoodleAnalyticsClient:
             "local_rono_publisher_get_quiz_questions",
             quizid=int(quiz_id)
         )
+
+
+    def verify_attempt_owner(
+            self,
+            *,
+            quiz_id,
+            user_id,
+            attempt_id
+    ):
+        """Verify that a Moodle attempt belongs to the supplied user."""
+
+        data = self.get_user_quiz_attempts(
+            quiz_id=quiz_id,
+            user_id=user_id,
+            status="all"
+        )
+
+        attempts = data.get(
+            "attempts",
+            []
+        )
+
+        matches = [
+            attempt
+            for attempt in attempts
+            if int(
+                attempt.get(
+                    "id",
+                    0
+                )
+            ) == int(attempt_id)
+        ]
+
+        if len(matches) != 1:
+            raise RuntimeError(
+                f"Moodle attempt {attempt_id} does not "
+                f"belong to Moodle user {user_id} "
+                f"for quiz {quiz_id}."
+            )
+
+        return matches[0]
