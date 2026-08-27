@@ -303,3 +303,18 @@ services:
     ports:
       - "127.0.0.1:8014:8014"
     restart: unless-stopped
+
+
+  learning-analytics-worker:
+    image: curriculum-builder-py312-test
+    container_name: learning-analytics-worker
+    env_file:
+      - ../../.env
+    volumes:
+      - /volume1/docker/curriculum-builder:/volume1/docker/curriculum-builder
+    working_dir: /volume1/docker/curriculum-builder
+    command:
+      - python
+      - -m
+      - learning_analytics.worker
+    restart: unless-stopped
