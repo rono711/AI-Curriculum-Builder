@@ -315,6 +315,7 @@ def render_student_feedback(
 
     parts.extend([
         "<p>Keep building on what you know.</p>",
+        render_student_signature(),
         "</article>",
     ])
 
@@ -564,3 +565,29 @@ def render_teacher_feedback(
     parts.append("</article>")
 
     return "".join(parts)
+
+
+def render_student_signature():
+    """Render the standard Rono's School student-email footer."""
+
+    return (
+        '<footer class="school-signature" '
+        'style="margin-top:32px;padding-top:18px;'
+        'border-top:1px solid #dddddd;">'
+        '<p style="margin:0 0 4px 0;">'
+        '<strong>Rono&#x27;s School</strong>'
+        '</p>'
+        '<p style="margin:0 0 12px 0;">'
+        'Learn More. Be More.'
+        '</p>'
+        '<p style="margin:0;">'
+        'Learning Feedback<br>'
+        '<a href="mailto:feedback@ronosschool.com">'
+        'feedback@ronosschool.com'
+        '</a><br>'
+        '<a href="https://learn.ronosschool.com">'
+        'learn.ronosschool.com'
+        '</a>'
+        '</p>'
+        '</footer>'
+    )

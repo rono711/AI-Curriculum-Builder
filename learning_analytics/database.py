@@ -77,6 +77,91 @@ def initialize_database():
             """
         )
 
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS feedback_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                moodle_user_id INTEGER NOT NULL,
+                moodle_quiz_id INTEGER NOT NULL,
+                latest_moodle_attempt_id INTEGER NOT NULL,
+
+                attempt_count INTEGER NOT NULL,
+
+                curriculum_code TEXT,
+                lesson_package_id TEXT,
+
+                diagnostic_json TEXT NOT NULL,
+                semantic_reviews_json TEXT NOT NULL,
+                validation_json TEXT NOT NULL,
+
+                student_html TEXT NOT NULL,
+                teacher_html TEXT NOT NULL,
+
+                model TEXT,
+                total_tokens INTEGER,
+
+                status TEXT NOT NULL,
+
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+
+                UNIQUE (
+                    moodle_user_id,
+                    moodle_quiz_id,
+                    latest_moodle_attempt_id
+                )
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_feedback_reports_student_quiz
+            ON feedback_reports (
+                moodle_user_id,
+                moodle_quiz_id
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS feedback_deliveries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                feedback_report_id INTEGER NOT NULL,
+
+                recipient TEXT NOT NULL,
+                delivery_mode TEXT NOT NULL,
+                status TEXT NOT NULL,
+
+                sent_at TEXT,
+                error_message TEXT,
+
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+
+                FOREIGN KEY (
+                    feedback_report_id
+                )
+                REFERENCES feedback_reports(id)
+                ON DELETE CASCADE
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_feedback_deliveries_report
+            ON feedback_deliveries (
+                feedback_report_id
+            )
+            """
+        )
+
         db.commit()
 
 
@@ -229,6 +314,311 @@ def save_question_responses(responses):
                     now,
                     now,
                 )
+            )
+
+        db.commit()
+
+
+def save_feedback_report(report):
+    """Insert or update one validated feedback report."""
+
+    import json
+
+    now = utc_now()
+
+    with get_connection() as db:
+        db.execute(
+            """
+            INSERT INTO feedback_reports (
+                moodle_user_id,
+                moodle_quiz_id,
+                latest_moodle_attempt_id,
+                attempt_count,
+                curriculum_code,
+                lesson_package_id,
+                diagnostic_json,
+                semantic_reviews_json,
+                validation_json,
+                student_html,
+                teacher_html,
+                model,
+                total_tokens,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?
+            )
+            ON CONFLICT(
+                moodle_user_id,
+                moodle_quiz_id,
+                latest_moodle_attempt_id
+            )
+            DO UPDATE SET
+                attempt_count = excluded.attempt_count,
+                curriculum_code = excluded.curriculum_code,
+                lesson_package_id = excluded.lesson_package_id,
+                diagnostic_json = excluded.diagnostic_json,
+                semantic_reviews_json =
+                    excluded.semantic_reviews_json,
+                validation_json = excluded.validation_json,
+                student_html = excluded.student_html,
+                teacher_html = excluded.teacher_html,
+                model = excluded.model,
+                total_tokens = excluded.total_tokens,
+                status = excluded.status,
+                updated_at = excluded.updated_at
+            """,
+            (
+                report["moodle_user_id"],
+                report["moodle_quiz_id"],
+                report["latest_moodle_attempt_id"],
+                report["attempt_count"],
+                report.get("curriculum_code"),
+                report.get("lesson_package_id"),
+                json.dumps(
+                    report["diagnostic"],
+                    ensure_ascii=False
+                ),
+                json.dumps(
+                    report.get(
+                        "semantic_reviews",
+                        []
+                    ),
+                    ensure_ascii=False
+                ),
+                json.dumps(
+                    report["validation"],
+                    ensure_ascii=False
+                ),
+                report["student_html"],
+                report["teacher_html"],
+                report.get("model"),
+                report.get("total_tokens"),
+                report.get(
+                    "status",
+                    "VALIDATED"
+                ),
+                now,
+                now,
+            )
+        )
+
+        row = db.execute(
+            """
+            SELECT id
+            FROM feedback_reports
+            WHERE moodle_user_id = ?
+              AND moodle_quiz_id = ?
+              AND latest_moodle_attempt_id = ?
+            """,
+            (
+                report["moodle_user_id"],
+                report["moodle_quiz_id"],
+                report["latest_moodle_attempt_id"],
+            )
+        ).fetchone()
+
+        db.commit()
+
+        return int(row["id"])
+
+
+def get_feedback_report(
+        *,
+        moodle_user_id,
+        moodle_quiz_id,
+        latest_moodle_attempt_id=None
+):
+    """Retrieve a persisted feedback report."""
+
+    import json
+
+    with get_connection() as db:
+
+        if latest_moodle_attempt_id is None:
+            row = db.execute(
+                """
+                SELECT *
+                FROM feedback_reports
+                WHERE moodle_user_id = ?
+                  AND moodle_quiz_id = ?
+                ORDER BY
+                    latest_moodle_attempt_id DESC,
+                    id DESC
+                LIMIT 1
+                """,
+                (
+                    moodle_user_id,
+                    moodle_quiz_id,
+                )
+            ).fetchone()
+
+        else:
+            row = db.execute(
+                """
+                SELECT *
+                FROM feedback_reports
+                WHERE moodle_user_id = ?
+                  AND moodle_quiz_id = ?
+                  AND latest_moodle_attempt_id = ?
+                LIMIT 1
+                """,
+                (
+                    moodle_user_id,
+                    moodle_quiz_id,
+                    latest_moodle_attempt_id,
+                )
+            ).fetchone()
+
+        if row is None:
+            return None
+
+        result = dict(row)
+
+        result["diagnostic"] = json.loads(
+            result.pop(
+                "diagnostic_json"
+            )
+        )
+
+        result["semantic_reviews"] = json.loads(
+            result.pop(
+                "semantic_reviews_json"
+            )
+        )
+
+        result["validation"] = json.loads(
+            result.pop(
+                "validation_json"
+            )
+        )
+
+        return result
+
+
+def record_feedback_delivery(
+        *,
+        feedback_report_id,
+        recipient,
+        delivery_mode,
+        status,
+        sent_at=None,
+        error_message=None
+):
+    """Record one feedback delivery event."""
+
+    allowed_modes = {
+        "PREVIEW",
+        "TEST",
+        "LIVE",
+    }
+
+    allowed_statuses = {
+        "PENDING",
+        "COMPLETED",
+        "SENT",
+        "FAILED",
+    }
+
+    if delivery_mode not in allowed_modes:
+        raise ValueError(
+            "Invalid delivery mode: "
+            f"{delivery_mode}"
+        )
+
+    if status not in allowed_statuses:
+        raise ValueError(
+            "Invalid delivery status: "
+            f"{status}"
+        )
+
+    now = utc_now()
+
+    with get_connection() as db:
+        cursor = db.execute(
+            """
+            INSERT INTO feedback_deliveries (
+                feedback_report_id,
+                recipient,
+                delivery_mode,
+                status,
+                sent_at,
+                error_message,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                feedback_report_id,
+                recipient,
+                delivery_mode,
+                status,
+                sent_at,
+                error_message,
+                now,
+                now,
+            )
+        )
+
+        db.commit()
+
+        return int(
+            cursor.lastrowid
+        )
+
+
+def update_feedback_delivery(
+        delivery_id,
+        *,
+        status,
+        sent_at=None,
+        error_message=None
+):
+    """Update an existing feedback delivery audit event."""
+
+    allowed_statuses = {
+        "PENDING",
+        "COMPLETED",
+        "SENT",
+        "FAILED",
+    }
+
+    if status not in allowed_statuses:
+        raise ValueError(
+            f"Invalid delivery status: {status}"
+        )
+
+    now = utc_now()
+
+    with get_connection() as db:
+        cursor = db.execute(
+            """
+            UPDATE feedback_deliveries
+            SET
+                status = ?,
+                sent_at = ?,
+                error_message = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                sent_at,
+                error_message,
+                now,
+                delivery_id,
+            )
+        )
+
+        if cursor.rowcount != 1:
+            raise RuntimeError(
+                f"Delivery {delivery_id} does not exist."
             )
 
         db.commit()
