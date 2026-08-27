@@ -252,6 +252,12 @@ class FinishedAttemptDetector:
                 "moodle_user_id":
                     item["moodle_user_id"],
 
+                "student_name":
+                    item["student_name"],
+
+                "curriculum_code":
+                    item["curriculum_code"],
+
                 "result":
                     processed,
             })
