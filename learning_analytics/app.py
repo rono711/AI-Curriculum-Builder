@@ -121,3 +121,29 @@ def process_attempt(
             status_code=400,
             detail=str(exc)
         ) from exc
+
+
+@app.get("/quizzes/{moodle_quiz_id}/attempts")
+def scan_quiz_attempts(
+        moodle_quiz_id: int
+):
+    """Read-only discovery of finished Moodle attempts."""
+
+    try:
+        from learning_analytics.attempt_detector import (
+            FinishedAttemptDetector,
+        )
+
+        return (
+            FinishedAttemptDetector()
+            .scan_quiz(
+                moodle_quiz_id=
+                    moodle_quiz_id
+            )
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc)
+        ) from exc
