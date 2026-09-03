@@ -19,7 +19,7 @@ $plugin->component = 'local_rono_publisher';
  * 2026-08-10
  * Duplicate Elaboration Protection
  */
-$plugin->version = 2026082400;
+$plugin->version = 2026090300;
 
 /*
  * Minimum supported Moodle version.
@@ -31,4 +31,4 @@ $plugin->requires = 2025100600;
 
 $plugin->maturity = MATURITY_ALPHA;
 
-$plugin->release = '1.5.5-learning-analytics-read';
+$plugin->release = '1.5.6-learning-analytics-attempt-control';

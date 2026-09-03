@@ -49,12 +49,18 @@ def _history_state(history):
 def classify_attempt_histories(
         rows,
         *,
-        semantic_keys=None
+        semantic_keys=None,
+        semantic_mastered_keys=None
 ):
     """Classify question histories without writing to the database."""
 
     semantic_keys = set(
         semantic_keys
+        or []
+    )
+
+    semantic_mastered_keys = set(
+        semantic_mastered_keys
         or []
     )
 
@@ -88,6 +94,55 @@ def classify_attempt_histories(
         attempt_ids
     )
 
+    latest_attempt_id = max(
+        attempt_ids
+    )
+
+    # Mastery must cover every question observed in the quiz
+    # history, not only questions appearing in the latest attempt.
+    #
+    # If a previously unresolved question disappears from a later
+    # attempt, its most recent available evidence must remain in the
+    # mastery denominator. Otherwise a partial later attempt could
+    # incorrectly produce MASTERED.
+    latest_rows = {
+        question_key: history[-1]
+        for question_key, history
+        in histories.items()
+    }
+
+    latest_mastery = {}
+
+    for question_key, row in latest_rows.items():
+        latest_mastery[
+            question_key
+        ] = (
+            _is_correct(row)
+            or question_key
+            in semantic_mastered_keys
+        )
+
+    mastered = (
+        bool(latest_mastery)
+        and all(
+            latest_mastery.values()
+        )
+    )
+
+    cycle_complete = (
+        mastered
+        or attempt_count >= MAX_ATTEMPTS
+    )
+
+    if mastered:
+        completion_reason = "MASTERED"
+
+    elif attempt_count >= MAX_ATTEMPTS:
+        completion_reason = "MAX_ATTEMPTS_REACHED"
+
+    else:
+        completion_reason = "IN_PROGRESS"
+
     classifications = {}
 
     for question_key, history in histories.items():
@@ -114,7 +169,8 @@ def classify_attempt_histories(
 
             "promotable":
                 (
-                    attempt_count
+                    not mastered
+                    and attempt_count
                     >= MAX_ATTEMPTS
                     and state
                     == "UNRESOLVED_AFTER_MAX_ATTEMPTS"
@@ -125,9 +181,20 @@ def classify_attempt_histories(
         "attempt_count":
             attempt_count,
 
+        "latest_attempt_id":
+            latest_attempt_id,
+
+        "mastered":
+            mastered,
+
+        "completion_reason":
+            completion_reason,
+
         "cycle_complete":
-            attempt_count
-            >= MAX_ATTEMPTS,
+            cycle_complete,
+
+        "latest_mastery":
+            latest_mastery,
 
         "classifications":
             classifications,
@@ -164,19 +231,29 @@ def finalize_attempt_cycle(
     )
 
     semantic_keys = set()
+    semantic_mastered_keys = set()
 
     if report:
+        semantic_reviews = report.get(
+            "semantic_reviews",
+            []
+        )
+
         semantic_keys = {
             item.get("question_key")
-            for item in report.get(
-                "semantic_reviews",
-                []
-            )
+            for item in semantic_reviews
             if item.get("outcome") in {
                 "VALID_EQUIVALENT",
                 "AMBIGUOUS",
                 "REVIEW_REQUIRED",
             }
+        }
+
+        semantic_mastered_keys = {
+            item.get("question_key")
+            for item in semantic_reviews
+            if item.get("outcome")
+            == "VALID_EQUIVALENT"
         }
 
     concern_by_key = {}
@@ -198,7 +275,8 @@ def finalize_attempt_cycle(
 
     classified = classify_attempt_histories(
         rows,
-        semantic_keys=semantic_keys
+        semantic_keys=semantic_keys,
+        semantic_mastered_keys=semantic_mastered_keys
     )
 
     attempt_count = classified[
@@ -404,8 +482,14 @@ def finalize_attempt_cycle(
         "latest_attempt_id":
             latest_attempt_id,
 
+        "mastered":
+            classified["mastered"],
+
+        "completion_reason":
+            classified["completion_reason"],
+
         "cycle_complete":
-            attempt_count >= MAX_ATTEMPTS,
+            classified["cycle_complete"],
 
         "evidence":
             evidence_rows,

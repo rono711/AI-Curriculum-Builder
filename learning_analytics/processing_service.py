@@ -24,9 +24,40 @@ from learning_analytics.feedback_validator import (
 from learning_analytics.orchestrator import (
     LearningAnalyticsOrchestrator,
 )
+from learning_analytics.moodle_client import (
+    MoodleAnalyticsClient,
+)
 
 
 class LearningAnalyticsProcessingService:
+
+    def __init__(self, moodle_client=None):
+        self.moodle_client = (
+            moodle_client
+            if moodle_client is not None
+            else MoodleAnalyticsClient()
+        )
+
+    def _apply_attempt_control(
+            self,
+            *,
+            moodle_user_id,
+            moodle_quiz_id,
+            finalization
+    ):
+        """Close further Quiz attempts after early mastery."""
+
+        if (
+            not finalization["mastered"]
+            or finalization["attempt_count"] >= 3
+        ):
+            return None
+
+        return self.moodle_client.set_quiz_attempt_limit(
+            quiz_id=moodle_quiz_id,
+            user_id=moodle_user_id,
+            attempts=finalization["attempt_count"]
+        )
 
     def process_review(
             self,
@@ -258,6 +289,12 @@ class LearningAnalyticsProcessingService:
             rows=rows
         )
 
+        attempt_control = self._apply_attempt_control(
+            moodle_user_id=moodle_user_id,
+            moodle_quiz_id=moodle_quiz_id,
+            finalization=finalization
+        )
+
         return {
             "report_id":
                 report_id,
@@ -285,6 +322,9 @@ class LearningAnalyticsProcessingService:
 
             "finalization":
                 finalization,
+
+            "attempt_control":
+                attempt_control,
 
             "student_html":
                 student_html,

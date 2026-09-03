@@ -175,9 +175,9 @@ class quiz_service {
         $moduleinfo->graceperiod = 0;
 
         /*
-         * Unlimited attempts.
+         * Maximum of three attempts.
          */
-        $moduleinfo->attempts = 0;
+        $moduleinfo->attempts = 3;
 
         /*
          * Highest attempt grade.

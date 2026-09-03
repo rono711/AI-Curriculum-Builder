@@ -109,6 +109,30 @@ class MoodleAnalyticsClient:
         )
 
 
+    def set_quiz_attempt_limit(
+            self,
+            *,
+            quiz_id,
+            user_id,
+            attempts
+    ):
+        """Set the effective Moodle Quiz attempt limit for one user."""
+
+        attempts = int(attempts)
+
+        if attempts < 1 or attempts > 3:
+            raise ValueError(
+                "Quiz attempt limit must be between 1 and 3."
+            )
+
+        return self.call(
+            "local_rono_publisher_set_quiz_attempt_limit",
+            quizid=int(quiz_id),
+            userid=int(user_id),
+            attempts=attempts
+        )
+
+
     def verify_attempt_owner(
             self,
             *,

@@ -91,6 +91,26 @@ $functions = [
             false,
     ],
 
+    'local_rono_publisher_set_quiz_attempt_limit' => [
+        'classname' =>
+            'local_rono_publisher\\external\\set_quiz_attempt_limit',
+
+        'methodname' =>
+            'execute',
+
+        'description' =>
+            'Sets a per-user Moodle Quiz attempt limit for learning analytics mastery enforcement.',
+
+        'type' =>
+            'write',
+
+        'capabilities' =>
+            'local/rono_publisher:viewanalytics',
+
+        'ajax' =>
+            false,
+    ],
+
     'local_rono_publisher_get_quiz_questions' => [
         'classname' =>
             'local_rono_publisher\external\get_quiz_questions',
@@ -119,6 +139,7 @@ $services = [
             'local_rono_publisher_publish_lesson',
             'local_rono_publisher_update_component',
             'local_rono_publisher_update_elaboration_banner',
+            'local_rono_publisher_set_quiz_attempt_limit',
         ],
 
         'restrictedusers' => 1,
