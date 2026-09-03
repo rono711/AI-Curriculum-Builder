@@ -23,8 +23,10 @@ from build_registry import (
     get_published_build,
     mark_generated,
     mark_failed,
+    mark_failed_if_incomplete,
     get_previous_published_build,
     inherit_moodle_identity,
+    checkpoint_moodle_identity,
     register_quiz_questions
 )
 
@@ -651,8 +653,14 @@ class PipelineBuilder:
                 result = response.json()
 
                 print("=" * 60)
-                print("PROMPT RESULT")
-                print(result)
+                print(
+                    "PROMPT RESULT:",
+                    result.get("status", "UNKNOWN"),
+                    "|",
+                    prompt_type,
+                    "|",
+                    lesson_package_id
+                )
                 print("=" * 60)
 
                 prompt_results.append(result)
@@ -1419,7 +1427,17 @@ class PipelineBuilder:
                         95
                     )
 
-                    mark_published(
+                    # ==========================================
+                    # Checkpoint Moodle Identity
+                    # ==========================================
+                    #
+                    # Moodle has successfully created the lesson.
+                    # Persist its identity immediately while keeping
+                    # the registry record in its current BUILDING
+                    # state. Question registration and final
+                    # PUBLISHED status happen afterwards.
+                    #
+                    checkpoint_moodle_identity(
                         record_id=
                             registry_record_id,
 
@@ -1479,69 +1497,232 @@ class PipelineBuilder:
                             )
                     )
 
-                    published_questions = (
-                        moodle_result.get(
-                            "questions"
-                        )
+                    print(
+                        "MOODLE IDENTITY CHECKPOINTED:",
+                        registry_record_id
                     )
 
-                    if not published_questions:
-                        raise RuntimeError(
-                            "Successful NEW Moodle publication "
-                            "did not return question mappings."
+                    try:
+                        published_questions = (
+                            moodle_result.get(
+                                "questions"
+                            )
                         )
 
-                    register_quiz_questions(
-                        build_id=
-                            build["build_id"],
+                        if not published_questions:
+                            raise RuntimeError(
+                                "Successful NEW Moodle publication "
+                                "did not return question mappings."
+                            )
 
-                        lesson_package_id=
-                            lesson_package_id,
+                        register_quiz_questions(
+                            build_id=
+                                build["build_id"],
 
-                        curriculum_code=
-                            lesson.get(
-                                "curriculum_code"
-                            ),
+                            lesson_package_id=
+                                lesson_package_id,
 
-                        moodle_course_id=
+                            curriculum_code=
+                                lesson.get(
+                                    "curriculum_code"
+                                ),
+
+                            moodle_course_id=
+                                moodle_result.get(
+                                    "courseid"
+                                ),
+
+                            moodle_quiz_id=
+                                moodle_result.get(
+                                    "quizid"
+                                ),
+
+                            moodle_quiz_cmid=
+                                moodle_result.get(
+                                    "quizcmid"
+                                ),
+
+                            questions=
+                                published_questions,
+
+                            source=
+                                "PUBLISH"
+                        )
+
+                        print(
+                            "QUIZ QUESTIONS REGISTERED:",
+                            len(
+                                published_questions
+                            )
+                        )
+
+
+                        # ==========================================
+                        # Finalize Publication Registry
+                        # ==========================================
+                        #
+                        # Question identities must be registered
+                        # before the build becomes PUBLISHED.
+                        #
+                        mark_published(
+                            record_id=
+                                registry_record_id,
+
+                            moodle_course_id=
+                                moodle_result.get(
+                                    "courseid"
+                                ),
+
+                            moodle_section_id=
+                                moodle_result.get(
+                                    "strandsectionid"
+                                ),
+
+                            moodle_subsection_cmid=
+                                moodle_result.get(
+                                    "subsectioncmid"
+                                ),
+
+                            moodle_subsection_section_id=
+                                moodle_result.get(
+                                    "subsectionsectionid"
+                                ),
+
+                            moodle_content_description_cmid=
+                                moodle_result.get(
+                                    "contentdescriptioncmid"
+                                ),
+
+                            moodle_lesson_content_cmid=
+                                moodle_result.get(
+                                    "lessoncontentcmid"
+                                ),
+
+                            moodle_did_you_know_cmid=
+                                moodle_result.get(
+                                    "didyouknowcmid"
+                                ),
+
+                            moodle_quiz_id=
+                                moodle_result.get(
+                                    "quizid"
+                                ),
+
+                            moodle_quiz_cmid=
+                                moodle_result.get(
+                                    "quizcmid"
+                                ),
+
+                            moodle_activities_cmid=
+                                moodle_result.get(
+                                    "activitiescmid"
+                                ),
+
+                            moodle_recap_cmid=
+                                moodle_result.get(
+                                    "recapcmid"
+                                )
+                        )
+
+                        print(
+                            "REGISTRY RECORD:",
+                            registry_record_id,
+                            "STATUS: PUBLISHED"
+                        )
+
+                    except Exception as exc:
+
+                        failure_status = (
+                            mark_failed_if_incomplete(
+                                registry_record_id
+                            )
+                        )
+
+                        print("=" * 60)
+                        print(
+                            "MOODLE REGISTRY FINALIZATION FAILED"
+                        )
+                        print(
+                            "Lesson :",
+                            lesson_package_id
+                        )
+                        print(
+                            "Registry Record:",
+                            registry_record_id
+                        )
+                        print(
+                            "Registry Status:",
+                            failure_status
+                        )
+                        print(
+                            "Moodle Course:",
                             moodle_result.get(
                                 "courseid"
-                            ),
-
-                        moodle_quiz_id=
+                            )
+                        )
+                        print(
+                            "Moodle Quiz:",
                             moodle_result.get(
                                 "quizid"
-                            ),
-
-                        moodle_quiz_cmid=
-                            moodle_result.get(
-                                "quizcmid"
-                            ),
-
-                        questions=
-                            published_questions,
-
-                        source=
-                            "PUBLISH"
-                    )
-
-                    print(
-                        "QUIZ QUESTIONS REGISTERED:",
-                        len(
-                            published_questions
+                            )
                         )
-                    )
-                    print(
-                        "REGISTRY RECORD:",
-                        registry_record_id,
-                        "STATUS: PUBLISHED"
-                    )
+                        print(
+                            "Error  :",
+                            str(exc)
+                        )
+                        print("=" * 60)
+
+                        self._set_publication_status(
+                            build["path"],
+                            lesson_package_id,
+                            "FAILED",
+                            "YES"
+                        )
+
+                        self._report_progress(
+                            progress_url,
+                            progress_job_id,
+                            "REGISTRY_FAILED",
+                            (
+                                "Moodle lesson was created, "
+                                "but publication registry "
+                                "finalization failed."
+                            ),
+                            95
+                        )
+
+                        lesson_result_status = "FAILED"
+
+                        publisher_result = {
+                            "status": "FAILED",
+                            "reason":
+                                "REGISTRY_FINALIZATION_FAILED",
+                            "error":
+                                str(exc),
+                            "moodle_created":
+                                True,
+                            "moodle_course_id":
+                                moodle_result.get(
+                                    "courseid"
+                                ),
+                            "moodle_quiz_id":
+                                moodle_result.get(
+                                    "quizid"
+                                ),
+                            "registry_record_id":
+                                registry_record_id,
+                            "registry_status":
+                                failure_status
+                        }
             #
             # Finished
             #
 
             print("=" * 60)
-            print("LESSON PACKAGE BUILD COMPLETED")
+            if lesson_result_status == "FAILED":
+                print("LESSON PACKAGE BUILD FAILED")
+            else:
+                print("LESSON PACKAGE BUILD COMPLETED")
             print("Build ID :", build["build_id"])
             print("Lesson   :", lesson_package_id)
             print("=" * 60)

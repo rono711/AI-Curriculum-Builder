@@ -892,6 +892,79 @@ def mark_published(
 
 
 # ==========================================================
+# Checkpoint Moodle Identity
+# ==========================================================
+
+def checkpoint_moodle_identity(
+        record_id,
+        moodle_course_id=None,
+        moodle_section_id=None,
+        moodle_subsection_cmid=None,
+        moodle_subsection_section_id=None,
+        moodle_content_description_cmid=None,
+        moodle_lesson_content_cmid=None,
+        moodle_did_you_know_cmid=None,
+        moodle_quiz_id=None,
+        moodle_quiz_cmid=None,
+        moodle_activities_cmid=None,
+        moodle_recap_cmid=None
+):
+
+    initialize_registry()
+
+    with get_connection() as connection:
+
+        row = connection.execute(
+            """
+            SELECT status
+            FROM elaboration_builds
+            WHERE id = ?
+            """,
+            (record_id,)
+        ).fetchone()
+
+    if row is None:
+        raise ValueError(
+            f"Registry record {record_id} does not exist."
+        )
+
+    update_status(
+        record_id=record_id,
+        status=row["status"],
+
+        moodle_course_id=moodle_course_id,
+        moodle_section_id=moodle_section_id,
+
+        moodle_subsection_cmid=
+            moodle_subsection_cmid,
+
+        moodle_subsection_section_id=
+            moodle_subsection_section_id,
+
+        moodle_content_description_cmid=
+            moodle_content_description_cmid,
+
+        moodle_lesson_content_cmid=
+            moodle_lesson_content_cmid,
+
+        moodle_did_you_know_cmid=
+            moodle_did_you_know_cmid,
+
+        moodle_quiz_id=
+            moodle_quiz_id,
+
+        moodle_quiz_cmid=
+            moodle_quiz_cmid,
+
+        moodle_activities_cmid=
+            moodle_activities_cmid,
+
+        moodle_recap_cmid=
+            moodle_recap_cmid
+    )
+
+
+# ==========================================================
 # Inherit Published Moodle Identity
 # ==========================================================
 
@@ -1024,6 +1097,58 @@ def mark_failed(record_id):
         record_id,
         "FAILED"
     )
+
+
+# ==========================================================
+# Mark Failed If Incomplete
+# ==========================================================
+
+def mark_failed_if_incomplete(record_id):
+    """
+    Mark an in-progress registry record FAILED without
+    overwriting a successfully completed terminal state.
+
+    Returns the resulting/preserved status.
+    """
+
+    initialize_registry()
+
+    with get_connection() as connection:
+
+        row = connection.execute(
+            """
+            SELECT status
+            FROM elaboration_builds
+            WHERE id = ?
+            """,
+            (record_id,)
+        ).fetchone()
+
+    if row is None:
+        raise ValueError(
+            f"Registry record {record_id} does not exist."
+        )
+
+    current_status = str(
+        row["status"] or ""
+    ).strip().upper()
+
+    # Never downgrade successfully completed states.
+    if current_status in (
+            "PUBLISHED",
+            "GENERATED"
+    ):
+        return current_status
+
+    if current_status == "FAILED":
+        return current_status
+
+    update_status(
+        record_id=record_id,
+        status="FAILED"
+    )
+
+    return "FAILED"
 
 
 # ==========================================================
