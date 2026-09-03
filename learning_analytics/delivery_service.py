@@ -4,6 +4,7 @@ from pathlib import Path
 
 from learning_analytics.database import (
     get_feedback_report,
+    get_quiz_attempt_number,
     record_feedback_delivery,
     update_feedback_delivery,
     utc_now,
@@ -182,9 +183,14 @@ class FeedbackDeliveryService:
             or "Curriculum"
         )
 
+        attempt_number = get_quiz_attempt_number(
+            report["latest_moodle_attempt_id"]
+        )
+
         subject = (
             "[TEST] Rono's School Learning Feedback | "
-            f"{curriculum_code}"
+            f"{curriculum_code} | "
+            f"Attempt {attempt_number}"
         )
 
         try:
@@ -276,9 +282,14 @@ class FeedbackDeliveryService:
             or "Curriculum"
         )
 
+        attempt_number = get_quiz_attempt_number(
+            report["latest_moodle_attempt_id"]
+        )
+
         subject = (
             "Rono's School Learning Feedback | "
-            f"{curriculum_code}"
+            f"{curriculum_code} | "
+            f"Attempt {attempt_number}"
         )
 
         return {

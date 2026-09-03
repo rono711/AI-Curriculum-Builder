@@ -950,6 +950,31 @@ def save_final_quiz_pool_item(item):
         return int(row["id"])
 
 
+def get_quiz_attempt_number(moodle_attempt_id):
+    """Return the stored Moodle attempt number for one attempt."""
+
+    with get_connection() as db:
+        row = db.execute(
+            """
+            SELECT attempt_number
+            FROM quiz_attempts
+            WHERE moodle_attempt_id = ?
+            """,
+            (
+                int(moodle_attempt_id),
+            )
+        ).fetchone()
+
+    if row is None:
+        raise RuntimeError(
+            f"Analytics attempt {moodle_attempt_id} "
+            "is not stored."
+        )
+
+    return int(row["attempt_number"])
+
+
+
 def get_student_quiz_responses(
         *,
         moodle_user_id,
