@@ -228,36 +228,40 @@ class quiz_service {
          */
 
         $moduleinfo->attemptduring = 1;
-        $moduleinfo->correctnessduring = 1;
-        $moduleinfo->marksduring = 1;
-        $moduleinfo->specificfeedbackduring = 1;
-        $moduleinfo->generalfeedbackduring = 1;
-        $moduleinfo->rightanswerduring = 1;
-        $moduleinfo->overallfeedbackduring = 1;
+$moduleinfo->correctnessduring = 0;
+$moduleinfo->maxmarksduring = 0;
+$moduleinfo->marksduring = 0;
+$moduleinfo->specificfeedbackduring = 0;
+$moduleinfo->generalfeedbackduring = 0;
+$moduleinfo->rightanswerduring = 0;
+$moduleinfo->overallfeedbackduring = 0;
 
-        $moduleinfo->attemptimmediately = 1;
-        $moduleinfo->correctnessimmediately = 1;
-        $moduleinfo->marksimmediately = 1;
-        $moduleinfo->specificfeedbackimmediately = 1;
-        $moduleinfo->generalfeedbackimmediately = 1;
-        $moduleinfo->rightanswerimmediately = 1;
-        $moduleinfo->overallfeedbackimmediately = 1;
+$moduleinfo->attemptimmediately = 1;
+$moduleinfo->correctnessimmediately = 0;
+$moduleinfo->maxmarksimmediately = 1;
+$moduleinfo->marksimmediately = 1;
+$moduleinfo->specificfeedbackimmediately = 0;
+$moduleinfo->generalfeedbackimmediately = 0;
+$moduleinfo->rightanswerimmediately = 0;
+$moduleinfo->overallfeedbackimmediately = 0;
 
-        $moduleinfo->attemptopen = 1;
-        $moduleinfo->correctnessopen = 1;
-        $moduleinfo->marksopen = 1;
-        $moduleinfo->specificfeedbackopen = 1;
-        $moduleinfo->generalfeedbackopen = 1;
-        $moduleinfo->rightansweropen = 1;
-        $moduleinfo->overallfeedbackopen = 1;
+$moduleinfo->attemptopen = 1;
+$moduleinfo->correctnessopen = 0;
+$moduleinfo->maxmarksopen = 1;
+$moduleinfo->marksopen = 1;
+$moduleinfo->specificfeedbackopen = 0;
+$moduleinfo->generalfeedbackopen = 0;
+$moduleinfo->rightansweropen = 0;
+$moduleinfo->overallfeedbackopen = 0;
 
-        $moduleinfo->attemptclosed = 1;
-        $moduleinfo->correctnessclosed = 1;
-        $moduleinfo->marksclosed = 1;
-        $moduleinfo->specificfeedbackclosed = 1;
-        $moduleinfo->generalfeedbackclosed = 1;
-        $moduleinfo->rightanswerclosed = 1;
-        $moduleinfo->overallfeedbackclosed = 1;
+$moduleinfo->attemptclosed = 1;
+$moduleinfo->correctnessclosed = 0;
+$moduleinfo->maxmarksclosed = 1;
+$moduleinfo->marksclosed = 1;
+$moduleinfo->specificfeedbackclosed = 0;
+$moduleinfo->generalfeedbackclosed = 0;
+$moduleinfo->rightanswerclosed = 0;
+$moduleinfo->overallfeedbackclosed = 0;
 
         /*
          * ---------------------------------------------------------
@@ -394,6 +398,32 @@ class quiz_service {
         );
 
         /*
+         * Ensure the generated Quiz grade item is visible to students.
+         * Quiz review settings separately control whether correctness,
+         * feedback and right answers are shown.
+         */
+        $gradeitem = $DB->get_record(
+            'grade_items',
+            [
+                'courseid' => (int)$course->id,
+                'itemtype' => 'mod',
+                'itemmodule' => 'quiz',
+                'iteminstance' => $quizid,
+            ]
+        );
+
+        if ($gradeitem && (int)$gradeitem->hidden !== 0) {
+            $DB->set_field(
+                'grade_items',
+                'hidden',
+                0,
+                [
+                    'id' => (int)$gradeitem->id,
+                ]
+            );
+        }
+
+        /*
          * ---------------------------------------------------------
          * Apply lesson indentation.
          * ---------------------------------------------------------
@@ -424,7 +454,7 @@ class quiz_service {
             context_module::instance(
                 $cmid
             );
-    
+
 
         /*
          * ---------------------------------------------------------
@@ -591,7 +621,7 @@ class quiz_service {
                     (int)$questionid;
             }
         }
-        
+
                 /*
          * ---------------------------------------------------------
          * Recalculate Quiz grades.
@@ -655,7 +685,31 @@ class quiz_service {
 
 
 
-        return [
+/*
+ * Ensure the final Quiz grade item is visible to students.
+ */
+$gradeitem = $DB->get_record(
+    'grade_items',
+    [
+        'courseid' => (int)$quiz->course,
+        'itemtype' => 'mod',
+        'itemmodule' => 'quiz',
+        'iteminstance' => (int)$quiz->id,
+    ]
+);
+
+if ($gradeitem && (int)$gradeitem->hidden !== 0) {
+    $DB->set_field(
+        'grade_items',
+        'hidden',
+        0,
+        [
+            'id' => (int)$gradeitem->id,
+        ]
+    );
+}
+ return [
+
 
             'quizid' =>
                 (int)$quiz->id,
