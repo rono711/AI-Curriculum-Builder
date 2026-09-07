@@ -19,7 +19,7 @@ $plugin->component = 'local_rono_publisher';
  * 2026-08-10
  * Duplicate Elaboration Protection
  */
-$plugin->version = 2026090701;
+$plugin->version = 2026090702;
 
 /*
  * Minimum supported Moodle version.
