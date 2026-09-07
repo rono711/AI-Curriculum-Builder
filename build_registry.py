@@ -218,6 +218,79 @@ def initialize_registry():
             ON build_requests (requested_by)
             """
         )
+
+        # ==================================================
+        # Queue V1 - Individual Selected Lesson Items
+        # ==================================================
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS build_request_items (
+
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                request_id TEXT NOT NULL,
+
+                parent_code TEXT NOT NULL,
+                curriculum_code TEXT,
+                content_description TEXT,
+
+                lesson_number INTEGER NOT NULL,
+                topic_id TEXT,
+                lesson_text TEXT,
+
+                status TEXT NOT NULL DEFAULT 'QUEUED',
+                stage TEXT,
+                message TEXT,
+                percent INTEGER NOT NULL DEFAULT 0,
+                error TEXT,
+
+                build_id TEXT,
+                lesson_package_id TEXT,
+
+                created_at TEXT NOT NULL,
+                started_at TEXT,
+                completed_at TEXT,
+                updated_at TEXT NOT NULL,
+
+                UNIQUE (
+                    request_id,
+                    parent_code,
+                    lesson_number
+                ),
+
+                FOREIGN KEY (request_id)
+                    REFERENCES build_requests (request_id)
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_build_request_items_request
+            ON build_request_items (request_id)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_build_request_items_status
+            ON build_request_items (status)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_build_request_items_parent
+            ON build_request_items (
+                request_id,
+                parent_code
+            )
+            """
+        )
                 # ==================================================
         # Quiz Question Identity Registry
         # ==================================================
@@ -1889,3 +1962,62 @@ def get_active_analytics_quizzes():
         )
 
     return quizzes
+
+
+# Queue V1 - Read request items
+
+def get_build_request_items(request_id):
+    initialize_registry()
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM build_request_items WHERE request_id = ? ORDER BY parent_code, lesson_number, id",
+            (str(request_id).strip(),)
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+# Queue V1 - Create multi-content request
+
+def create_multi_build_request(requested_by, processing_mode, learning_area, subject, year_level, strand, sub_strand, items):
+    initialize_registry()
+    mode = str(processing_mode).strip().upper()
+    if mode not in ("QUEUE_STANDARD", "QUEUE_BATCH"):
+        raise ValueError("Invalid queued processing mode.")
+    if not isinstance(items, list) or not items:
+        raise ValueError("At least one selected lesson is required.")
+    normalized = []
+    seen = set()
+    for raw in items:
+        if not isinstance(raw, dict):
+            raise ValueError("Each selected lesson must be an object.")
+        parent_code = str(raw.get("parent_code") or "").strip()
+        if not parent_code:
+            raise ValueError("parent_code is required for every lesson.")
+        try:
+            lesson_number = int(raw.get("lesson_number"))
+        except (TypeError, ValueError):
+            raise ValueError("A valid lesson_number is required.")
+        key = (parent_code, lesson_number)
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append((parent_code, lesson_number, raw))
+    if not normalized:
+        raise ValueError("No valid selected lessons were supplied.")
+    request_id = "REQ_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_") + uuid.uuid4().hex[:8].upper()
+    now = datetime.now(timezone.utc).isoformat()
+    parent_codes = list(dict.fromkeys(item[0] for item in normalized))
+    summary_parent = parent_codes[0] if len(parent_codes) == 1 else "MULTI"
+    summary_lessons = [item[1] for item in normalized]
+    with get_connection() as connection:
+        connection.execute(
+            "INSERT INTO build_requests (request_id, requested_by, processing_mode, learning_area, subject, year_level, strand, sub_strand, parent_code, lesson_numbers, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (request_id, str(requested_by).strip(), mode, str(learning_area).strip(), str(subject).strip(), str(year_level).strip(), str(strand).strip(), str(sub_strand or "").strip(), summary_parent, json.dumps(summary_lessons), "QUEUED", now, now)
+        )
+        for parent_code, lesson_number, raw in normalized:
+            connection.execute(
+                "INSERT INTO build_request_items (request_id, parent_code, curriculum_code, content_description, lesson_number, topic_id, lesson_text, status, stage, message, percent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (request_id, parent_code, str(raw.get("curriculum_code") or parent_code).strip(), str(raw.get("content_description") or "").strip(), lesson_number, str(raw.get("topic_id") or "").strip(), str(raw.get("lesson_text") or "").strip(), "QUEUED", "QUEUED", "Waiting to be processed.", 0, now, now)
+            )
+        connection.commit()
+    return request_id
