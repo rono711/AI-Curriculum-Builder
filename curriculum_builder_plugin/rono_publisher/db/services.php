@@ -167,4 +167,21 @@ $services = [
         'enabled' => 1,
     ],
 
+    'Rono Learning Analytics' => [
+        'functions' => [
+            'core_enrol_get_enrolled_users',
+            'core_webservice_get_site_info',
+            'local_rono_publisher_get_quiz_questions',
+            'local_rono_publisher_set_quiz_attempt_limit',
+            'local_rono_publisher_clear_quiz_attempt_limit',
+            'mod_quiz_get_attempt_data',
+            'mod_quiz_get_attempt_review',
+            'mod_quiz_get_quizzes_by_courses',
+            'mod_quiz_get_user_quiz_attempts',
+        ],
+
+        'restrictedusers' => 1,
+        'enabled' => 1,
+    ],
+
 ];
