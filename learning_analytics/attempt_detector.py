@@ -5,7 +5,6 @@ from learning_analytics.attempt_processor import (
 )
 from learning_analytics.database import (
     get_attempt_processing_state,
-    get_feedback_report,
     get_stored_quiz_attempts,
     mark_attempt_reset,
     get_active_quiz_attempt_control,
@@ -168,18 +167,23 @@ class FinishedAttemptDetector:
             if not attempts and not reset_attempts:
                 continue
 
-            latest_report = get_feedback_report(
+            active_stored_attempts = get_stored_quiz_attempts(
                 moodle_user_id=user_id,
-                moodle_quiz_id=moodle_quiz_id
+                moodle_quiz_id=moodle_quiz_id,
+                lifecycle_status="ACTIVE"
             )
 
-            latest_report_attempt = (
-                int(
-                    latest_report[
-                        "latest_moodle_attempt_id"
-                    ]
+            latest_active_attempt_id = (
+                max(
+                    int(
+                        stored_attempt[
+                            "moodle_attempt_id"
+                        ]
+                    )
+                    for stored_attempt
+                    in active_stored_attempts
                 )
-                if latest_report
+                if active_stored_attempts
                 else None
             )
 
@@ -199,8 +203,8 @@ class FinishedAttemptDetector:
                     detector_state = "PROCESSED"
 
                 elif (
-                    latest_report_attempt is not None
-                    and latest_report_attempt > attempt_id
+                    latest_active_attempt_id is not None
+                    and latest_active_attempt_id > attempt_id
                 ):
                     detector_state = "SUPERSEDED"
 
