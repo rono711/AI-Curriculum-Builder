@@ -457,6 +457,87 @@ def lessons(
 
 
 # ==========================================================
+# Build Selection - Content Descriptions + Lessons
+# ==========================================================
+
+@app.get("/build-selection")
+def build_selection(
+        learning_area: str,
+        subject: str,
+        year_level: str,
+        strand: str,
+        sub_strand: str = Query("")
+):
+    df = master_db.df[
+        (master_db.df["Learning Area"] == learning_area)
+        &
+        (master_db.df["Subject"] == subject)
+        &
+        (master_db.df["Year Level"] == year_level)
+        &
+        (master_db.df["Strand"] == strand)
+    ].copy()
+
+    has_sub_strands = (
+        df["Sub-Strand"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+        .any()
+    )
+
+    if has_sub_strands:
+        df = df[
+            df["Sub-Strand"] == sub_strand
+        ]
+    elif sub_strand:
+        df = df[
+            df["Content Description"] == sub_strand
+        ]
+
+    parent_codes = (
+        df["Parent Code"]
+        .dropna()
+        .astype(str)
+        .drop_duplicates()
+        .tolist()
+    )
+
+    results = []
+
+    for parent_code in parent_codes:
+
+        lesson_rows = lessons(
+            parent_code=parent_code
+        )
+
+        if not lesson_rows:
+            continue
+
+        first = lesson_rows[0]
+
+        results.append({
+            "parent_code":
+                first["parent_code"],
+
+            "curriculum_code":
+                first["parent_code"],
+
+            "content_description":
+                first["content_description"],
+
+            "lesson_count":
+                len(lesson_rows),
+
+            "lessons":
+                lesson_rows
+        })
+
+    return results
+
+
+# ==========================================================
 # Curriculum Record
 # ==========================================================
 
