@@ -13,6 +13,7 @@ from learning_analytics.database import (
     save_attempt,
     save_feedback_report,
     save_question_responses,
+    save_quiz_attempt_control,
 )
 from learning_analytics.feedback_renderer import (
     render_student_feedback,
@@ -53,11 +54,20 @@ class LearningAnalyticsProcessingService:
         ):
             return None
 
-        return self.moodle_client.set_quiz_attempt_limit(
+        result = self.moodle_client.set_quiz_attempt_limit(
             quiz_id=moodle_quiz_id,
             user_id=moodle_user_id,
             attempts=finalization["attempt_count"]
         )
+
+        save_quiz_attempt_control(
+            moodle_user_id=moodle_user_id,
+            moodle_quiz_id=moodle_quiz_id,
+            override_id=result.get("overrideid"),
+            attempt_limit=finalization["attempt_count"]
+        )
+
+        return result
 
     def process_review(
             self,

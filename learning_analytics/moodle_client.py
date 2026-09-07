@@ -132,6 +132,20 @@ class MoodleAnalyticsClient:
             attempts=attempts
         )
 
+    def clear_quiz_attempt_limit(
+            self,
+            *,
+            quiz_id,
+            user_id
+    ):
+        """Remove the analytics-created per-user Quiz attempt override."""
+
+        return self.call(
+            "local_rono_publisher_clear_quiz_attempt_limit",
+            quizid=int(quiz_id),
+            userid=int(user_id)
+        )
+
 
     def verify_attempt_owner(
             self,

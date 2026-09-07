@@ -273,6 +273,90 @@ def initialize_database():
             """
         )
 
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS quiz_attempt_controls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                moodle_user_id INTEGER NOT NULL,
+                moodle_quiz_id INTEGER NOT NULL,
+                override_id INTEGER,
+                attempt_limit INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                cleared_at TEXT,
+                UNIQUE (
+                    moodle_user_id,
+                    moodle_quiz_id
+                )
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_quiz_attempt_controls_status
+            ON quiz_attempt_controls (
+                moodle_user_id,
+                moodle_quiz_id,
+                status
+            )
+            """
+        )
+
+        # ---------------------------------------------------------
+        # Schema migrations for existing analytics databases.
+        # ---------------------------------------------------------
+        #
+        # Moodle remains authoritative for whether an attempt exists.
+        # When a teacher deletes an attempt, analytics keeps the
+        # historical evidence for audit but marks it RESET so it no
+        # longer contributes to mastery or attempt counting.
+        columns = {
+            row["name"]
+            for row in db.execute(
+                "PRAGMA table_info(quiz_attempts)"
+            ).fetchall()
+        }
+
+        if "lifecycle_status" not in columns:
+            db.execute(
+                """
+                ALTER TABLE quiz_attempts
+                ADD COLUMN lifecycle_status TEXT
+                    NOT NULL DEFAULT 'ACTIVE'
+                """
+            )
+
+        if "reset_at" not in columns:
+            db.execute(
+                """
+                ALTER TABLE quiz_attempts
+                ADD COLUMN reset_at TEXT
+                """
+            )
+
+        if "reset_reason" not in columns:
+            db.execute(
+                """
+                ALTER TABLE quiz_attempts
+                ADD COLUMN reset_reason TEXT
+                """
+            )
+
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_quiz_attempts_lifecycle
+            ON quiz_attempts (
+                moodle_user_id,
+                moodle_quiz_id,
+                lifecycle_status
+            )
+            """
+        )
+
         db.commit()
 
 
@@ -322,7 +406,10 @@ def save_attempt(attempt):
                 lesson_package_id = excluded.lesson_package_id,
                 curriculum_code = excluded.curriculum_code,
                 processed_at = excluded.processed_at,
-                updated_at = excluded.updated_at
+                updated_at = excluded.updated_at,
+                lifecycle_status = 'ACTIVE',
+                reset_at = NULL,
+                reset_reason = NULL
             """,
             (
                 attempt["moodle_attempt_id"],
@@ -950,6 +1037,234 @@ def save_final_quiz_pool_item(item):
         return int(row["id"])
 
 
+
+
+def save_quiz_attempt_control(
+        *,
+        moodle_user_id,
+        moodle_quiz_id,
+        override_id,
+        attempt_limit
+):
+    """Record a Moodle attempt override created by Learning Analytics."""
+
+    now = utc_now()
+
+    with get_connection() as db:
+        db.execute(
+            """
+            INSERT INTO quiz_attempt_controls (
+                moodle_user_id,
+                moodle_quiz_id,
+                override_id,
+                attempt_limit,
+                status,
+                created_at,
+                updated_at,
+                cleared_at
+            )
+            VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, NULL)
+            ON CONFLICT (
+                moodle_user_id,
+                moodle_quiz_id
+            )
+            DO UPDATE SET
+                override_id = excluded.override_id,
+                attempt_limit = excluded.attempt_limit,
+                status = 'ACTIVE',
+                updated_at = excluded.updated_at,
+                cleared_at = NULL
+            """,
+            (
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+                (
+                    int(override_id)
+                    if override_id is not None
+                    else None
+                ),
+                int(attempt_limit),
+                now,
+                now,
+            )
+        )
+
+        db.commit()
+
+
+def get_active_quiz_attempt_control(
+        *,
+        moodle_user_id,
+        moodle_quiz_id
+):
+    """Return the active attempt override owned by Learning Analytics."""
+
+    with get_connection() as db:
+        row = db.execute(
+            """
+            SELECT *
+            FROM quiz_attempt_controls
+            WHERE moodle_user_id = ?
+              AND moodle_quiz_id = ?
+              AND status = 'ACTIVE'
+            LIMIT 1
+            """,
+            (
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+            )
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def mark_quiz_attempt_control_cleared(
+        *,
+        moodle_user_id,
+        moodle_quiz_id
+):
+    """Mark an Analytics-owned Moodle attempt override as cleared."""
+
+    now = utc_now()
+
+    with get_connection() as db:
+        cursor = db.execute(
+            """
+            UPDATE quiz_attempt_controls
+            SET status = 'CLEARED',
+                updated_at = ?,
+                cleared_at = ?
+            WHERE moodle_user_id = ?
+              AND moodle_quiz_id = ?
+              AND status = 'ACTIVE'
+            """,
+            (
+                now,
+                now,
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+            )
+        )
+
+        db.commit()
+
+        return cursor.rowcount > 0
+
+
+def get_stored_quiz_attempts(
+        *,
+        moodle_user_id,
+        moodle_quiz_id,
+        lifecycle_status=None
+):
+    """Return stored analytics attempts for one student and Quiz."""
+
+    sql = """
+        SELECT
+            moodle_attempt_id,
+            moodle_quiz_id,
+            moodle_user_id,
+            attempt_number,
+            state,
+            raw_score,
+            max_score,
+            percentage,
+            time_started,
+            time_finished,
+            curriculum_code,
+            lifecycle_status,
+            reset_at,
+            reset_reason
+        FROM quiz_attempts
+        WHERE moodle_user_id = ?
+          AND moodle_quiz_id = ?
+    """
+
+    params = [
+        int(moodle_user_id),
+        int(moodle_quiz_id),
+    ]
+
+    if lifecycle_status is not None:
+        sql += " AND lifecycle_status = ?"
+        params.append(str(lifecycle_status))
+
+    sql += " ORDER BY moodle_attempt_id"
+
+    with get_connection() as db:
+        rows = db.execute(
+            sql,
+            tuple(params)
+        ).fetchall()
+
+    return [
+        dict(row)
+        for row in rows
+    ]
+
+
+def mark_attempt_reset(
+        *,
+        moodle_attempt_id,
+        reason="TEACHER_DELETED_IN_MOODLE"
+):
+    """Retire one Moodle attempt from active analytics without deleting audit data."""
+
+    now = utc_now()
+
+    with get_connection() as db:
+        row = db.execute(
+            """
+            SELECT
+                moodle_attempt_id,
+                moodle_quiz_id,
+                moodle_user_id,
+                lifecycle_status
+            FROM quiz_attempts
+            WHERE moodle_attempt_id = ?
+            """,
+            (
+                int(moodle_attempt_id),
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        if row["lifecycle_status"] == "RESET":
+            return {
+                **dict(row),
+                "changed": False,
+            }
+
+        db.execute(
+            """
+            UPDATE quiz_attempts
+            SET lifecycle_status = 'RESET',
+                reset_at = ?,
+                reset_reason = ?,
+                updated_at = ?
+            WHERE moodle_attempt_id = ?
+            """,
+            (
+                now,
+                str(reason),
+                now,
+                int(moodle_attempt_id),
+            )
+        )
+
+        db.commit()
+
+    return {
+        **dict(row),
+        "lifecycle_status": "RESET",
+        "reset_at": now,
+        "reset_reason": str(reason),
+        "changed": True,
+    }
+
+
 def get_quiz_attempt_number(moodle_attempt_id):
     """Return the stored Moodle attempt number for one attempt."""
 
@@ -980,32 +1295,36 @@ def get_student_quiz_responses(
         moodle_user_id,
         moodle_quiz_id
 ):
-    """Return complete stored response history for one student quiz."""
+    """Return ACTIVE stored response history for one student Quiz."""
 
     with get_connection() as db:
         rows = db.execute(
             """
             SELECT
-                moodle_attempt_id,
-                moodle_user_id,
-                moodle_quiz_id,
-                moodle_slot,
-                question_key,
-                moodle_question_id,
-                moodle_question_bank_entry_id,
-                question_type,
-                status,
-                mark,
-                max_mark,
-                question_text,
-                student_response,
-                correct_response
-            FROM question_responses
-            WHERE moodle_user_id = ?
-              AND moodle_quiz_id = ?
+                qr.moodle_attempt_id,
+                qr.moodle_user_id,
+                qr.moodle_quiz_id,
+                qr.moodle_slot,
+                qr.question_key,
+                qr.moodle_question_id,
+                qr.moodle_question_bank_entry_id,
+                qr.question_type,
+                qr.status,
+                qr.mark,
+                qr.max_mark,
+                qr.question_text,
+                qr.student_response,
+                qr.correct_response
+            FROM question_responses qr
+            JOIN quiz_attempts qa
+              ON qa.moodle_attempt_id =
+                    qr.moodle_attempt_id
+            WHERE qr.moodle_user_id = ?
+              AND qr.moodle_quiz_id = ?
+              AND qa.lifecycle_status = 'ACTIVE'
             ORDER BY
-                moodle_attempt_id,
-                moodle_slot
+                qr.moodle_attempt_id,
+                qr.moodle_slot
             """,
             (
                 int(moodle_user_id),
@@ -1028,6 +1347,21 @@ def get_attempt_processing_state(
     """Return whether one attempt completed the analytics pipeline."""
 
     with get_connection() as db:
+
+        attempt_lifecycle = db.execute(
+            """
+            SELECT lifecycle_status
+            FROM quiz_attempts
+            WHERE moodle_attempt_id = ?
+              AND moodle_user_id = ?
+              AND moodle_quiz_id = ?
+            """,
+            (
+                int(moodle_attempt_id),
+                int(moodle_user_id),
+                int(moodle_quiz_id),
+            )
+        ).fetchone()
 
         report = db.execute(
             """
@@ -1100,9 +1434,23 @@ def get_attempt_processing_state(
         and finalized == expected
     )
 
+    lifecycle_status = (
+        attempt_lifecycle["lifecycle_status"]
+        if attempt_lifecycle
+        else None
+    )
+
+    reset = lifecycle_status == "RESET"
+
     return {
         "moodle_attempt_id":
             int(moodle_attempt_id),
+
+        "lifecycle_status":
+            lifecycle_status,
+
+        "reset":
+            reset,
 
         "report_id":
             (
@@ -1125,7 +1473,8 @@ def get_attempt_processing_state(
 
         "fully_processed":
             (
-                report_validated
+                not reset
+                and report_validated
                 and remediation_complete
             ),
     }

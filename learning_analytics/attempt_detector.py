@@ -6,6 +6,10 @@ from learning_analytics.attempt_processor import (
 from learning_analytics.database import (
     get_attempt_processing_state,
     get_feedback_report,
+    get_stored_quiz_attempts,
+    mark_attempt_reset,
+    get_active_quiz_attempt_control,
+    mark_quiz_attempt_control_cleared,
 )
 from learning_analytics.moodle_client import (
     MoodleAnalyticsClient,
@@ -22,6 +26,73 @@ class FinishedAttemptDetector:
 
     def __init__(self):
         self.client = MoodleAnalyticsClient()
+
+    def reconcile_user_attempts(
+            self,
+            *,
+            moodle_quiz_id,
+            moodle_user_id,
+            moodle_attempts
+    ):
+        """Mark analytics attempts RESET when they no longer exist in Moodle."""
+
+        moodle_ids = {
+            int(attempt["id"])
+            for attempt in moodle_attempts
+            if attempt.get("id")
+        }
+
+        stored = get_stored_quiz_attempts(
+            moodle_user_id=moodle_user_id,
+            moodle_quiz_id=moodle_quiz_id,
+            lifecycle_status="ACTIVE"
+        )
+
+        reset_attempts = []
+
+        for attempt in stored:
+            attempt_id = int(
+                attempt["moodle_attempt_id"]
+            )
+
+            if attempt_id in moodle_ids:
+                continue
+
+            result = mark_attempt_reset(
+                moodle_attempt_id=attempt_id,
+                reason="MISSING_FROM_MOODLE"
+            )
+
+            if result and result.get("changed"):
+                reset_attempts.append(result)
+
+        override_clear = None
+
+        if reset_attempts:
+            control = get_active_quiz_attempt_control(
+                moodle_user_id=moodle_user_id,
+                moodle_quiz_id=moodle_quiz_id
+            )
+
+            if control is not None:
+                override_clear = (
+                    self.client.clear_quiz_attempt_limit(
+                        quiz_id=moodle_quiz_id,
+                        user_id=moodle_user_id
+                    )
+                )
+
+                mark_quiz_attempt_control_cleared(
+                    moodle_user_id=moodle_user_id,
+                    moodle_quiz_id=moodle_quiz_id
+                )
+
+        return {
+            "reset_attempts": reset_attempts,
+            "reset_count": len(reset_attempts),
+            "override_clear": override_clear,
+        }
+
 
     def scan_quiz(
             self,
@@ -43,6 +114,7 @@ class FinishedAttemptDetector:
         )
 
         discovered = []
+        reconciliations = []
 
         for user in users:
 
@@ -56,15 +128,44 @@ class FinishedAttemptDetector:
             data = self.client.get_user_quiz_attempts(
                 quiz_id=moodle_quiz_id,
                 user_id=user_id,
-                status="finished"
+                status="all"
             )
 
-            attempts = data.get(
+            all_attempts = data.get(
                 "attempts",
                 []
             )
 
-            if not attempts:
+            reconciliation = self.reconcile_user_attempts(
+                moodle_quiz_id=moodle_quiz_id,
+                moodle_user_id=user_id,
+                moodle_attempts=all_attempts
+            )
+
+            reset_attempts = reconciliation[
+                "reset_attempts"
+            ]
+
+            if reconciliation["reset_count"]:
+                reconciliations.append({
+                    "moodle_user_id": user_id,
+                    "reset_attempt_ids": [
+                        int(item["moodle_attempt_id"])
+                        for item in reset_attempts
+                    ],
+                    "override_cleared": (
+                        reconciliation["override_clear"]
+                        is not None
+                    ),
+                })
+
+            attempts = [
+                attempt
+                for attempt in all_attempts
+                if attempt.get("state") == "finished"
+            ]
+
+            if not attempts and not reset_attempts:
                 continue
 
             latest_report = get_feedback_report(
@@ -175,6 +276,9 @@ class FinishedAttemptDetector:
 
             "attempts":
                 discovered,
+
+            "reconciliations":
+                reconciliations,
 
             "summary":
                 {

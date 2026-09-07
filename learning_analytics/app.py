@@ -18,7 +18,12 @@ from learning_analytics.processing_service import (
 from learning_analytics.student_resolver import (
     MoodleStudentResolver,
 )
+from learning_analytics.database import (
+    initialize_database,
+)
 
+
+initialize_database()
 
 app = FastAPI(
     title="Rono's School Learning Analytics",

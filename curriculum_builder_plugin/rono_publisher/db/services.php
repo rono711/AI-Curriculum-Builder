@@ -111,6 +111,26 @@ $functions = [
             false,
     ],
 
+	    'local_rono_publisher_clear_quiz_attempt_limit' => [
+        'classname' =>
+            'local_rono_publisher\external\clear_quiz_attempt_limit',
+
+        'methodname' =>
+            'execute',
+
+        'description' =>
+            'Removes the learning analytics per-user Quiz attempt limit override after a teacher resets attempts.',
+
+        'type' =>
+            'write',
+
+        'capabilities' =>
+            'local/rono_publisher:viewanalytics',
+
+        'ajax' =>
+            false,
+    ],
+
     'local_rono_publisher_get_quiz_questions' => [
         'classname' =>
             'local_rono_publisher\external\get_quiz_questions',
@@ -140,6 +160,7 @@ $services = [
             'local_rono_publisher_update_component',
             'local_rono_publisher_update_elaboration_banner',
             'local_rono_publisher_set_quiz_attempt_limit',
+            'local_rono_publisher_clear_quiz_attempt_limit',
         ],
 
         'restrictedusers' => 1,

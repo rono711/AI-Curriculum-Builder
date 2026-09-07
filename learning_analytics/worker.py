@@ -17,7 +17,12 @@ from learning_analytics.config import (
 from learning_analytics.delivery_service import (
     FeedbackDeliveryService,
 )
+from learning_analytics.database import (
+    initialize_database,
+)
 
+
+initialize_database()
 
 POLL_SECONDS = int(
     os.getenv(
