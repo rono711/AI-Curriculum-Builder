@@ -890,6 +890,8 @@ def save_remediation_evidence(item):
                 question_key
             )
             DO UPDATE SET
+                first_attempt_id =
+                    excluded.first_attempt_id,
                 latest_attempt_id =
                     excluded.latest_attempt_id,
                 attempts_observed =
