@@ -16,7 +16,8 @@ from publish_generated import publish_generated_lesson
 from build_registry import (
     get_connection,
     mark_published,
-    create_build_request
+    create_build_request,
+    create_multi_build_request
 )
 
 # ==========================================================
@@ -266,6 +267,51 @@ async def build(request: Request):
         "QUEUE_STANDARD",
         "QUEUE_BATCH"
     ):
+
+        items = payload.get(
+            "items",
+            []
+        )
+
+        if items:
+
+            request_id = create_multi_build_request(
+                requested_by=payload.get(
+                    "requested_by",
+                    ""
+                ),
+                processing_mode=processing_mode,
+                learning_area=payload.get(
+                    "learning_area",
+                    ""
+                ),
+                subject=payload.get(
+                    "subject",
+                    ""
+                ),
+                year_level=payload.get(
+                    "year_level",
+                    ""
+                ),
+                strand=payload.get(
+                    "strand",
+                    ""
+                ),
+                sub_strand=payload.get(
+                    "sub_strand",
+                    ""
+                ),
+                items=items
+            )
+
+            return {
+                "status": "QUEUED",
+                "request_id": request_id,
+                "processing_mode": processing_mode,
+                "item_count": len(items),
+                "message":
+                    "Multi-content build request queued successfully."
+            }
 
         request_id = create_build_request(
             requested_by=payload.get(
