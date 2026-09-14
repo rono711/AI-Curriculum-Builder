@@ -7,6 +7,7 @@ from learning_analytics.database import (
     get_feedback_report,
     get_quiz_attempt_number,
     get_student_guardians,
+    has_successful_live_feedback_delivery,
     record_feedback_delivery,
     update_feedback_delivery,
     utc_now,
@@ -413,6 +414,39 @@ class FeedbackDeliveryService:
                 "LIVE delivery preparation."
             )
 
+        if has_successful_live_feedback_delivery(
+            report["id"]
+        ):
+            return {
+                "delivery_ids": [],
+                "report_id": report["id"],
+                "mode": "LIVE",
+                "moodle_user_id":
+                    routing["moodle_user_id"],
+                "moodle_course_id":
+                    routing["moodle_course_id"],
+                "moodle_quiz_id":
+                    routing["moodle_quiz_id"],
+                "student_name":
+                    routing["student_name"],
+                "recipient":
+                    routing["recipient"],
+                "guardian_recipients":
+                    routing["guardian_recipients"],
+                "archive_recipient":
+                    routing["archive_recipient"],
+                "bcc_recipients":
+                    routing["bcc_recipients"],
+                "curriculum_code":
+                    routing["curriculum_code"],
+                "subject":
+                    routing["subject"],
+                "validation":
+                    routing["validation"],
+                "actually_sent": False,
+                "already_delivered": True,
+            }
+
         destinations = [
             ("STUDENT", routing["recipient"])
         ]
@@ -520,4 +554,7 @@ class FeedbackDeliveryService:
 
             "actually_sent":
                 True,
+
+            "already_delivered":
+                False,
         }

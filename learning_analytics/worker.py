@@ -126,6 +126,7 @@ def run_cycle():
         "new_attempts": 0,
         "processed": 0,
         "delivered": 0,
+        "skipped": 0,
         "delivery_errors": 0,
         "errors": 0,
     }
@@ -193,17 +194,49 @@ def run_cycle():
                         )
                     )
 
-                    summary["delivered"] += 1
+                    if delivery_result.get(
+                        "already_delivered",
+                        False,
+                    ):
+                        summary["skipped"] += 1
 
-                    print(
-                        f"[{timestamp()}] "
-                        f"Feedback {FEEDBACK_EMAIL_MODE}: "
-                        f"quiz={quiz_id}, "
-                        f"user={user_id}, "
-                        f"delivery_id="
-                        f"{delivery_result.get('delivery_id')}",
-                        flush=True,
-                    )
+                        print(
+                            f"[{timestamp()}] "
+                            f"Feedback {FEEDBACK_EMAIL_MODE}: "
+                            f"quiz={quiz_id}, "
+                            f"user={user_id}, "
+                            "already delivered; skipped",
+                            flush=True,
+                        )
+
+                    else:
+                        summary["delivered"] += 1
+
+                        delivery_ids = (
+                            delivery_result.get(
+                                "delivery_ids"
+                            )
+                            or (
+                                [
+                                    delivery_result[
+                                        "delivery_id"
+                                    ]
+                                ]
+                                if delivery_result.get(
+                                    "delivery_id"
+                                ) is not None
+                                else []
+                            )
+                        )
+
+                        print(
+                            f"[{timestamp()}] "
+                            f"Feedback {FEEDBACK_EMAIL_MODE}: "
+                            f"quiz={quiz_id}, "
+                            f"user={user_id}, "
+                            f"delivery_ids={delivery_ids}",
+                            flush=True,
+                        )
 
                 except Exception as exc:
                     summary["delivery_errors"] += 1
@@ -248,6 +281,7 @@ def run_cycle():
         f"new={summary['new_attempts']}, "
         f"processed={summary['processed']}, "
         f"delivered={summary['delivered']}, "
+        f"skipped={summary['skipped']}, "
         f"delivery_errors={summary['delivery_errors']}, "
         f"errors={summary['errors']}",
         flush=True,

@@ -828,6 +828,30 @@ def record_feedback_delivery(
         )
 
 
+def has_successful_live_feedback_delivery(
+        feedback_report_id
+):
+    """Return whether a report already has successful LIVE delivery."""
+
+    with get_connection() as db:
+        row = db.execute(
+            """
+            SELECT 1
+            FROM feedback_deliveries
+            WHERE feedback_report_id = ?
+              AND delivery_mode = 'LIVE'
+              AND status = 'SENT'
+              AND recipient_type = 'STUDENT'
+            LIMIT 1
+            """,
+            (
+                int(feedback_report_id),
+            )
+        ).fetchone()
+
+    return row is not None
+
+
 def update_feedback_delivery(
         delivery_id,
         *,
