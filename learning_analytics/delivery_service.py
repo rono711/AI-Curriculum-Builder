@@ -1,10 +1,12 @@
 """Deliver previously validated learning feedback."""
 
+import os
 from pathlib import Path
 
 from learning_analytics.database import (
     get_feedback_report,
     get_quiz_attempt_number,
+    get_student_guardians,
     record_feedback_delivery,
     update_feedback_delivery,
     utc_now,
@@ -277,6 +279,39 @@ class FeedbackDeliveryService:
 
         sender = FeedbackMailSender()
 
+        guardians = get_student_guardians(
+            moodle_user_id,
+            enabled_only=True
+        )
+
+        guardian_recipients = [
+            str(
+                item.get("guardian_email")
+                or ""
+            ).strip().lower()
+            for item in guardians
+            if str(
+                item.get("guardian_email")
+                or ""
+            ).strip()
+        ]
+
+        archive_recipient = os.getenv(
+            "FEEDBACK_ARCHIVE_EMAIL",
+            ""
+        ).strip().lower()
+
+        bcc_recipients = list(
+            dict.fromkeys(
+                guardian_recipients
+                + (
+                    [archive_recipient]
+                    if archive_recipient
+                    else []
+                )
+            )
+        )
+
         curriculum_code = (
             report.get("curriculum_code")
             or "Curriculum"
@@ -311,6 +346,15 @@ class FeedbackDeliveryService:
             "recipient":
                 student["email"],
 
+            "guardian_recipients":
+                guardian_recipients,
+
+            "archive_recipient":
+                archive_recipient,
+
+            "bcc_recipients":
+                bcc_recipients,
+
             "curriculum_code":
                 curriculum_code,
 
@@ -320,11 +364,14 @@ class FeedbackDeliveryService:
             "validation":
                 validation,
 
+            "routing_valid":
+                True,
+
             "live_enabled":
                 sender.live_enabled,
 
-            "would_send":
-                True,
+            "would_send_now":
+                sender.live_enabled,
 
             "actually_sent":
                 False,
@@ -366,14 +413,33 @@ class FeedbackDeliveryService:
                 "LIVE delivery preparation."
             )
 
-        delivery_id = record_feedback_delivery(
-            feedback_report_id=
-                report["id"],
-            recipient=
-                routing["recipient"],
-            delivery_mode="LIVE",
-            status="PENDING"
+        destinations = [
+            ("STUDENT", routing["recipient"])
+        ]
+
+        destinations.extend(
+            ("GUARDIAN", recipient)
+            for recipient in routing["guardian_recipients"]
         )
+
+        if routing["archive_recipient"]:
+            destinations.append(
+                ("ARCHIVE", routing["archive_recipient"])
+            )
+
+        destinations = list(dict.fromkeys(destinations))
+        delivery_ids = []
+
+        for recipient_type, recipient in destinations:
+            delivery_ids.append(
+                record_feedback_delivery(
+                    feedback_report_id=report["id"],
+                    recipient=recipient,
+                    delivery_mode="LIVE",
+                    status="PENDING",
+                    recipient_type=recipient_type
+                )
+            )
 
         try:
             sent = sender.send_live(
@@ -382,27 +448,33 @@ class FeedbackDeliveryService:
                 subject=
                     routing["subject"],
                 html=
-                    report["student_html"]
+                    report["student_html"],
+                bcc=
+                    routing["bcc_recipients"]
             )
 
-            update_feedback_delivery(
-                delivery_id,
-                status="SENT",
-                sent_at=utc_now()
-            )
+            sent_at = utc_now()
+
+            for delivery_id in delivery_ids:
+                update_feedback_delivery(
+                    delivery_id,
+                    status="SENT",
+                    sent_at=sent_at
+                )
 
         except Exception as exc:
-            update_feedback_delivery(
-                delivery_id,
-                status="FAILED",
-                error_message=str(exc)
-            )
+            for delivery_id in delivery_ids:
+                update_feedback_delivery(
+                    delivery_id,
+                    status="FAILED",
+                    error_message=str(exc)
+                )
 
             raise
 
         return {
-            "delivery_id":
-                delivery_id,
+            "delivery_ids":
+                delivery_ids,
 
             "report_id":
                 report["id"],
@@ -424,6 +496,18 @@ class FeedbackDeliveryService:
 
             "recipient":
                 sent["recipient"],
+
+            "guardian_recipients":
+                routing["guardian_recipients"],
+
+            "archive_recipient":
+                routing["archive_recipient"],
+
+            "bcc_recipients":
+                sent["bcc"],
+
+            "envelope_recipients":
+                sent["envelope_recipients"],
 
             "curriculum_code":
                 routing["curriculum_code"],

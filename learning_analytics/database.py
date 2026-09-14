@@ -162,6 +162,60 @@ def initialize_database():
             """
         )
 
+        delivery_columns = {
+            row["name"]
+            for row in db.execute(
+                "PRAGMA table_info(feedback_deliveries)"
+            ).fetchall()
+        }
+
+        if "recipient_type" not in delivery_columns:
+            db.execute(
+                """
+                ALTER TABLE feedback_deliveries
+                ADD COLUMN recipient_type TEXT
+                NOT NULL DEFAULT 'LEGACY'
+                """
+            )
+
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS student_guardians (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                moodle_user_id INTEGER NOT NULL,
+
+                guardian_name TEXT NOT NULL,
+                guardian_email TEXT NOT NULL,
+                relationship TEXT,
+
+                feedback_enabled INTEGER
+                    NOT NULL DEFAULT 1,
+
+                is_primary INTEGER
+                    NOT NULL DEFAULT 0,
+
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+
+                UNIQUE (
+                    moodle_user_id,
+                    guardian_email
+                )
+            )
+            """
+        )
+
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_student_guardians_user
+            ON student_guardians (
+                moodle_user_id
+            )
+            """
+        )
+
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS remediation_evidence (
@@ -706,7 +760,8 @@ def record_feedback_delivery(
         delivery_mode,
         status,
         sent_at=None,
-        error_message=None
+        error_message=None,
+        recipient_type="LEGACY"
 ):
     """Record one feedback delivery event."""
 
@@ -748,9 +803,10 @@ def record_feedback_delivery(
                 sent_at,
                 error_message,
                 created_at,
-                updated_at
+                updated_at,
+                recipient_type
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 feedback_report_id,
@@ -761,6 +817,7 @@ def record_feedback_delivery(
                 error_message,
                 now,
                 now,
+                str(recipient_type).strip().upper(),
             )
         )
 
@@ -1480,3 +1537,117 @@ def get_attempt_processing_state(
                 and remediation_complete
             ),
     }
+
+
+def save_student_guardian(
+        *,
+        moodle_user_id,
+        guardian_name,
+        guardian_email,
+        relationship="Parent",
+        feedback_enabled=True,
+        is_primary=False
+):
+    """Create or update one guardian contact for a Moodle student."""
+
+    guardian_name = str(guardian_name or "").strip()
+    guardian_email = str(guardian_email or "").strip().lower()
+    relationship = str(relationship or "").strip()
+
+    if not guardian_name:
+        raise ValueError("Guardian name is required.")
+
+    if (
+        not guardian_email
+        or "@" not in guardian_email
+    ):
+        raise ValueError(
+            "A valid guardian email address is required."
+        )
+
+    now = utc_now()
+
+    with get_connection() as db:
+        db.execute(
+            """
+            INSERT INTO student_guardians (
+                moodle_user_id,
+                guardian_name,
+                guardian_email,
+                relationship,
+                feedback_enabled,
+                is_primary,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+
+            ON CONFLICT (
+                moodle_user_id,
+                guardian_email
+            )
+            DO UPDATE SET
+                guardian_name =
+                    excluded.guardian_name,
+                relationship =
+                    excluded.relationship,
+                feedback_enabled =
+                    excluded.feedback_enabled,
+                is_primary =
+                    excluded.is_primary,
+                updated_at =
+                    excluded.updated_at
+            """,
+            (
+                int(moodle_user_id),
+                guardian_name,
+                guardian_email,
+                relationship,
+                int(bool(feedback_enabled)),
+                int(bool(is_primary)),
+                now,
+                now,
+            )
+        )
+
+        db.commit()
+
+
+def get_student_guardians(
+        moodle_user_id,
+        *,
+        enabled_only=True
+):
+    """Return configured guardian contacts for one Moodle student."""
+
+    sql = """
+        SELECT *
+        FROM student_guardians
+        WHERE moodle_user_id = ?
+    """
+
+    params = [
+        int(moodle_user_id)
+    ]
+
+    if enabled_only:
+        sql += """
+          AND feedback_enabled = 1
+        """
+
+    sql += """
+        ORDER BY
+            is_primary DESC,
+            id ASC
+    """
+
+    with get_connection() as db:
+        rows = db.execute(
+            sql,
+            params
+        ).fetchall()
+
+    return [
+        dict(row)
+        for row in rows
+    ]

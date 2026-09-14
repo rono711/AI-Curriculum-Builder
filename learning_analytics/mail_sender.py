@@ -126,7 +126,8 @@ class FeedbackMailSender:
             *,
             recipient,
             subject,
-            html
+            html,
+            bcc=None
     ):
         """LIVE delivery is configuration-gated."""
 
@@ -138,7 +139,8 @@ class FeedbackMailSender:
         return self._send(
             recipient=recipient,
             subject=subject,
-            html=html
+            html=html,
+            bcc=bcc
         )
 
     def _send(
@@ -146,7 +148,8 @@ class FeedbackMailSender:
             *,
             recipient,
             subject,
-            html
+            html,
+            bcc=None
     ):
         message = EmailMessage()
 
@@ -156,6 +159,21 @@ class FeedbackMailSender:
             f"<{self.from_email}>"
         )
         message["To"] = recipient
+
+        bcc = [
+            str(address).strip().lower()
+            for address in (bcc or [])
+            if str(address).strip()
+        ]
+
+        bcc = list(dict.fromkeys(bcc))
+
+        envelope_recipients = list(
+            dict.fromkeys(
+                [str(recipient).strip().lower()]
+                + bcc
+            )
+        )
 
         message.set_content(
             "Your learning feedback is available "
@@ -184,7 +202,9 @@ class FeedbackMailSender:
                 )
 
                 smtp.send_message(
-                    message
+                    message,
+                    from_addr=self.from_email,
+                    to_addrs=envelope_recipients
                 )
 
         else:
@@ -207,7 +227,9 @@ class FeedbackMailSender:
                 )
 
                 smtp.send_message(
-                    message
+                    message,
+                    from_addr=self.from_email,
+                    to_addrs=envelope_recipients
                 )
 
         return {
@@ -216,4 +238,10 @@ class FeedbackMailSender:
 
             "subject":
                 subject,
+
+            "bcc":
+                bcc,
+
+            "envelope_recipients":
+                envelope_recipients,
         }
