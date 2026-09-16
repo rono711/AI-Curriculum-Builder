@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>Queue & Batch Processing</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/queue_dashboard.css?v=20260917_1"
+    >
+</head>
+
+<body>
+
+<header class="topbar">
+    <div>
+        <h1>Queue & Batch Processing</h1>
+        <p>
+            Monitor lesson generation and Moodle publishing.
+        </p>
+    </div>
+
+    <div class="top-actions">
+        <a class="button secondary" href="/">
+            Build Lessons
+        </a>
+
+        <button
+            class="button"
+            id="refreshButton"
+            type="button"
+        >
+            Refresh
+        </button>
+    </div>
+</header>
+
+<main class="page">
+
+    <section class="summary-grid">
+        <div class="summary-card">
+            <span>Active</span>
+            <strong id="activeCount">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span>Published</span>
+            <strong id="publishedCount">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span>Failed</span>
+            <strong id="failedCount">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span>Total Requests</span>
+            <strong id="totalCount">0</strong>
+        </div>
+    </section>
+
+    <section class="toolbar">
+        <div class="filters" id="filters">
+            <button
+                class="filter active"
+                data-filter="active"
+                type="button"
+            >
+                Active
+            </button>
+
+            <button
+                class="filter"
+                data-filter="completed"
+                type="button"
+            >
+                Completed
+            </button>
+
+            <button
+                class="filter"
+                data-filter="failed"
+                type="button"
+            >
+                Failed
+            </button>
+
+            <button
+                class="filter"
+                data-filter="all"
+                type="button"
+            >
+                All
+            </button>
+        </div>
+
+        <div class="refresh-status">
+            Auto-refresh:
+            <strong>15 seconds</strong>
+            <br>
+            <span id="lastRefresh">
+                Waiting for first refresh...
+            </span>
+        </div>
+    </section>
+
+    <section id="requestList">
+        <div class="loading">
+            Loading queue requests...
+        </div>
+    </section>
+
+</main>
+
+<div
+    class="modal hidden"
+    id="detailModal"
+    aria-hidden="true"
+>
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+
+    <div class="modal-panel">
+        <div class="modal-header">
+            <div>
+                <h2 id="detailTitle">
+                    Request Details
+                </h2>
+                <div id="detailSubtitle"></div>
+            </div>
+
+            <button
+                class="close-button"
+                id="closeModal"
+                type="button"
+                aria-label="Close"
+            >
+                ×
+            </button>
+        </div>
+
+        <div id="detailContent">
+            Loading...
+        </div>
+    </div>
+</div>
+
+<script
+    src="/static/queue_dashboard.js?v=20260917_1"
+></script>
+
+</body>
+</html>

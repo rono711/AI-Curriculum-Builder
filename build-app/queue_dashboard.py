@@ -1,9 +1,18 @@
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
 from build_registry import get_connection
 
 
 router = APIRouter()
+
+DASHBOARD_HTML = (
+    Path(__file__).resolve().parent
+    / "templates"
+    / "queue_dashboard.html"
+)
 
 
 STATUS_LABELS = {
@@ -47,6 +56,13 @@ def mode_label(value):
         return "OpenAI Batch"
 
     return mode.replace("_", " ").title()
+
+
+@router.get("/queue")
+def queue_dashboard_page():
+    return FileResponse(
+        DASHBOARD_HTML
+    )
 
 
 @router.get("/api/queue/health")
@@ -193,6 +209,12 @@ def queue_requests():
                 'QUEUE_STANDARD',
                 'QUEUE_BATCH'
             )
+              AND EXISTS (
+                  SELECT 1
+                  FROM build_request_items i
+                  WHERE i.request_id =
+                        build_requests.request_id
+              )
             ORDER BY id DESC
             """
         ).fetchall()
