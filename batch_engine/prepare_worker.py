@@ -13,12 +13,105 @@ from batch_engine.stage1_builder import Stage1BatchBuilder
 from build_registry import (
     claim_build_request,
     fail_build_request,
+    get_build_request_items,
     get_queued_requests,
     mark_batch_ready,
 )
 
 LP_URL = "http://lesson-package-builder:8003/build"
 PROMPT_URL = "http://prompt-engine:8005/prompt"
+
+
+def prepare_single_lesson(
+        client,
+        request,
+        parent_code,
+        lesson_number
+):
+    payload = {
+        "requested_by": request["requested_by"],
+        "learning_area": request["learning_area"],
+        "subject": request["subject"],
+        "year_level": request["year_level"],
+        "strand": request["strand"],
+        "sub_strand": request["sub_strand"] or "",
+        "parent_code": str(parent_code).strip(),
+        "lesson_numbers": [int(lesson_number)],
+        "build_mode": "NEW",
+        "update_components": [],
+        "publication_mode": "GENERATE_ONLY",
+        "execution_mode": "PREPARE_ONLY",
+    }
+
+    response = client.post(
+        LP_URL,
+        json=payload
+    )
+    response.raise_for_status()
+
+    prepared = response.json()
+
+    if prepared.get("status") != "PREPARED":
+        raise RuntimeError(
+            "Lesson preparation failed: "
+            + str(prepared)
+        )
+
+    lesson_rows = prepared.get(
+        "lesson_rows"
+    ) or []
+
+    if len(lesson_rows) != 1:
+        raise RuntimeError(
+            "Expected exactly one prepared lesson for "
+            + str(parent_code)
+            + " lesson "
+            + str(lesson_number)
+            + "; received "
+            + str(len(lesson_rows))
+            + "."
+        )
+
+    return prepared
+
+
+def prepare_prompt_results(
+        client,
+        prepared
+):
+    results = []
+
+    for row in prepared["lesson_rows"]:
+        lp = row["lesson_package_id"]
+
+        for prompt_type in STAGE1_PROMPT_TYPES:
+            response = client.post(
+                PROMPT_URL,
+                json={
+                    "workbook_path":
+                        prepared["workbook_path"],
+                    "lesson_package_id":
+                        lp,
+                    "prompt_type":
+                        prompt_type,
+                    "generation_mode":
+                        "BATCH_PREPARE",
+                },
+                timeout=600,
+            )
+
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get("ai") is not None:
+                raise RuntimeError(
+                    "Unexpected AI result: "
+                    + prompt_type
+                )
+
+            results.append(result)
+
+    return results
 
 
 def prepare_request(item):
@@ -29,6 +122,8 @@ def prepare_request(item):
         return False
 
     try:
+        child_items = get_build_request_items(rid)
+
         payload = {
             "requested_by": item["requested_by"],
             "learning_area": item["learning_area"],
@@ -45,38 +140,75 @@ def prepare_request(item):
         }
 
         with httpx.Client(timeout=1800) as client:
-            r = client.post(LP_URL, json=payload)
-            r.raise_for_status()
-            prepared = r.json()
+            if child_items:
+                prompt_results = []
+                prepared_lessons = []
 
-            if prepared.get("status") != "PREPARED":
-                raise RuntimeError(str(prepared))
+                print(
+                    "MULTI-CONTENT BATCH:",
+                    rid,
+                    "ITEMS:",
+                    len(child_items)
+                )
 
-            prompt_results = []
-
-            for row in prepared["lesson_rows"]:
-                lp = row["lesson_package_id"]
-
-                for prompt_type in STAGE1_PROMPT_TYPES:
-                    r = client.post(
-                        PROMPT_URL,
-                        json={
-                            "workbook_path": prepared["workbook_path"],
-                            "lesson_package_id": lp,
-                            "prompt_type": prompt_type,
-                            "generation_mode": "BATCH_PREPARE",
-                        },
-                        timeout=600,
+                for child in child_items:
+                    prepared_child = prepare_single_lesson(
+                        client,
+                        item,
+                        child["parent_code"],
+                        child["lesson_number"]
                     )
-                    r.raise_for_status()
-                    result = r.json()
 
-                    if result.get("ai") is not None:
-                        raise RuntimeError(
-                            "Unexpected AI result: " + prompt_type
+                    prompt_results.extend(
+                        prepare_prompt_results(
+                            client,
+                            prepared_child
                         )
+                    )
 
-                    prompt_results.append(result)
+                    prepared_lessons.append({
+                        "item_id": child["id"],
+                        "parent_code": child["parent_code"],
+                        "curriculum_code":
+                            child["curriculum_code"],
+                        "lesson_number":
+                            child["lesson_number"],
+                        "topic_id": child["topic_id"],
+                        "build_id":
+                            prepared_child["build_id"],
+                        "workbook_path":
+                            prepared_child["workbook_path"],
+                        "lesson_rows":
+                            prepared_child["lesson_rows"],
+                    })
+
+            else:
+                r = client.post(LP_URL, json=payload)
+                r.raise_for_status()
+                prepared = r.json()
+
+                if prepared.get("status") != "PREPARED":
+                    raise RuntimeError(str(prepared))
+
+                prompt_results = (
+                    prepare_prompt_results(
+                        client,
+                        prepared
+                    )
+                )
+
+                prepared_lessons = [{
+                    "item_id": None,
+                    "parent_code": item["parent_code"],
+                    "curriculum_code": None,
+                    "lesson_number": None,
+                    "topic_id": None,
+                    "build_id": prepared["build_id"],
+                    "workbook_path":
+                        prepared["workbook_path"],
+                    "lesson_rows":
+                        prepared["lesson_rows"],
+                }]
 
         batch = Stage1BatchBuilder().build(
             request_id=rid,
@@ -86,11 +218,13 @@ def prepare_request(item):
 
         state = {
             "request_id": rid,
-            "build_id": prepared["build_id"],
-            "workbook_path": prepared["workbook_path"],
-            "build_root": prepared["build_root"],
-            "build_name": prepared["build_name"],
-            "lesson_rows": prepared["lesson_rows"],
+            "mode": (
+                "MULTI"
+                if child_items
+                else "LEGACY"
+            ),
+            "prepared_lessons":
+                prepared_lessons,
             "stage1": batch,
         }
 
@@ -112,7 +246,7 @@ def prepare_request(item):
 
         print("BATCH STAGE 1 READY")
         print("REQUEST:", rid)
-        print("BUILD:", prepared["build_id"])
+        print("LESSONS:", len(prepared_lessons))
         print("COUNT:", batch["request_count"])
         print("INPUT:", batch["input_file"])
         print("REGISTRY: BATCH_READY")

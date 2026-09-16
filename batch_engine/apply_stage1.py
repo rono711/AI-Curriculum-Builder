@@ -81,7 +81,72 @@ def main(request_id):
             f"found {len(rows)}."
         )
 
-    workbook_path = state["workbook_path"]
+    workbook_by_package = {}
+
+    prepared_lessons = (
+        state.get("prepared_lessons")
+        or []
+    )
+
+    if prepared_lessons:
+        for prepared_lesson in prepared_lessons:
+            workbook_path = prepared_lesson[
+                "workbook_path"
+            ]
+
+            for lesson_row in (
+                prepared_lesson.get(
+                    "lesson_rows"
+                )
+                or []
+            ):
+                package_id = str(
+                    lesson_row[
+                        "lesson_package_id"
+                    ]
+                ).strip()
+
+                existing = workbook_by_package.get(
+                    package_id
+                )
+
+                if (
+                    existing is not None
+                    and existing != workbook_path
+                ):
+                    raise RuntimeError(
+                        "Ambiguous lesson_package_id "
+                        + package_id
+                        + " maps to multiple workbooks."
+                    )
+
+                workbook_by_package[
+                    package_id
+                ] = workbook_path
+
+    elif state.get("workbook_path"):
+        workbook_path = state[
+            "workbook_path"
+        ]
+
+        for lesson_row in (
+            state.get("lesson_rows")
+            or []
+        ):
+            package_id = str(
+                lesson_row[
+                    "lesson_package_id"
+                ]
+            ).strip()
+
+            workbook_by_package[
+                package_id
+            ] = workbook_path
+
+    else:
+        raise RuntimeError(
+            "Prepare state contains no workbook mapping."
+        )
 
     applied = []
 
@@ -122,6 +187,23 @@ def main(request_id):
             markdown = extract_text(body)
 
             usage = body.get("usage") or {}
+
+            package_id = str(
+                entry["lesson_package_id"]
+            ).strip()
+
+            workbook_path = (
+                workbook_by_package.get(
+                    package_id
+                )
+            )
+
+            if not workbook_path:
+                raise RuntimeError(
+                    "No workbook mapping for "
+                    "lesson_package_id: "
+                    + package_id
+                )
 
             result = client.post(
                 CONTENT_URL,
