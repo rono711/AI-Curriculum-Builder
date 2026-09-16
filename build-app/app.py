@@ -12,6 +12,7 @@ from api.workbook_reader import WorkbookReader
 import httpx
 from fastapi.responses import FileResponse
 from publish_generated import publish_generated_lesson
+from queue_dashboard import router as queue_dashboard_router
 
 from build_registry import (
     get_connection,
@@ -39,6 +40,8 @@ PUBLISHER_ENGINE_URL = os.getenv(
 # ==========================================================
 
 app = FastAPI(title="Rono AI Curriculum Builder")
+
+app.include_router(queue_dashboard_router)
 
 
 # ==========================================================
@@ -480,3 +483,49 @@ async def publish_generated(request: Request):
     return await publish_generated_lesson(
         payload
     )
+
+
+# ==========================================================
+# Curriculum Build Selection Proxy
+# ==========================================================
+
+@app.get("/api/build-selection")
+async def build_selection_proxy(
+        learning_area: str,
+        subject: str,
+        year_level: str,
+        strand: str,
+        sub_strand: str = ""
+):
+
+    params = {
+        "learning_area": learning_area,
+        "subject": subject,
+        "year_level": year_level,
+        "strand": strand,
+    }
+
+    if sub_strand:
+        params["sub_strand"] = sub_strand
+
+    async with httpx.AsyncClient(
+        timeout=60
+    ) as client:
+
+        response = await client.get(
+            "http://curriculum-normalizer:8001/build-selection",
+            params=params
+        )
+
+    if response.status_code != 200:
+
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=(
+                "Curriculum Normalizer returned "
+                f"HTTP {response.status_code}: "
+                + response.text
+            )
+        )
+
+    return response.json()
