@@ -15,7 +15,7 @@ from build_registry import (
     fail_build_request,
     get_build_request_items,
     get_queued_requests,
-    mark_batch_ready,
+    get_connection,
 )
 
 LP_URL = "http://lesson-package-builder:8003/build"
@@ -238,10 +238,27 @@ def prepare_request(item):
             encoding="utf-8",
         )
 
-        if not mark_batch_ready(rid):
+        with get_connection() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE build_requests
+                SET status = 'BATCH_STAGE1_READY',
+                    completed_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP,
+                    error = NULL
+                WHERE request_id = ?
+                  AND processing_mode = 'QUEUE_BATCH'
+                  AND status = 'PROCESSING'
+                """,
+                (rid,)
+            )
+
+            connection.commit()
+
+        if cursor.rowcount != 1:
             raise RuntimeError(
                 "Stage 1 files were prepared, but registry "
-                "could not transition to BATCH_READY."
+                "could not transition to BATCH_STAGE1_READY."
             )
 
         print("BATCH STAGE 1 READY")
@@ -249,7 +266,7 @@ def prepare_request(item):
         print("LESSONS:", len(prepared_lessons))
         print("COUNT:", batch["request_count"])
         print("INPUT:", batch["input_file"])
-        print("REGISTRY: BATCH_READY")
+        print("REGISTRY: BATCH_STAGE1_READY")
         return True
 
     except Exception as exc:
