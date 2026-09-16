@@ -11,38 +11,64 @@ ROOT = Path(
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from build_registry import set_batch_status
-
-
-RID = "REQ_20260821_194142_DF1A41D6"
-
-ROOT_DIR = (
-    ROOT
-    / "data"
-    / "batches"
-    / RID
-)
-
-SUBMISSION = (
-    ROOT_DIR
-    / "stage1_submission.json"
-)
-
-OUTPUT = (
-    ROOT_DIR
-    / "stage1_output.jsonl"
+from build_registry import (
+    get_build_request,
+    set_batch_status,
 )
 
 
-def main():
+def main(request_id):
+    rid = str(request_id).strip()
 
-    state = json.loads(
-        SUBMISSION.read_text()
+    request = get_build_request(rid)
+
+    if request is None:
+        raise RuntimeError(
+            f"Build request does not exist: {rid}"
+        )
+
+    if request["processing_mode"] != "QUEUE_BATCH":
+        raise RuntimeError(
+            f"Request is not QUEUE_BATCH: {rid}"
+        )
+
+    root_dir = (
+        ROOT
+        / "data"
+        / "batches"
+        / rid
     )
 
-    batch_id = state[
+    submission = (
+        root_dir
+        / "stage1_submission.json"
+    )
+
+    output = (
+        root_dir
+        / "stage1_output.jsonl"
+    )
+
+    if not submission.is_file():
+        raise RuntimeError(
+            f"Submission state missing: {submission}"
+        )
+
+    state = json.loads(
+        submission.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    batch_id = state.get(
         "openai_batch_id"
-    ]
+    )
+
+    if not batch_id:
+        raise RuntimeError(
+            "Submission state has no "
+            "openai_batch_id."
+        )
 
     client = OpenAI()
 
@@ -50,6 +76,7 @@ def main():
         batch_id
     )
 
+    print("REQUEST:", rid)
     print("BATCH:", batch.id)
     print("STATUS:", batch.status)
 
@@ -75,12 +102,13 @@ def main():
         )
 
         set_batch_status(
-            RID,
+            rid,
             "BATCH_FAILED",
             message
         )
 
         print(message)
+
         return 1
 
     if not batch.output_file_id:
@@ -88,18 +116,25 @@ def main():
             "Completed Batch has no output file."
         )
 
-    if OUTPUT.exists():
+    if output.exists():
         print(
             "Output already downloaded:",
-            OUTPUT
+            output
         )
+
+        if request["status"] != "BATCH_STAGE1_DOWNLOADED":
+            set_batch_status(
+                rid,
+                "BATCH_STAGE1_DOWNLOADED"
+            )
+
         return 0
 
     content = client.files.content(
         batch.output_file_id
     )
 
-    OUTPUT.write_bytes(
+    output.write_bytes(
         content.read()
     )
 
@@ -108,7 +143,7 @@ def main():
         batch.output_file_id
     )
 
-    SUBMISSION.write_text(
+    submission.write_text(
         json.dumps(
             state,
             indent=2
@@ -117,15 +152,26 @@ def main():
     )
 
     set_batch_status(
-        RID,
+        rid,
         "BATCH_STAGE1_DOWNLOADED"
     )
 
-    print("OUTPUT:", OUTPUT)
-    print("STAGE 1 DOWNLOADED")
+    print("OUTPUT:", output)
+    print(
+        "REGISTRY: BATCH_STAGE1_DOWNLOADED"
+    )
 
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    if len(sys.argv) != 2:
+        raise SystemExit(
+            "Usage: python3 "
+            "batch_engine/collect_stage1.py "
+            "<REQUEST_ID>"
+        )
+
+    raise SystemExit(
+        main(sys.argv[1])
+    )

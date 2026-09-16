@@ -14,6 +14,7 @@ from build_registry import (
     claim_build_request,
     fail_build_request,
     get_queued_requests,
+    mark_batch_ready,
 )
 
 LP_URL = "http://lesson-package-builder:8003/build"
@@ -103,11 +104,18 @@ def prepare_request(item):
             encoding="utf-8",
         )
 
+        if not mark_batch_ready(rid):
+            raise RuntimeError(
+                "Stage 1 files were prepared, but registry "
+                "could not transition to BATCH_READY."
+            )
+
         print("BATCH STAGE 1 READY")
         print("REQUEST:", rid)
         print("BUILD:", prepared["build_id"])
         print("COUNT:", batch["request_count"])
         print("INPUT:", batch["input_file"])
+        print("REGISTRY: BATCH_READY")
         return True
 
     except Exception as exc:

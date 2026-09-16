@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 import httpx
@@ -8,34 +9,6 @@ ROOT = Path(
     "/volume1/docker/curriculum-builder"
 )
 
-RID = "REQ_20260821_194142_DF1A41D6"
-
-BATCH_DIR = (
-    ROOT
-    / "data"
-    / "batches"
-    / RID
-)
-
-OUTPUT_FILE = (
-    BATCH_DIR
-    / "stage1_output.jsonl"
-)
-
-MANIFEST_FILE = (
-    BATCH_DIR
-    / "stage1_manifest.json"
-)
-
-STATE_FILE = (
-    BATCH_DIR
-    / "prepare_state.json"
-)
-
-APPLIED_FILE = (
-    BATCH_DIR
-    / "stage1_applied.json"
-)
 
 CONTENT_URL = (
     "http://content-engine:8006/"
@@ -65,24 +38,32 @@ def extract_text(body):
     return "\n".join(parts)
 
 
-def main():
+def main(request_id):
+    rid = str(request_id).strip()
 
-    if APPLIED_FILE.exists():
+    batch_dir = ROOT / "data" / "batches" / rid
+    output_file = batch_dir / "stage1_output.jsonl"
+    manifest_file = batch_dir / "stage1_manifest.json"
+    state_file = batch_dir / "prepare_state.json"
+    applied_file = batch_dir / "stage1_applied.json"
+
+
+    if applied_file.exists():
         raise RuntimeError(
             "Stage 1 already applied."
         )
 
     manifest = json.loads(
-        MANIFEST_FILE.read_text()
+        manifest_file.read_text()
     )
 
     state = json.loads(
-        STATE_FILE.read_text()
+        state_file.read_text()
     )
 
     rows = {}
 
-    for line in OUTPUT_FILE.read_text().splitlines():
+    for line in output_file.read_text().splitlines():
         if not line.strip():
             continue
 
@@ -90,9 +71,14 @@ def main():
 
         rows[row["custom_id"]] = row
 
-    if len(rows) != 7:
+    expected_count = int(
+        manifest.get("request_count") or 0
+    )
+
+    if len(rows) != expected_count:
         raise RuntimeError(
-            f"Expected 7 results, found {len(rows)}."
+            f"Expected {expected_count} results, "
+            f"found {len(rows)}."
         )
 
     workbook_path = state["workbook_path"]
@@ -180,10 +166,10 @@ def main():
                     saved["json_file"],
             })
 
-    APPLIED_FILE.write_text(
+    applied_file.write_text(
         json.dumps(
             {
-                "request_id": RID,
+                "request_id": rid,
                 "count": len(applied),
                 "entries": applied,
             },
@@ -196,4 +182,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 2:
+        raise SystemExit(
+            "Usage: python3 batch_engine/apply_stage1.py "
+            "<REQUEST_ID>"
+        )
+
+    main(sys.argv[1])

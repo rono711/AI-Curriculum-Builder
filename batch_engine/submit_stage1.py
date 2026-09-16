@@ -11,37 +11,56 @@ ROOT = Path(
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from build_registry import mark_batch_submitted
-
-
-RID = "REQ_20260821_194142_DF1A41D6"
-
-BATCH_DIR = (
-    ROOT
-    / "data"
-    / "batches"
-    / RID
-)
-
-INPUT_FILE = (
-    BATCH_DIR
-    / "stage1_input.jsonl"
-)
-
-SUBMISSION_FILE = (
-    BATCH_DIR
-    / "stage1_submission.json"
+from build_registry import (
+    get_build_request,
+    mark_batch_submitted,
 )
 
 
-def main():
+def main(request_id):
+    rid = str(request_id).strip()
 
-    if not INPUT_FILE.is_file():
+    request = get_build_request(rid)
+
+    if request is None:
         raise RuntimeError(
-            f"Batch input missing: {INPUT_FILE}"
+            f"Build request does not exist: {rid}"
         )
 
-    if SUBMISSION_FILE.exists():
+    if request["processing_mode"] != "QUEUE_BATCH":
+        raise RuntimeError(
+            f"Request is not QUEUE_BATCH: {rid}"
+        )
+
+    if request["status"] != "BATCH_READY":
+        raise RuntimeError(
+            f"Request must be BATCH_READY, "
+            f"found {request['status']}: {rid}"
+        )
+
+    batch_dir = (
+        ROOT
+        / "data"
+        / "batches"
+        / rid
+    )
+
+    input_file = (
+        batch_dir
+        / "stage1_input.jsonl"
+    )
+
+    submission_file = (
+        batch_dir
+        / "stage1_submission.json"
+    )
+
+    if not input_file.is_file():
+        raise RuntimeError(
+            f"Batch input missing: {input_file}"
+        )
+
+    if submission_file.exists():
         raise RuntimeError(
             "Submission state already exists. "
             "Refusing duplicate submission."
@@ -51,23 +70,25 @@ def main():
 
     print("Uploading Batch input...")
 
-    with INPUT_FILE.open("rb") as handle:
-
+    with input_file.open("rb") as handle:
         uploaded = client.files.create(
             file=handle,
             purpose="batch"
         )
 
-    print("INPUT FILE ID:", uploaded.id)
+    print(
+        "INPUT FILE ID:",
+        uploaded.id
+    )
 
     state = {
-        "request_id": RID,
+        "request_id": rid,
         "openai_input_file_id": uploaded.id,
         "openai_batch_id": None,
         "status": "FILE_UPLOADED"
     }
 
-    SUBMISSION_FILE.write_text(
+    submission_file.write_text(
         json.dumps(
             state,
             indent=2
@@ -82,7 +103,7 @@ def main():
         endpoint="/v1/responses",
         completion_window="24h",
         metadata={
-            "request_id": RID,
+            "request_id": rid,
             "stage": "1"
         }
     )
@@ -90,7 +111,7 @@ def main():
     state["openai_batch_id"] = batch.id
     state["status"] = batch.status
 
-    SUBMISSION_FILE.write_text(
+    submission_file.write_text(
         json.dumps(
             state,
             indent=2
@@ -99,7 +120,7 @@ def main():
     )
 
     if not mark_batch_submitted(
-        RID,
+        rid,
         batch.id
     ):
         raise RuntimeError(
@@ -108,10 +129,22 @@ def main():
             f"Batch ID: {batch.id}"
         )
 
+    print("REQUEST:", rid)
     print("BATCH ID:", batch.id)
     print("BATCH STATUS:", batch.status)
     print("REGISTRY: BATCH_SUBMITTED")
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 2:
+        raise SystemExit(
+            "Usage: python3 "
+            "batch_engine/submit_stage1.py "
+            "<REQUEST_ID>"
+        )
+
+    raise SystemExit(
+        main(sys.argv[1])
+    )
