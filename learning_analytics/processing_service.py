@@ -3,6 +3,9 @@
 from learning_analytics.attempt_finalizer import (
     finalize_attempt_cycle,
 )
+from learning_analytics.config import (
+    MAX_QUIZ_ATTEMPTS,
+)
 from learning_analytics.attempt_processor import (
     normalize_attempt,
 )
@@ -50,7 +53,8 @@ class LearningAnalyticsProcessingService:
 
         if (
             not finalization["mastered"]
-            or finalization["attempt_count"] >= 3
+            or finalization["attempt_count"]
+            >= MAX_QUIZ_ATTEMPTS
         ):
             return None
 
