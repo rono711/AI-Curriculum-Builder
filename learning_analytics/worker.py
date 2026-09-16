@@ -65,6 +65,22 @@ def deliver_processed_attempt(
         processed_item["moodle_user_id"]
     )
 
+    processed_result = (
+        processed_item.get("result")
+        or {}
+    )
+
+    report_id = processed_result.get(
+        "report_id"
+    )
+
+    if not report_id:
+        raise RuntimeError(
+            "Processed attempt has no feedback report ID."
+        )
+
+    report_id = int(report_id)
+
     student_name = str(
         processed_item.get(
             "student_name",
@@ -86,6 +102,7 @@ def deliver_processed_attempt(
             moodle_user_id=user_id,
             moodle_quiz_id=moodle_quiz_id,
             student_name=student_name,
+            feedback_report_id=report_id,
         )
 
     if FEEDBACK_EMAIL_MODE == "TEST":
@@ -99,12 +116,14 @@ def deliver_processed_attempt(
             moodle_user_id=user_id,
             moodle_quiz_id=moodle_quiz_id,
             student_name=student_name,
+            feedback_report_id=report_id,
         )
 
     if FEEDBACK_EMAIL_MODE == "LIVE":
         return delivery.send_live(
             moodle_user_id=user_id,
             moodle_quiz_id=moodle_quiz_id,
+            feedback_report_id=report_id,
         )
 
     raise RuntimeError(

@@ -39,11 +39,13 @@ class FeedbackDeliveryService:
             self,
             *,
             moodle_user_id,
-            moodle_quiz_id
+            moodle_quiz_id,
+            feedback_report_id=None
     ):
         report = get_feedback_report(
             moodle_user_id=moodle_user_id,
-            moodle_quiz_id=moodle_quiz_id
+            moodle_quiz_id=moodle_quiz_id,
+            feedback_report_id=feedback_report_id
         )
 
         if report is None:
@@ -75,12 +77,14 @@ class FeedbackDeliveryService:
             moodle_user_id,
             moodle_quiz_id,
             student_name,
+            feedback_report_id=None,
             output_dir=
                 "data/delivery_previews"
     ):
         report = self._load_validated_report(
             moodle_user_id=moodle_user_id,
-            moodle_quiz_id=moodle_quiz_id
+            moodle_quiz_id=moodle_quiz_id,
+            feedback_report_id=feedback_report_id
         )
 
         # Validate the persisted HTML again immediately
@@ -152,13 +156,15 @@ class FeedbackDeliveryService:
             *,
             moodle_user_id,
             moodle_quiz_id,
-            student_name
+            student_name,
+            feedback_report_id=None
     ):
         """Send persisted feedback only to TEST mailbox."""
 
         report = self._load_validated_report(
             moodle_user_id=moodle_user_id,
-            moodle_quiz_id=moodle_quiz_id
+            moodle_quiz_id=moodle_quiz_id,
+            feedback_report_id=feedback_report_id
         )
 
         validation = (
@@ -241,7 +247,8 @@ class FeedbackDeliveryService:
             self,
             *,
             moodle_user_id,
-            moodle_quiz_id
+            moodle_quiz_id,
+            feedback_report_id=None
     ):
         """Resolve LIVE routing without sending anything."""
 
@@ -251,7 +258,8 @@ class FeedbackDeliveryService:
 
         report = self._load_validated_report(
             moodle_user_id=moodle_user_id,
-            moodle_quiz_id=moodle_quiz_id
+            moodle_quiz_id=moodle_quiz_id,
+            feedback_report_id=feedback_report_id
         )
 
         if int(
@@ -382,13 +390,15 @@ class FeedbackDeliveryService:
             self,
             *,
             moodle_user_id,
-            moodle_quiz_id
+            moodle_quiz_id,
+            feedback_report_id=None
     ):
         """Send validated feedback to Moodle-resolved student."""
 
         routing = self.resolve_live_delivery(
             moodle_user_id=moodle_user_id,
-            moodle_quiz_id=moodle_quiz_id
+            moodle_quiz_id=moodle_quiz_id,
+            feedback_report_id=feedback_report_id
         )
 
         sender = FeedbackMailSender()
@@ -403,7 +413,8 @@ class FeedbackDeliveryService:
 
         report = self._load_validated_report(
             moodle_user_id=moodle_user_id,
-            moodle_quiz_id=moodle_quiz_id
+            moodle_quiz_id=moodle_quiz_id,
+            feedback_report_id=feedback_report_id
         )
 
         if int(report["id"]) != int(

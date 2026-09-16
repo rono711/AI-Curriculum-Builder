@@ -684,15 +684,42 @@ def get_feedback_report(
         *,
         moodle_user_id,
         moodle_quiz_id,
-        latest_moodle_attempt_id=None
+        latest_moodle_attempt_id=None,
+        feedback_report_id=None
 ):
     """Retrieve a persisted feedback report."""
 
     import json
 
+    if (
+        feedback_report_id is not None
+        and latest_moodle_attempt_id is not None
+    ):
+        raise ValueError(
+            "Specify either feedback_report_id or "
+            "latest_moodle_attempt_id, not both."
+        )
+
     with get_connection() as db:
 
-        if latest_moodle_attempt_id is None:
+        if feedback_report_id is not None:
+            row = db.execute(
+                """
+                SELECT *
+                FROM feedback_reports
+                WHERE id = ?
+                  AND moodle_user_id = ?
+                  AND moodle_quiz_id = ?
+                LIMIT 1
+                """,
+                (
+                    int(feedback_report_id),
+                    int(moodle_user_id),
+                    int(moodle_quiz_id),
+                )
+            ).fetchone()
+
+        elif latest_moodle_attempt_id is None:
             row = db.execute(
                 """
                 SELECT *
