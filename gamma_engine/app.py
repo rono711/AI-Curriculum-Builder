@@ -18,7 +18,7 @@ from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from builder import GammaBuilder
+from gamma_engine.builder import GammaBuilder
 
 # ==========================================================
 # FastAPI

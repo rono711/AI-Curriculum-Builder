@@ -1,7 +1,7 @@
 from pathlib import Path
 import json
 
-from gamma_client import GammaClient
+from gamma_engine.gamma_client import GammaClient
 
 
 # ==========================================================

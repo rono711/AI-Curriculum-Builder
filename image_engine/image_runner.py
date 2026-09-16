@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from image_client import ImageClient
-from image_writer import ImageWriter
-from people_selector import select_reference_people
+from image_engine.image_client import ImageClient
+from image_engine.image_writer import ImageWriter
+from image_engine.people_selector import select_reference_people
 
 
 # ==========================================================

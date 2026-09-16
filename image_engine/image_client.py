@@ -3,7 +3,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from config import (
+from image_engine.config import (
     OPENAI_API_KEY,
     OPENAI_MODEL,
     OPENAI_IMAGE_MODEL,

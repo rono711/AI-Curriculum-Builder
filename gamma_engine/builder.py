@@ -19,10 +19,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from shared.build_paths import BuildPaths
 
-from gamma_runner import GammaRunner
+from gamma_engine.gamma_runner import GammaRunner
 
 
-from presentation_writer import PresentationWriter
+from gamma_engine.presentation_writer import PresentationWriter
 # ==========================================================
 # Gamma Builder
 # ==========================================================

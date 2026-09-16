@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from image_runner import ImageRunner
+from image_engine.image_runner import ImageRunner
 
 
 # ==========================================================
@@ -12,6 +12,48 @@ class ImageBuilder:
     def __init__(self):
 
         self.runner = ImageRunner()
+
+    # ======================================================
+    # Generate From Batch Prompt
+    # ======================================================
+
+    def generate_from_batch_prompt(
+            self,
+            build_root,
+            build_name,
+            lesson_package_id,
+            parent_code,
+            curriculum_code,
+            elaboration,
+            final_prompt,
+            text_model="",
+            force_regenerate=False
+    ):
+        build_root = Path(
+            build_root
+        )
+
+        if not build_name:
+            raise RuntimeError(
+                "build_name cannot be empty."
+            )
+
+        output_folder = (
+            build_root
+            / "Images"
+            / build_name
+        )
+
+        return self.runner.generate_from_batch_prompt(
+            final_prompt=final_prompt,
+            output_folder=output_folder,
+            lesson_package_id=lesson_package_id,
+            parent_code=parent_code,
+            curriculum_code=curriculum_code,
+            elaboration=elaboration,
+            text_model=text_model,
+            force_regenerate=force_regenerate,
+        )
 
     # ======================================================
     # Generate
