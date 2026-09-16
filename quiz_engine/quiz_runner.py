@@ -20,6 +20,187 @@ class QuizRunner:
     # ======================================================
 
     @staticmethod
+    def _numeric_shortanswer_variants(answer):
+        """
+        Return equivalent display variants for an integer numeral.
+
+        Examples:
+            415 602 -> 415 602, 415,602, 415602
+            1,234   -> 1,234, 1 234, 1234
+
+        This deliberately handles integer numerals only.
+        Decimal, textual and mixed alphanumeric answers are
+        left untouched.
+        """
+
+        answer = str(answer or "").strip()
+
+        if not answer:
+            return [answer]
+
+        # Optional sign followed by digits grouped either with
+        # spaces/commas or with no grouping.
+        if not re.fullmatch(
+            r"[+-]?(?:\d+|\d{1,3}(?:[ ,]\d{3})+)",
+            answer
+        ):
+            return [answer]
+
+        sign = ""
+
+        if answer[0] in "+-":
+            sign = answer[0]
+            body = answer[1:]
+        else:
+            body = answer
+
+        digits = re.sub(
+            r"[ ,]",
+            "",
+            body
+        )
+
+        # Guard against accidental non-numeric normalization.
+        if not digits.isdigit():
+            return [answer]
+
+        plain = sign + digits
+
+        # Group from the right in thousands.
+        groups = []
+
+        remaining = digits
+
+        while remaining:
+            groups.insert(
+                0,
+                remaining[-3:]
+            )
+
+            remaining = remaining[:-3]
+
+        spaced = sign + " ".join(groups)
+        comma = sign + ",".join(groups)
+
+        variants = [
+            answer,
+            plain,
+            spaced,
+            comma,
+        ]
+
+        return list(
+            dict.fromkeys(variants)
+        )
+
+
+    @classmethod
+    def _expand_numeric_shortanswer_variants(
+            cls,
+            content
+    ):
+        """
+        Expand single-answer numeric GIFT short answers.
+
+        Only questions whose answer block contains one positive
+        '=answer' entry and whose entire answer is an integer
+        numeral are changed.
+
+        Multiple-choice, matching, true/false, decimal, textual
+        and mixed answers are left untouched.
+        """
+
+        content = str(content or "")
+
+        questions = re.split(
+            r"(\n\s*\n)",
+            content
+        )
+
+        for index in range(
+                0,
+                len(questions),
+                2
+        ):
+            question = questions[index]
+
+            if not question.strip():
+                continue
+
+            # Normalize numeric answers only for the designated
+            # short-answer question family.
+            #
+            # Before traceability:
+            #     ::SA1::
+            #
+            # After traceability:
+            #     ::CB_000248_001_SA001::
+            #
+            # This prevents numeric multiple-choice or matching
+            # answers from being modified accidentally.
+            title_match = re.match(
+                r"^\s*::([^:]+)::",
+                question
+            )
+
+            if not title_match:
+                continue
+
+            title = title_match.group(1).strip()
+
+            is_shortanswer = bool(
+                re.fullmatch(
+                    r"SA\d+",
+                    title,
+                    flags=re.IGNORECASE
+                )
+                or re.fullmatch(
+                    r"CB_\d+_\d+_SA\d+",
+                    title,
+                    flags=re.IGNORECASE
+                )
+            )
+
+            if not is_shortanswer:
+                continue
+
+            match = re.search(
+                r"\{\s*=\s*([^~=\n{}]+?)\s*\}",
+                question,
+                flags=re.DOTALL
+            )
+
+            if not match:
+                continue
+
+            answer = match.group(1).strip()
+
+            variants = (
+                cls._numeric_shortanswer_variants(
+                    answer
+                )
+            )
+
+            if len(variants) <= 1:
+                continue
+
+            answer_block = "{\n" + "\n".join(
+                "=" + variant
+                for variant in variants
+            ) + "\n}"
+
+            question = (
+                question[:match.start()]
+                + answer_block
+                + question[match.end():]
+            )
+
+            questions[index] = question
+
+        return "".join(questions)
+
+
+    @staticmethod
     def _validate_gift(content):
 
         content = str(
@@ -375,8 +556,14 @@ class QuizRunner:
 
         )
 
+        gift_content = (
+            self._expand_numeric_shortanswer_variants(
+                result["content"]
+            )
+        )
+
         gift_content = self._validate_gift(
-            result["content"]
+            gift_content
         )
 
         gift_content = self._add_question_traceability(
