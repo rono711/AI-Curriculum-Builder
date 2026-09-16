@@ -39,6 +39,11 @@ def get_active_requests():
             FROM build_requests
             WHERE processing_mode = 'QUEUE_BATCH'
               AND status IN ({placeholders})
+              AND EXISTS (
+                  SELECT 1
+                  FROM build_request_items i
+                  WHERE i.request_id = build_requests.request_id
+              )
             ORDER BY created_at, id
             """,
             ACTIVE_STATUSES,
