@@ -17,7 +17,9 @@ from fastapi import HTTPException
 
 from build_registry import (
     get_connection,
-    mark_published
+    checkpoint_moodle_identity,
+    register_quiz_questions,
+    mark_published,
 )
 
 
@@ -256,6 +258,87 @@ async def publish_generated_lesson(payload):
                 + str(moodle_result)
             )
         )
+
+    # ======================================================
+    # Checkpoint Moodle identity before final registry work.
+    # ======================================================
+
+    checkpoint_moodle_identity(
+        record_id=record_id,
+
+        moodle_course_id=
+            moodle_result.get("courseid"),
+
+        moodle_section_id=
+            moodle_result.get("strandsectionid"),
+
+        moodle_subsection_cmid=
+            moodle_result.get("subsectioncmid"),
+
+        moodle_subsection_section_id=
+            moodle_result.get(
+                "subsectionsectionid"
+            ),
+
+        moodle_content_description_cmid=
+            moodle_result.get(
+                "contentdescriptioncmid"
+            ),
+
+        moodle_lesson_content_cmid=
+            moodle_result.get(
+                "lessoncontentcmid"
+            ),
+
+        moodle_did_you_know_cmid=
+            moodle_result.get(
+                "didyouknowcmid"
+            ),
+
+        moodle_quiz_id=
+            moodle_result.get("quizid"),
+
+        moodle_quiz_cmid=
+            moodle_result.get("quizcmid"),
+
+        moodle_activities_cmid=
+            moodle_result.get(
+                "activitiescmid"
+            ),
+
+        moodle_recap_cmid=
+            moodle_result.get("recapcmid"),
+    )
+
+    published_questions = (
+        moodle_result.get("questions")
+    )
+
+    if not published_questions:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Moodle publication succeeded but "
+                "returned no question mappings. "
+                "Registry identity was checkpointed, "
+                "but the lesson was not marked PUBLISHED."
+            ),
+        )
+
+    register_quiz_questions(
+        build_id=record["build_id"],
+        lesson_package_id=lesson_package_id,
+        curriculum_code=
+            record["curriculum_code"],
+        moodle_course_id=
+            moodle_result.get("courseid"),
+        moodle_quiz_id=
+            moodle_result.get("quizid"),
+        moodle_quiz_cmid=
+            moodle_result.get("quizcmid"),
+        questions=published_questions,
+        source="PUBLISH_GENERATED",
+    )
 
     # ======================================================
     # Registry -> PUBLISHED

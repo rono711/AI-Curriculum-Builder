@@ -909,6 +909,115 @@ def update_status(
 # Mark Published
 # ==========================================================
 
+def validate_analytics_publication_readiness(
+        *,
+        record_id,
+        moodle_course_id,
+        moodle_quiz_id,
+        moodle_quiz_cmid
+):
+    """Validate Analytics requirements before PUBLISHED status."""
+
+    initialize_registry()
+
+    problems = []
+
+    if not moodle_course_id:
+        problems.append(
+            "MISSING_COURSE_ID"
+        )
+
+    if not moodle_quiz_id:
+        problems.append(
+            "MISSING_QUIZ_ID"
+        )
+
+    if not moodle_quiz_cmid:
+        problems.append(
+            "MISSING_QUIZ_CMID"
+        )
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                curriculum_code,
+                lesson_package_id
+            FROM elaboration_builds
+            WHERE id = ?
+            """,
+            (
+                int(record_id),
+            )
+        ).fetchone()
+
+        if row is None:
+            raise ValueError(
+                f"Registry record {record_id} "
+                "does not exist."
+            )
+
+        question_count = 0
+
+        if moodle_quiz_id:
+            question_count = int(
+                connection.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM quiz_questions
+                    WHERE moodle_quiz_id = ?
+                    """,
+                    (
+                        int(moodle_quiz_id),
+                    )
+                ).fetchone()[0]
+                or 0
+            )
+
+    if moodle_quiz_id and question_count < 1:
+        problems.append(
+            "NO_REGISTERED_QUESTIONS"
+        )
+
+    if problems:
+        raise RuntimeError(
+            "Registry record "
+            + str(record_id)
+            + " cannot become PUBLISHED: "
+            + ",".join(problems)
+        )
+
+    return {
+        "record_id":
+            int(record_id),
+
+        "curriculum_code":
+            row["curriculum_code"],
+
+        "lesson_package_id":
+            row["lesson_package_id"],
+
+        "moodle_course_id":
+            int(moodle_course_id),
+
+        "moodle_quiz_id":
+            int(moodle_quiz_id),
+
+        "moodle_quiz_cmid":
+            int(moodle_quiz_cmid),
+
+        "registered_question_count":
+            question_count,
+
+        "analytics_ready":
+            True,
+
+        "analytics_status":
+            "ANALYTICS_READY",
+    }
+
+
 def mark_published(
         record_id,
         moodle_course_id=None,
@@ -924,6 +1033,13 @@ def mark_published(
         moodle_recap_cmid=None,
         update_components=None
 ):
+
+    validate_analytics_publication_readiness(
+        record_id=record_id,
+        moodle_course_id=moodle_course_id,
+        moodle_quiz_id=moodle_quiz_id,
+        moodle_quiz_cmid=moodle_quiz_cmid,
+    )
 
     update_status(
         record_id=record_id,
@@ -1897,29 +2013,39 @@ def get_quiz_course_id(
     )
 
 
-def get_active_analytics_quizzes():
-    """Return the latest currently published Moodle quizzes."""
+def get_analytics_readiness():
+    """Return Analytics readiness for latest published quiz builds."""
 
     initialize_registry()
 
-    with sqlite3.connect(
-        REGISTRY_DB
-    ) as db:
+    with sqlite3.connect(REGISTRY_DB) as db:
         db.row_factory = sqlite3.Row
 
         rows = db.execute(
             """
             SELECT
+                e.id,
                 e.curriculum_code,
                 e.parent_code,
                 e.year_level,
                 e.subject,
-                e.moodle_course_id,
-                e.moodle_quiz_id,
+                e.build_id,
                 e.lesson_package_id,
                 e.status,
-                e.updated_at
+                e.moodle_course_id,
+                e.moodle_quiz_id,
+                e.moodle_quiz_cmid,
+                e.updated_at,
+
+                (
+                    SELECT COUNT(*)
+                    FROM quiz_questions q
+                    WHERE q.moodle_quiz_id =
+                          e.moodle_quiz_id
+                ) AS registered_question_count
+
             FROM elaboration_builds e
+
             INNER JOIN (
                 SELECT
                     curriculum_code,
@@ -1928,17 +2054,156 @@ def get_active_analytics_quizzes():
                 GROUP BY curriculum_code
             ) latest
                 ON latest.latest_id = e.id
+
             WHERE e.status = 'PUBLISHED'
-              AND e.moodle_course_id IS NOT NULL
-              AND e.moodle_quiz_id IS NOT NULL
+
             ORDER BY
-                e.moodle_course_id,
-                e.moodle_quiz_id
+                e.curriculum_code
             """
         ).fetchall()
 
-    quizzes = []
+    results = []
 
+    for row in rows:
+        item = dict(row)
+
+        problems = []
+
+        if not item.get("moodle_course_id"):
+            problems.append(
+                "MISSING_COURSE_ID"
+            )
+
+        if not item.get("moodle_quiz_id"):
+            problems.append(
+                "MISSING_QUIZ_ID"
+            )
+
+        if not item.get("moodle_quiz_cmid"):
+            problems.append(
+                "MISSING_QUIZ_CMID"
+            )
+
+        if (
+            item.get("moodle_quiz_id")
+            and int(
+                item.get(
+                    "registered_question_count",
+                    0
+                )
+                or 0
+            ) < 1
+        ):
+            problems.append(
+                "NO_REGISTERED_QUESTIONS"
+            )
+
+        item["analytics_ready"] = (
+            len(problems) == 0
+        )
+
+        item["analytics_problems"] = (
+            problems
+        )
+
+        item["analytics_status"] = (
+            "ANALYTICS_READY"
+            if not problems
+            else problems[0]
+        )
+
+        results.append(item)
+
+    return results
+
+
+def get_analytics_readiness_summary():
+    """Return aggregate Analytics readiness counts."""
+
+    rows = get_analytics_readiness()
+
+    ready = [
+        row
+        for row in rows
+        if row["analytics_ready"]
+    ]
+
+    problems = [
+        row
+        for row in rows
+        if not row["analytics_ready"]
+    ]
+
+    return {
+        "published_quizzes":
+            len(rows),
+
+        "analytics_ready":
+            len(ready),
+
+        "problems":
+            len(problems),
+
+        "missing_course_id":
+            sum(
+                "MISSING_COURSE_ID"
+                in row["analytics_problems"]
+                for row in rows
+            ),
+
+        "missing_quiz_id":
+            sum(
+                "MISSING_QUIZ_ID"
+                in row["analytics_problems"]
+                for row in rows
+            ),
+
+        "missing_quiz_cmid":
+            sum(
+                "MISSING_QUIZ_CMID"
+                in row["analytics_problems"]
+                for row in rows
+            ),
+
+        "missing_questions":
+            sum(
+                "NO_REGISTERED_QUESTIONS"
+                in row["analytics_problems"]
+                for row in rows
+            ),
+    }
+
+
+def get_active_analytics_quizzes():
+    """Return current published quizzes only when Analytics-ready."""
+
+    rows = get_analytics_readiness()
+
+    problems = [
+        row
+        for row in rows
+        if not row["analytics_ready"]
+    ]
+
+    if problems:
+        details = "; ".join(
+            (
+                str(row["curriculum_code"])
+                + ":"
+                + ",".join(
+                    row["analytics_problems"]
+                )
+            )
+            for row in problems
+        )
+
+        raise RuntimeError(
+            "Current published quizzes are not "
+            "Analytics-ready: "
+            + details
+        )
+
+    quizzes = []
     seen_quiz_ids = set()
 
     for row in rows:
@@ -1953,13 +2218,43 @@ def get_active_analytics_quizzes():
                 f"{quiz_id}"
             )
 
-        seen_quiz_ids.add(
-            quiz_id
-        )
+        seen_quiz_ids.add(quiz_id)
 
-        quizzes.append(
-            dict(row)
+        quizzes.append({
+            "curriculum_code":
+                row["curriculum_code"],
+
+            "parent_code":
+                row["parent_code"],
+
+            "year_level":
+                row["year_level"],
+
+            "subject":
+                row["subject"],
+
+            "moodle_course_id":
+                row["moodle_course_id"],
+
+            "moodle_quiz_id":
+                row["moodle_quiz_id"],
+
+            "lesson_package_id":
+                row["lesson_package_id"],
+
+            "status":
+                row["status"],
+
+            "updated_at":
+                row["updated_at"],
+        })
+
+    quizzes.sort(
+        key=lambda row: (
+            int(row["moodle_course_id"]),
+            int(row["moodle_quiz_id"]),
         )
+    )
 
     return quizzes
 
