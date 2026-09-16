@@ -211,9 +211,9 @@ def call_moodle(pipeline, item):
 
     update_build_request_item(
         item["item_id"],
-        "MOODLE_PUBLISH",
+        "PUBLISHING",
         "Publishing lesson to Moodle...",
-        90
+        95
     )
 
     pipeline._set_publication_status(
