@@ -851,21 +851,72 @@ class PipelineBuilder:
                         build_mode == "UPDATE"
                     )
 
-                response = requests.post(
+                try:
 
-                    engine_url,
+                    response = requests.post(
 
-                    json=engine_payload,
+                        engine_url,
 
-                    timeout=ENGINE_TIMEOUT
+                        json=engine_payload,
 
-                )
+                        timeout=ENGINE_TIMEOUT
 
-                print(engine_name, response.status_code)
+                    )
 
-                if response.status_code != 200:
-                    print(response.text)
-                response.raise_for_status()
+                    print(
+                        engine_name,
+                        response.status_code
+                    )
+
+                    if response.status_code != 200:
+                        print(response.text)
+
+                    response.raise_for_status()
+
+                except Exception as exc:
+
+                    failure_status = (
+                        mark_failed_if_incomplete(
+                            registry_record_id
+                        )
+                    )
+
+                    print("=" * 60)
+                    print("LESSON ENGINE FAILED")
+                    print(
+                        "Engine :",
+                        engine_name
+                    )
+                    print(
+                        "Lesson :",
+                        lesson_package_id
+                    )
+                    print(
+                        "Registry Record:",
+                        registry_record_id
+                    )
+                    print(
+                        "Registry Status:",
+                        failure_status
+                    )
+                    print(
+                        "Error  :",
+                        str(exc)
+                    )
+                    print("=" * 60)
+
+                    self._report_progress(
+                        progress_url,
+                        progress_job_id,
+                        "ENGINE_FAILED",
+                        (
+                            engine_name
+                            + " generation failed."
+                        ),
+                        progress_percent
+                    )
+
+                    raise
 
             # ==================================================
             # Selective UPDATE Moodle Publication

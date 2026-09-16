@@ -2021,3 +2021,459 @@ def create_multi_build_request(requested_by, processing_mode, learning_area, sub
             )
         connection.commit()
     return request_id
+
+
+
+# ==========================================================
+# Queue V1 - Child Item Lifecycle
+# ==========================================================
+
+def claim_build_request_item(item_id):
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE build_request_items
+            SET status = 'PROCESSING',
+                stage = 'PROCESSING',
+                message = 'Processing lesson...',
+                percent = 5,
+                started_at = COALESCE(started_at, ?),
+                updated_at = ?,
+                error = NULL
+            WHERE id = ?
+              AND status = 'QUEUED'
+            """,
+            (
+                now,
+                now,
+                int(item_id)
+            )
+        )
+
+        connection.commit()
+
+        return cursor.rowcount == 1
+
+
+
+def update_build_request_item(
+        item_id,
+        stage,
+        message,
+        percent
+):
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    value = max(
+        0,
+        min(
+            100,
+            int(percent)
+        )
+    )
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE build_request_items
+            SET stage = ?,
+                message = ?,
+                percent = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                str(stage).strip().upper(),
+                str(message),
+                value,
+                now,
+                int(item_id)
+            )
+        )
+
+        connection.commit()
+
+
+
+def complete_build_request_item(
+        item_id,
+        build_id=None,
+        lesson_package_id=None
+):
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE build_request_items
+            SET status = 'PUBLISHED',
+                stage = 'PUBLISHED',
+                message = 'Lesson published successfully.',
+                percent = 100,
+                build_id = ?,
+                lesson_package_id = ?,
+                completed_at = ?,
+                updated_at = ?,
+                error = NULL
+            WHERE id = ?
+            """,
+            (
+                (
+                    None
+                    if build_id is None
+                    else str(build_id)
+                ),
+                (
+                    None
+                    if lesson_package_id is None
+                    else str(lesson_package_id)
+                ),
+                now,
+                now,
+                int(item_id)
+            )
+        )
+
+        connection.commit()
+
+
+
+def fail_build_request_item(
+        item_id,
+        error
+):
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE build_request_items
+            SET status = 'FAILED',
+                stage = 'FAILED',
+                message = 'Lesson processing failed.',
+                completed_at = ?,
+                updated_at = ?,
+                error = ?
+            WHERE id = ?
+            """,
+            (
+                now,
+                now,
+                str(error),
+                int(item_id)
+            )
+        )
+
+        connection.commit()
+
+
+
+def refresh_build_request_from_items(
+        request_id
+):
+    initialize_registry()
+
+    request_id = str(
+        request_id
+    ).strip()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        rows = connection.execute(
+            """
+            SELECT
+                status,
+                percent,
+                error
+            FROM build_request_items
+            WHERE request_id = ?
+            ORDER BY id
+            """,
+            (
+                request_id,
+            )
+        ).fetchall()
+
+        if not rows:
+            return None
+
+        statuses = [
+            str(row["status"]).strip().upper()
+            for row in rows
+        ]
+
+        percentages = [
+            int(row["percent"] or 0)
+            for row in rows
+        ]
+
+        average_percent = int(
+            sum(percentages)
+            / len(percentages)
+        )
+
+        all_published = all(
+            status == "PUBLISHED"
+            for status in statuses
+        )
+
+        any_processing = any(
+            status == "PROCESSING"
+            for status in statuses
+        )
+
+        any_failed = any(
+            status == "FAILED"
+            for status in statuses
+        )
+
+        any_queued = any(
+            status == "QUEUED"
+            for status in statuses
+        )
+
+        if all_published:
+
+            parent_status = "PUBLISHED"
+            completed_at = now
+            parent_error = None
+
+        elif any_processing:
+
+            parent_status = "PROCESSING"
+            completed_at = None
+            parent_error = None
+
+        elif any_queued:
+
+            parent_status = "QUEUED"
+            completed_at = None
+
+            errors = [
+                str(row["error"])
+                for row in rows
+                if row["error"]
+            ]
+
+            parent_error = (
+                "; ".join(errors)
+                if errors
+                else None
+            )
+
+        elif any_failed:
+
+            parent_status = "FAILED"
+            completed_at = now
+
+            errors = [
+                str(row["error"])
+                for row in rows
+                if row["error"]
+            ]
+
+            parent_error = (
+                "; ".join(errors)
+                if errors
+                else "One or more lessons failed."
+            )
+
+        else:
+
+            parent_status = "PROCESSING"
+            completed_at = None
+            parent_error = None
+
+        connection.execute(
+            """
+            UPDATE build_requests
+            SET status = ?,
+                completed_at = ?,
+                updated_at = ?,
+                error = ?
+            WHERE request_id = ?
+            """,
+            (
+                parent_status,
+                completed_at,
+                now,
+                parent_error,
+                request_id
+            )
+        )
+
+        connection.commit()
+
+    return {
+        "request_id": request_id,
+        "status": parent_status,
+        "percent": average_percent,
+        "item_count": len(rows),
+        "published_count": sum(
+            status == "PUBLISHED"
+            for status in statuses
+        ),
+        "failed_count": sum(
+            status == "FAILED"
+            for status in statuses
+        ),
+        "processing_count": sum(
+            status == "PROCESSING"
+            for status in statuses
+        ),
+        "queued_count": sum(
+            status == "QUEUED"
+            for status in statuses
+        )
+    }
+
+
+
+# ==========================================================
+# Queue V1 - Retry Failed Child Items
+# ==========================================================
+
+def retry_failed_build_request_items(request_id):
+    initialize_registry()
+
+    request_id = str(
+        request_id
+    ).strip()
+
+    if not request_id:
+        raise ValueError(
+            "request_id is required."
+        )
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    with get_connection() as connection:
+
+        request_row = connection.execute(
+            """
+            SELECT
+                request_id,
+                processing_mode,
+                status
+            FROM build_requests
+            WHERE request_id = ?
+            """,
+            (
+                request_id,
+            )
+        ).fetchone()
+
+        if request_row is None:
+            raise ValueError(
+                "Build request does not exist: "
+                + request_id
+            )
+
+        failed_rows = connection.execute(
+            """
+            SELECT id
+            FROM build_request_items
+            WHERE request_id = ?
+              AND status = 'FAILED'
+            ORDER BY id
+            """,
+            (
+                request_id,
+            )
+        ).fetchall()
+
+        if not failed_rows:
+            return {
+                "request_id": request_id,
+                "retried_count": 0,
+                "status": str(
+                    request_row["status"]
+                ).strip().upper(),
+            }
+
+        failed_ids = [
+            int(row["id"])
+            for row in failed_rows
+        ]
+
+        placeholders = ",".join(
+            "?"
+            for _ in failed_ids
+        )
+
+        connection.execute(
+            f"""
+            UPDATE build_request_items
+
+            SET status = 'QUEUED',
+                stage = 'QUEUED',
+                message = 'Waiting to be retried.',
+                percent = 0,
+                error = NULL,
+                build_id = NULL,
+                lesson_package_id = NULL,
+                started_at = NULL,
+                completed_at = NULL,
+                updated_at = ?
+
+            WHERE request_id = ?
+              AND status = 'FAILED'
+              AND id IN ({placeholders})
+            """,
+            (
+                now,
+                request_id,
+                *failed_ids
+            )
+        )
+
+        connection.execute(
+            """
+            UPDATE build_requests
+
+            SET status = 'QUEUED',
+                error = NULL,
+                started_at = NULL,
+                completed_at = NULL,
+                updated_at = ?
+
+            WHERE request_id = ?
+            """,
+            (
+                now,
+                request_id
+            )
+        )
+
+        connection.commit()
+
+    return {
+        "request_id": request_id,
+        "retried_count": len(failed_ids),
+        "retried_item_ids": failed_ids,
+        "status": "QUEUED",
+    }
