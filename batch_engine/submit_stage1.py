@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 from build_registry import (
     get_build_request,
-    mark_batch_submitted,
+    get_connection,
 )
 
 
@@ -32,9 +32,9 @@ def main(request_id):
             f"Request is not QUEUE_BATCH: {rid}"
         )
 
-    if request["status"] != "BATCH_READY":
+    if request["status"] != "BATCH_STAGE1_READY":
         raise RuntimeError(
-            f"Request must be BATCH_READY, "
+            f"Request must be BATCH_STAGE1_READY, "
             f"found {request['status']}: {rid}"
         )
 
@@ -60,11 +60,71 @@ def main(request_id):
             f"Batch input missing: {input_file}"
         )
 
+    existing_state = None
+
     if submission_file.exists():
-        raise RuntimeError(
-            "Submission state already exists. "
-            "Refusing duplicate submission."
+        existing_state = json.loads(
+            submission_file.read_text(
+                encoding="utf-8"
+            )
         )
+
+        existing_batch_id = (
+            existing_state.get("openai_batch_id")
+        )
+
+        if existing_batch_id:
+            print(
+                "RECOVERING EXISTING OPENAI BATCH:",
+                existing_batch_id
+            )
+
+            with get_connection() as connection:
+                cursor = connection.execute(
+                    """
+                    UPDATE build_requests
+                    SET status = 'BATCH_STAGE1_SUBMITTED',
+                        openai_batch_id = ?,
+                        completed_at = NULL,
+                        updated_at = CURRENT_TIMESTAMP,
+                        error = NULL
+                    WHERE request_id = ?
+                      AND processing_mode = 'QUEUE_BATCH'
+                      AND status = 'BATCH_STAGE1_READY'
+                    """,
+                    (
+                        existing_batch_id,
+                        rid,
+                    )
+                )
+
+                connection.commit()
+
+            if cursor.rowcount != 1:
+                raise RuntimeError(
+                    "Existing OpenAI Batch found, but "
+                    "registry recovery failed. "
+                    "Batch ID: "
+                    + str(existing_batch_id)
+                )
+
+            print("REQUEST:", rid)
+            print(
+                "BATCH ID:",
+                existing_batch_id
+            )
+            print(
+                "REGISTRY: BATCH_STAGE1_SUBMITTED"
+            )
+
+            return 0
+
+        print(
+            "INCOMPLETE SUBMISSION STATE FOUND; "
+            "RESTARTING STAGE 1 SUBMISSION."
+        )
+
+        submission_file.unlink()
 
     client = OpenAI()
 
@@ -119,20 +179,39 @@ def main(request_id):
         encoding="utf-8"
     )
 
-    if not mark_batch_submitted(
-        rid,
-        batch.id
-    ):
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE build_requests
+            SET status = 'BATCH_STAGE1_SUBMITTED',
+                openai_batch_id = ?,
+                completed_at = NULL,
+                updated_at = CURRENT_TIMESTAMP,
+                error = NULL
+            WHERE request_id = ?
+              AND processing_mode = 'QUEUE_BATCH'
+              AND status = 'BATCH_STAGE1_READY'
+            """,
+            (
+                batch.id,
+                rid,
+            )
+        )
+
+        connection.commit()
+
+    if cursor.rowcount != 1:
         raise RuntimeError(
             "OpenAI Batch was created, but registry "
-            "could not transition to BATCH_SUBMITTED. "
+            "could not transition to "
+            "BATCH_STAGE1_SUBMITTED. "
             f"Batch ID: {batch.id}"
         )
 
     print("REQUEST:", rid)
     print("BATCH ID:", batch.id)
     print("BATCH STATUS:", batch.status)
-    print("REGISTRY: BATCH_SUBMITTED")
+    print("REGISTRY: BATCH_STAGE1_SUBMITTED")
 
     return 0
 
