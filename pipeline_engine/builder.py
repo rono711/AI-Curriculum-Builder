@@ -30,7 +30,7 @@ from build_registry import (
     register_quiz_questions
 )
 
-from config import (
+from pipeline_engine.config import (
     PROMPT_ENGINE_URL,
     GAMMA_ENGINE_URL,
     QUIZ_ENGINE_URL,
