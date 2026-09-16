@@ -9,8 +9,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from shared.build_paths import BuildPaths
 
-from activities_runner import ActivitiesRunner
-from activities_writer import ActivitiesWriter
+from activities_engine.activities_runner import ActivitiesRunner
+from activities_engine.activities_writer import ActivitiesWriter
 
 
 # ==========================================================
@@ -151,7 +151,7 @@ class ActivitiesBuilder:
 
         writer.update_asset_register(
             lesson_package_id=lesson_package_id,
-            asset_type="ACTIVITIES",
+            asset_type="ACTIVITY_FILES",
             filename=html_file.name,
             url=""
         )
@@ -409,7 +409,7 @@ class ActivitiesBuilder:
 
             lesson_package_id=lesson_package_id,
 
-            asset_type="ACTIVITIES",
+            asset_type="ACTIVITY_FILES",
 
             filename=html_file.name,
 

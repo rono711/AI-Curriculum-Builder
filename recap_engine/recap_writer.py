@@ -2,7 +2,7 @@ from datetime import datetime
 
 from openpyxl import load_workbook
 
-from config import (
+from recap_engine.config import (
     SHEET_RECAP,
     SHEET_DESCRIPTIONS,
     SHEET_ASSET_REGISTER,

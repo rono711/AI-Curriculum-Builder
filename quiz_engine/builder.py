@@ -20,9 +20,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from shared.build_paths import BuildPaths
 
-from quiz_runner import QuizRunner
+from quiz_engine.quiz_runner import QuizRunner
 
-from quiz_writer import QuizWriter
+from quiz_engine.quiz_writer import QuizWriter
 
 
 # ==========================================================
@@ -147,7 +147,7 @@ class QuizBuilder:
 
         writer.update_asset_register(
             lesson_package_id=lesson_package_id,
-            asset_type="QUIZ",
+            asset_type="QUIZ_EXPORT",
             filename=gift_file.name,
             url=""
         )
@@ -376,7 +376,7 @@ class QuizBuilder:
 
             lesson_package_id=lesson_package_id,
 
-            asset_type="QUIZ",
+            asset_type="QUIZ_EXPORT",
 
             filename=gift_file.name,
 

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from openpyxl import load_workbook
 
-from config import (
+from activities_engine.config import (
     SHEET_ACTIVITIES,
     SHEET_ASSET_REGISTER,
     SHEET_BUILD_LOG

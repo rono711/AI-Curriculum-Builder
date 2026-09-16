@@ -2,7 +2,7 @@ from datetime import datetime
 
 from openpyxl import load_workbook
 
-from config import (
+from quiz_engine.config import (
     SHEET_QUIZ,
     SHEET_DESCRIPTIONS,
     SHEET_ASSET_REGISTER,

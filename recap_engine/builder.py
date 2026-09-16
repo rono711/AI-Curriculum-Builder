@@ -20,9 +20,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from shared.build_paths import BuildPaths
 
-from recap_runner import RecapRunner
+from recap_engine.recap_runner import RecapRunner
 
-from recap_writer import RecapWriter
+from recap_engine.recap_writer import RecapWriter
 
 
 # ==========================================================
