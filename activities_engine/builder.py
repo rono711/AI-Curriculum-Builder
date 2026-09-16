@@ -23,6 +23,151 @@ class ActivitiesBuilder:
         self.runner = ActivitiesRunner()
 
     # ======================================================
+    # Apply Pre-Generated Batch Result
+    # ======================================================
+
+    def apply_batch_result(
+            self,
+            workbook_path,
+            lesson_package_id,
+            content,
+            description,
+            provider="CHATGPT_BATCH",
+            model=""
+    ):
+        """
+        Apply already-generated Activities content.
+
+        No AI request is made here.
+        """
+
+        from shared.markdown_converter import MarkdownConverter
+
+        workbook_path = Path(
+            workbook_path
+        )
+
+        paths = BuildPaths(
+            str(workbook_path)
+        )
+
+        activities_folder = (
+            paths.activities_folder
+        )
+
+        activities_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        markdown = str(
+            content or ""
+        ).strip()
+
+        description = str(
+            description or ""
+        ).strip()
+
+        if not markdown:
+            raise RuntimeError(
+                "Activities batch content is empty."
+            )
+
+        if not description:
+            raise RuntimeError(
+                "Activities batch description is empty."
+            )
+
+        html = MarkdownConverter.to_html(
+            markdown
+        )
+
+        result = {
+            "status": "SUCCESS",
+            "provider": provider,
+            "model": model,
+            "title": "Let's Do It",
+            "description": description,
+            "markdown": markdown,
+            "html": html,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        }
+
+        markdown_file = (
+            activities_folder
+            / "activities.md"
+        )
+
+        markdown_file.write_text(
+            result["markdown"],
+            encoding="utf-8"
+        )
+
+        html_file = (
+            activities_folder
+            / "activities.html"
+        )
+
+        html_file.write_text(
+            result["html"],
+            encoding="utf-8"
+        )
+
+        json_file = (
+            activities_folder
+            / "activities.json"
+        )
+
+        json_file.write_text(
+            json.dumps(
+                result,
+                indent=4,
+                ensure_ascii=False
+            ),
+            encoding="utf-8"
+        )
+
+        writer = ActivitiesWriter(
+            str(workbook_path)
+        )
+
+        writer.update_activities(
+            lesson_package_id=lesson_package_id,
+            markdown_filename=markdown_file.name,
+            html_filename=html_file.name,
+            generation_status="COMPLETED",
+            review_status="PENDING"
+        )
+
+        writer.update_descriptions(
+            lesson_package_id=lesson_package_id,
+            activity_title=result["title"],
+            activity_description=result["description"],
+            generation_status="COMPLETED",
+            review_status="PENDING"
+        )
+
+        writer.update_asset_register(
+            lesson_package_id=lesson_package_id,
+            asset_type="ACTIVITIES",
+            filename=html_file.name,
+            url=""
+        )
+
+        writer.log(
+            component="Activities Engine",
+            action="Apply Batch Activities",
+            status="SUCCESS",
+            details=html_file.name
+        )
+
+        writer.save()
+
+        return result
+
+    # ======================================================
     # Generate Activities
     # ======================================================
 

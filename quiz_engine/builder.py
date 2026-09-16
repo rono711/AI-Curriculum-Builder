@@ -36,6 +36,134 @@ class QuizBuilder:
         self.runner = QuizRunner()
 
     # ======================================================
+    # Apply Pre-Generated Batch Result
+    # ======================================================
+
+    def apply_batch_result(
+            self,
+            workbook_path,
+            lesson_package_id,
+            content,
+            description,
+            provider="CHATGPT_BATCH",
+            model=""
+    ):
+        """
+        Apply an already-generated Quiz result.
+
+        This method performs no AI generation.
+        """
+
+        workbook_path = Path(
+            workbook_path
+        )
+
+        paths = BuildPaths(
+            str(workbook_path)
+        )
+
+        quiz_folder = paths.quiz_folder
+
+        quiz_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        gift_content = (
+            self.runner.process_batch_content(
+                content,
+                lesson_package_id
+            )
+        )
+
+        result = {
+            "status":
+                "SUCCESS",
+            "provider":
+                provider,
+            "model":
+                model,
+            "title":
+                "Checking Your Thinking",
+            "description":
+                str(description or "").strip(),
+            "gift":
+                gift_content,
+            "prompt_tokens":
+                0,
+            "completion_tokens":
+                0,
+            "total_tokens":
+                0,
+        }
+
+        if not result["description"]:
+            raise RuntimeError(
+                "Quiz batch description is empty."
+            )
+
+        gift_file = (
+            quiz_folder
+            / "lesson_quiz.gift"
+        )
+
+        gift_file.write_text(
+            result["gift"],
+            encoding="utf-8"
+        )
+
+        json_file = (
+            quiz_folder
+            / "lesson_quiz.json"
+        )
+
+        json_file.write_text(
+            json.dumps(
+                result,
+                indent=4,
+                ensure_ascii=False
+            ),
+            encoding="utf-8"
+        )
+
+        writer = QuizWriter(
+            str(workbook_path)
+        )
+
+        writer.update_quiz(
+            lesson_package_id=lesson_package_id,
+            quiz_filename=gift_file.name,
+            generation_status="COMPLETED",
+            review_status="PENDING"
+        )
+
+        writer.update_descriptions(
+            lesson_package_id=lesson_package_id,
+            quiz_title=result["title"],
+            quiz_description=result["description"],
+            generation_status="COMPLETED",
+            review_status="PENDING"
+        )
+
+        writer.update_asset_register(
+            lesson_package_id=lesson_package_id,
+            asset_type="QUIZ",
+            filename=gift_file.name,
+            url=""
+        )
+
+        writer.log(
+            component="Quiz Engine",
+            action="Apply Batch Quiz",
+            status="SUCCESS",
+            details=gift_file.name
+        )
+
+        writer.save()
+
+        return result
+
+    # ======================================================
     # Generate
     # ======================================================
 

@@ -36,6 +36,149 @@ class RecapBuilder:
         self.runner = RecapRunner()
 
     # ======================================================
+    # Apply Pre-Generated Batch Result
+    # ======================================================
+
+    def apply_batch_result(
+            self,
+            workbook_path,
+            lesson_package_id,
+            content,
+            description,
+            provider="CHATGPT_BATCH",
+            model=""
+    ):
+        """
+        Apply already-generated Recap content.
+
+        No AI request is made here.
+        """
+
+        from shared.markdown_converter import MarkdownConverter
+
+        workbook_path = Path(
+            workbook_path
+        )
+
+        paths = BuildPaths(
+            str(workbook_path)
+        )
+
+        recap_folder = paths.recap_folder
+
+        recap_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        markdown = str(
+            content or ""
+        ).strip()
+
+        description = str(
+            description or ""
+        ).strip()
+
+        if not markdown:
+            raise RuntimeError(
+                "Recap batch content is empty."
+            )
+
+        if not description:
+            raise RuntimeError(
+                "Recap batch description is empty."
+            )
+
+        html = MarkdownConverter.to_html(
+            markdown
+        )
+
+        result = {
+            "status": "SUCCESS",
+            "provider": provider,
+            "model": model,
+            "title": "What We've Covered",
+            "description": description,
+            "markdown": markdown,
+            "html": html,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        }
+
+        markdown_file = (
+            recap_folder
+            / "recap.md"
+        )
+
+        markdown_file.write_text(
+            result["markdown"],
+            encoding="utf-8"
+        )
+
+        html_file = (
+            recap_folder
+            / "recap.html"
+        )
+
+        html_file.write_text(
+            result["html"],
+            encoding="utf-8"
+        )
+
+        json_file = (
+            recap_folder
+            / "recap.json"
+        )
+
+        json_file.write_text(
+            json.dumps(
+                result,
+                indent=4,
+                ensure_ascii=False
+            ),
+            encoding="utf-8"
+        )
+
+        writer = RecapWriter(
+            str(workbook_path)
+        )
+
+        writer.update_recap(
+            lesson_package_id=lesson_package_id,
+            markdown_filename=markdown_file.name,
+            html_filename=html_file.name,
+            generation_status="COMPLETED",
+            review_status="PENDING"
+        )
+
+        writer.update_descriptions(
+            lesson_package_id=lesson_package_id,
+            recap_title=result["title"],
+            recap_description=result["description"],
+            generation_status="COMPLETED",
+            review_status="PENDING"
+        )
+
+        writer.update_asset_register(
+            lesson_package_id=lesson_package_id,
+            asset_type="RECAP",
+            filename=html_file.name,
+            url=""
+        )
+
+        writer.log(
+            component="Recap Engine",
+            action="Apply Batch Recap",
+            status="SUCCESS",
+            details=html_file.name
+        )
+
+        writer.save()
+
+        return result
+
+    # ======================================================
     # Generate
     # ======================================================
 

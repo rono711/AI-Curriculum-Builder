@@ -472,6 +472,42 @@ class QuizRunner:
         return traced_content
 
     # ======================================================
+    # Process Pre-Generated Batch Content
+    # ======================================================
+
+    def process_batch_content(
+            self,
+            content,
+            lesson_package_id
+    ):
+        """
+        Apply the normal Quiz post-generation processing
+        to content that was generated externally, such as
+        by the OpenAI Batch API.
+
+        No AI request is made here.
+        """
+
+        gift_content = (
+            self._expand_numeric_shortanswer_variants(
+                content
+            )
+        )
+
+        gift_content = self._validate_gift(
+            gift_content
+        )
+
+        gift_content = (
+            self._add_question_traceability(
+                gift_content,
+                lesson_package_id
+            )
+        )
+
+        return gift_content
+
+    # ======================================================
     # Generate
     # ======================================================
 

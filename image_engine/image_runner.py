@@ -16,6 +16,145 @@ class ImageRunner:
         self.client = ImageClient()
 
     # ======================================================
+    # Generate From Batch Prompt
+    # ======================================================
+
+    def generate_from_batch_prompt(
+            self,
+            final_prompt,
+            output_folder,
+            lesson_package_id,
+            parent_code,
+            curriculum_code,
+            elaboration,
+            text_model="",
+            force_regenerate=False
+    ):
+        final_prompt = str(
+            final_prompt or ""
+        ).strip()
+
+        curriculum_code = str(
+            curriculum_code or ""
+        ).strip()
+
+        elaboration = str(
+            elaboration or ""
+        ).strip()
+
+        if not final_prompt:
+            raise RuntimeError(
+                "Batch image prompt is empty."
+            )
+
+        if not curriculum_code:
+            raise RuntimeError(
+                "curriculum_code cannot be empty."
+            )
+
+        if not elaboration:
+            raise RuntimeError(
+                "elaboration cannot be empty."
+            )
+
+        writer = ImageWriter(
+            output_folder
+        )
+
+        if (
+            not force_regenerate
+            and writer.image_exists(
+                curriculum_code
+            )
+        ):
+            existing_image = writer.image_path(
+                curriculum_code
+            )
+
+            existing_prompt = writer.prompt_path(
+                curriculum_code
+            )
+
+            return {
+                "status": "SUCCESS",
+                "generation": "REUSED",
+                "lesson_package_id":
+                    lesson_package_id,
+                "parent_code":
+                    parent_code,
+                "curriculum_code":
+                    curriculum_code,
+                "elaboration":
+                    elaboration,
+                "image_file":
+                    str(existing_image),
+                "prompt_file":
+                    (
+                        str(existing_prompt)
+                        if existing_prompt.exists()
+                        else ""
+                    ),
+            }
+
+        saved_prompt = writer.write_prompt(
+            curriculum_code,
+            final_prompt
+        )
+
+        people_selection = (
+            select_reference_people(
+                final_prompt
+            )
+        )
+
+        image_result = (
+            self.client.generate_image(
+                final_prompt,
+                reference_images=(
+                    people_selection["references"]
+                ),
+                reference_people=(
+                    people_selection["selected"]
+                ),
+            )
+        )
+
+        saved_image = writer.write_image(
+            curriculum_code,
+            image_result["bytes"]
+        )
+
+        return {
+            "status": "SUCCESS",
+            "generation": "GENERATED",
+            "lesson_package_id":
+                lesson_package_id,
+            "parent_code":
+                parent_code,
+            "curriculum_code":
+                curriculum_code,
+            "elaboration":
+                elaboration,
+            "provider":
+                image_result["provider"],
+            "text_model":
+                text_model,
+            "image_model":
+                image_result["model"],
+            "image_size":
+                image_result["size"],
+            "image_quality":
+                image_result["quality"],
+            "prompt_file":
+                str(saved_prompt),
+            "image_file":
+                str(saved_image),
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        }
+
+    # ======================================================
     # Generate
     # ======================================================
 
