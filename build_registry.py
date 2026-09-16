@@ -220,6 +220,68 @@ def initialize_registry():
         )
 
         # ==================================================
+        # External Batch Execution History
+        # ==================================================
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS batch_runs (
+
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                request_id TEXT NOT NULL,
+                stage INTEGER NOT NULL,
+                provider TEXT NOT NULL,
+                attempt INTEGER NOT NULL DEFAULT 1,
+
+                external_batch_id TEXT,
+                input_file_id TEXT,
+                output_file_id TEXT,
+
+                status TEXT NOT NULL,
+                error TEXT,
+
+                created_at TEXT NOT NULL,
+                submitted_at TEXT,
+                completed_at TEXT,
+                updated_at TEXT NOT NULL,
+
+                UNIQUE (
+                    request_id,
+                    stage,
+                    provider,
+                    attempt
+                ),
+
+                FOREIGN KEY (request_id)
+                    REFERENCES build_requests (request_id)
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_batch_runs_request
+            ON batch_runs (
+                request_id,
+                stage,
+                provider
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_batch_runs_external
+            ON batch_runs (
+                external_batch_id
+            )
+            """
+        )
+
+        # ==================================================
         # Queue V1 - Individual Selected Lesson Items
         # ==================================================
 
@@ -1666,6 +1728,202 @@ def get_build_request(request_id):
     )
 
     return result
+
+
+def create_batch_run(
+        request_id,
+        stage,
+        provider="OPENAI",
+        attempt=1
+):
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    request_id = str(request_id).strip()
+    provider = str(provider).strip().upper()
+
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO batch_runs (
+                request_id,
+                stage,
+                provider,
+                attempt,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                request_id,
+                int(stage),
+                provider,
+                int(attempt),
+                "CREATED",
+                now,
+                now,
+            )
+        )
+
+        connection.commit()
+
+        return cursor.lastrowid
+
+
+def update_batch_run(
+        run_id,
+        status,
+        external_batch_id=None,
+        input_file_id=None,
+        output_file_id=None,
+        error=None
+):
+    initialize_registry()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    status = str(status).strip().upper()
+
+    submitted_at = (
+        now
+        if status in (
+            "SUBMITTED",
+            "VALIDATING",
+            "IN_PROGRESS"
+        )
+        else None
+    )
+
+    completed_at = (
+        now
+        if status in (
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED",
+            "EXPIRED"
+        )
+        else None
+    )
+
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE batch_runs
+
+            SET status = ?,
+                external_batch_id =
+                    COALESCE(?, external_batch_id),
+                input_file_id =
+                    COALESCE(?, input_file_id),
+                output_file_id =
+                    COALESCE(?, output_file_id),
+                error = ?,
+                submitted_at =
+                    COALESCE(submitted_at, ?),
+                completed_at =
+                    COALESCE(completed_at, ?),
+                updated_at = ?
+
+            WHERE id = ?
+            """,
+            (
+                status,
+                external_batch_id,
+                input_file_id,
+                output_file_id,
+                error,
+                submitted_at,
+                completed_at,
+                now,
+                int(run_id),
+            )
+        )
+
+        connection.commit()
+
+        return cursor.rowcount == 1
+
+
+def get_batch_runs(
+        request_id,
+        stage=None,
+        provider=None
+):
+    initialize_registry()
+
+    sql = """
+        SELECT *
+        FROM batch_runs
+        WHERE request_id = ?
+    """
+
+    params = [
+        str(request_id).strip()
+    ]
+
+    if stage is not None:
+        sql += " AND stage = ?"
+        params.append(int(stage))
+
+    if provider is not None:
+        sql += " AND provider = ?"
+        params.append(
+            str(provider).strip().upper()
+        )
+
+    sql += " ORDER BY stage, attempt, id"
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            sql,
+            tuple(params)
+        ).fetchall()
+
+    return [
+        dict(row)
+        for row in rows
+    ]
+
+
+def get_latest_batch_run(
+        request_id,
+        stage,
+        provider="OPENAI"
+):
+    initialize_registry()
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT *
+            FROM batch_runs
+
+            WHERE request_id = ?
+              AND stage = ?
+              AND provider = ?
+
+            ORDER BY attempt DESC, id DESC
+            LIMIT 1
+            """,
+            (
+                str(request_id).strip(),
+                int(stage),
+                str(provider).strip().upper(),
+            )
+        ).fetchone()
+
+    return (
+        dict(row)
+        if row is not None
+        else None
+    )
 
 
 def mark_batch_ready(request_id):
