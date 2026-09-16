@@ -4,6 +4,8 @@ from pathlib import Path
 
 import httpx
 
+from build_registry import set_batch_status
+
 
 ROOT = Path(
     "/volume1/docker/curriculum-builder"
@@ -260,7 +262,17 @@ def main(request_id):
         encoding="utf-8"
     )
 
+    if not set_batch_status(
+        rid,
+        "BATCH_STAGE1_APPLIED"
+    ):
+        raise RuntimeError(
+            "Stage 1 results were applied, but registry "
+            "could not transition to BATCH_STAGE1_APPLIED."
+        )
+
     print("STAGE 1 APPLIED:", len(applied))
+    print("REGISTRY: BATCH_STAGE1_APPLIED")
 
 
 if __name__ == "__main__":
