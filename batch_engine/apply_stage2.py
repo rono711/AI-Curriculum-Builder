@@ -17,6 +17,7 @@ from build_registry import (
     get_build_request,
     get_build_request_items,
     set_batch_status,
+    update_build_request_item,
 )
 
 
@@ -743,6 +744,20 @@ def main(
             "model":
                 image_prompt["model"],
         })
+
+        update_build_request_item(
+            lesson["item_id"],
+            "AI_GENERATED",
+            "AI lesson generation completed.",
+            75
+        )
+
+        print(
+            "CHILD PROGRESS:",
+            lesson["item_id"],
+            "AI_GENERATED",
+            "75%"
+        )
 
     applied_file.write_text(
         json.dumps(

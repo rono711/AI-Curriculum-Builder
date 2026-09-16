@@ -13,6 +13,7 @@ from build_registry import (
     get_build_request,
     get_build_request_items,
     set_batch_status,
+    update_build_request_item,
 )
 
 
@@ -112,6 +113,7 @@ def build_plan(rid):
                 )
 
         plan.append({
+            "item_id": item_id,
             "package": package,
             "curriculum_code":
                 child["curriculum_code"],
@@ -135,10 +137,9 @@ def build_plan(rid):
                 str(gamma_metadata),
         })
 
-    if len(plan) != 2:
+    if not plan:
         raise RuntimeError(
-            "Expected 2 lessons, found "
-            + str(len(plan))
+            "No lessons available for external assets."
         )
 
     return plan
@@ -151,7 +152,39 @@ def load_state(rid, plan):
     )
 
     if path.is_file():
-        return path, read_json(path)
+        state = read_json(path)
+
+        changed = False
+
+        for item in plan:
+            package = item["package"]
+
+            lesson_state = (
+                state.get("lessons", {})
+                .get(package)
+            )
+
+            if lesson_state is None:
+                continue
+
+            if lesson_state.get("item_id") is None:
+                lesson_state["item_id"] = (
+                    item["item_id"]
+                )
+                changed = True
+
+        if changed:
+            save_state(
+                path,
+                state
+            )
+
+            print(
+                "EXTERNAL STATE UPGRADED "
+                "WITH ITEM IDS"
+            )
+
+        return path, state
 
     state = {
         "request_id": rid,
@@ -160,6 +193,8 @@ def load_state(rid, plan):
 
     for item in plan:
         state["lessons"][item["package"]] = {
+            "item_id":
+                item["item_id"],
             "curriculum_code":
                 item["curriculum_code"],
             "image": {
@@ -315,6 +350,29 @@ def finalize_assets(rid, state):
         raise RuntimeError(
             "External assets incomplete: "
             + ", ".join(incomplete)
+        )
+
+    for package, lesson in state["lessons"].items():
+        item_id = lesson.get("item_id")
+
+        if item_id is None:
+            raise RuntimeError(
+                "Missing item_id for external asset "
+                "state: " + package
+            )
+
+        update_build_request_item(
+            item_id,
+            "ASSETS_READY",
+            "Images and presentation completed.",
+            90
+        )
+
+        print(
+            "CHILD PROGRESS:",
+            item_id,
+            "ASSETS_READY",
+            "90%"
         )
 
     if not set_batch_status(
