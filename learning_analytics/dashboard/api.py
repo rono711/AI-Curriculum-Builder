@@ -44,6 +44,9 @@ def require_course_staff(
         moodle_user_id=auth[
             "moodle_user_id"
         ],
+        is_site_admin=auth[
+            "is_site_admin"
+        ],
     )
 
 

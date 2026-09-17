@@ -49,7 +49,8 @@ class analytics_client {
         string $path,
         string $query,
         int $userid,
-        int $timestamp
+        int $timestamp,
+        bool $issiteadmin = false
     ): string {
         $message = implode("\n", [
             strtoupper($method),
@@ -57,6 +58,7 @@ class analytics_client {
             $query,
             (string)$userid,
             (string)$timestamp,
+            $issiteadmin ? '1' : '0',
         ]);
 
         return hash_hmac(
@@ -86,12 +88,17 @@ class analytics_client {
 
         $timestamp = time();
 
+        $issiteadmin = is_siteadmin(
+            $userid
+        );
+
         $signature = $this->signature(
             'GET',
             $path,
             $query,
             $userid,
-            $timestamp
+            $timestamp,
+            $issiteadmin
         );
 
         $url = (
@@ -110,6 +117,8 @@ class analytics_client {
             'Accept: application/json',
             'X-Rono-User-Id: ' . $userid,
             'X-Rono-Timestamp: ' . $timestamp,
+            'X-Rono-Is-Site-Admin: '
+                . ($issiteadmin ? '1' : '0'),
             'X-Rono-Signature: ' . $signature,
         ]);
 

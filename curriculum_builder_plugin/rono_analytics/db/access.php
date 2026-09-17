@@ -13,6 +13,16 @@ $capabilities = [
         ],
     ],
 
+    'local/rono_analytics:viewstudent' => [
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [
+            'editingteacher' => CAP_ALLOW,
+            'teacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW,
+        ],
+    ],
+
     'local/rono_analytics:viewown' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_COURSE,

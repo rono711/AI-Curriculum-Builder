@@ -26,6 +26,7 @@ def verify_dashboard_request(
         request: Request,
         x_rono_user_id: str = Header(...),
         x_rono_timestamp: str = Header(...),
+        x_rono_is_site_admin: str = Header("0"),
         x_rono_signature: str = Header(...),
 ):
     if not DASHBOARD_API_SECRET:
@@ -45,6 +46,20 @@ def verify_dashboard_request(
             "Invalid dashboard authentication headers.",
         )
 
+    admin_value = str(
+        x_rono_is_site_admin
+    ).strip()
+
+    if admin_value not in {"0", "1"}:
+        _reject(
+            401,
+            "Invalid site administrator flag.",
+        )
+
+    is_site_admin = (
+        admin_value == "1"
+    )
+
     now = int(time.time())
 
     if abs(now - timestamp) > int(
@@ -61,6 +76,7 @@ def verify_dashboard_request(
         request.url.query,
         str(user_id),
         str(timestamp),
+        admin_value,
     ])
 
     expected = hmac.new(
@@ -80,14 +96,31 @@ def verify_dashboard_request(
 
     return {
         "moodle_user_id": user_id,
+        "is_site_admin": is_site_admin,
     }
 
 
 def authorize_course_staff(
         *,
         course_id,
-        moodle_user_id
+        moodle_user_id,
+        is_site_admin=False
 ):
+    if is_site_admin:
+        return {
+            "moodle_user_id":
+                int(moodle_user_id),
+
+            "is_site_admin":
+                True,
+
+            "is_teacher":
+                False,
+
+            "is_manager":
+                False,
+        }
+
     matches = [
         user
         for user in course_users(course_id)
