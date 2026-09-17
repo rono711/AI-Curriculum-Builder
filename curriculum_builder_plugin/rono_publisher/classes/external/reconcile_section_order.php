@@ -4,6 +4,8 @@ namespace local_rono_publisher\external;
 
 defined('MOODLE_INTERNAL') || die();
 
+require_once($CFG->dirroot . '/course/lib.php');
+
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
@@ -162,6 +164,9 @@ class reconcile_section_order extends external_api {
             $currentowned !== $desired
         );
 
+        $changedbefore = $changed;
+        $applied = false;
+
         //
         // Preserve every non-owned module in its current slot.
         // Replace only Curriculum Builder-owned slots with
@@ -199,11 +204,131 @@ class reconcile_section_order extends external_api {
             ];
         }
 
+        //
+        // Apply the calculated complete target only when
+        // explicitly requested.
+        //
+        if (
+            !$params['dryrun']
+            && $changed
+        ) {
+            //
+            // Re-read Moodle course information before moving.
+            //
+            rebuild_course_cache(
+                $course->id,
+                true
+            );
+
+            $modinfo = get_fast_modinfo(
+                $course->id
+            );
+
+            $sectioninfo =
+                $modinfo->get_section_info(
+                    $section->section
+                );
+
+            if (!$sectioninfo) {
+                throw new \moodle_exception(
+                    'Unable to load target section.'
+                );
+            }
+
+            //
+            // Converge to the target from right to left.
+            //
+            // Only Curriculum Builder-owned CMIDs may move.
+            // Non-owned modules are anchors only and are never
+            // passed to moveto_module().
+            //
+            for (
+                $index = count($target) - 1;
+                $index >= 0;
+                $index--
+            ) {
+                $cmid = $target[$index];
+
+                if (!isset($owned[$cmid])) {
+                    continue;
+                }
+
+                $modinfo = get_fast_modinfo(
+                    $course->id
+                );
+
+                $cm = $modinfo->get_cm(
+                    $cmid
+                );
+
+                $beforecm = null;
+
+                if (
+                    $index + 1 <
+                    count($target)
+                ) {
+                    $beforecmid =
+                        $target[$index + 1];
+
+                    $beforecm =
+                        $modinfo->get_cm(
+                            $beforecmid
+                        );
+                }
+
+                moveto_module(
+                    $cm,
+                    $sectioninfo,
+                    $beforecm
+                );
+            }
+
+            //
+            // Verify Moodle reached the exact target.
+            //
+            $verifiedsection =
+                $DB->get_record(
+                    'course_sections',
+                    ['id' => $section->id],
+                    'id,sequence',
+                    MUST_EXIST
+                );
+
+            $verified = array_values(
+                array_filter(
+                    array_map(
+                        'intval',
+                        explode(
+                            ',',
+                            (string)$verifiedsection->sequence
+                        )
+                    )
+                )
+            );
+
+            if ($verified !== $target) {
+                throw new \moodle_exception(
+                    'Section ordering verification failed.'
+                );
+            }
+
+            $applied = true;
+
+            //
+            // Return the verified state as current.
+            //
+            $current = $verified;
+            $currentowned = $desired;
+            $changed = false;
+        }
+
         return [
             'courseid' => $course->id,
             'sectionid' => $section->id,
             'dryrun' => (bool)$params['dryrun'],
             'changed' => $changed,
+            'changedbefore' => $changedbefore,
+            'applied' => $applied,
             'movecount' => count($moves),
             'currentsequence' =>
                 implode(',', $current),
@@ -214,9 +339,13 @@ class reconcile_section_order extends external_api {
             'targetsequence' =>
                 implode(',', $target),
             'moves' => $moves,
-            'message' => $changed
-                ? 'Owned Moodle modules require reconciliation.'
-                : 'Owned Moodle modules are already in the requested order.',
+            'message' => $applied
+                ? 'Moodle module ordering was reconciled and verified.'
+                : (
+                    $changed
+                        ? 'Owned Moodle modules require reconciliation.'
+                        : 'Owned Moodle modules are already in the requested order.'
+                ),
         ];
     }
 
@@ -244,6 +373,18 @@ class reconcile_section_order extends external_api {
                 new external_value(
                     PARAM_BOOL,
                     'Reconciliation required'
+                ),
+
+            'changedbefore' =>
+                new external_value(
+                    PARAM_BOOL,
+                    'Whether reconciliation was required before execution'
+                ),
+
+            'applied' =>
+                new external_value(
+                    PARAM_BOOL,
+                    'Whether Moodle ordering changes were applied'
                 ),
 
             'movecount' =>
