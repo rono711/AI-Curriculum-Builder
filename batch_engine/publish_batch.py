@@ -1,8 +1,11 @@
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from pathlib import Path
+
+import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -23,6 +26,26 @@ from build_registry import (
 )
 
 from pipeline_engine.builder import PipelineBuilder
+
+
+CURRICULUM_NORMALIZER_INTERNAL_URL = os.getenv(
+    "CURRICULUM_NORMALIZER_INTERNAL_URL",
+    "http://curriculum-normalizer:8001"
+).rstrip("/")
+
+PUBLISHER_ENGINE_URL = os.getenv(
+    "PUBLISHER_ENGINE_URL",
+    "http://publisher-engine:8012/publish"
+)
+
+PUBLISHER_ENGINE_BASE_URL = (
+    PUBLISHER_ENGINE_URL.rsplit(
+        "/publish",
+        1
+    )[0]
+    if PUBLISHER_ENGINE_URL.endswith("/publish")
+    else PUBLISHER_ENGINE_URL.rstrip("/")
+)
 
 
 def read_json(path):
@@ -175,6 +198,234 @@ def get_registry_record(build_id, package):
         db.close()
 
 
+def get_published_subsection_lessons(
+        moodle_course_id,
+        moodle_subsection_section_id
+):
+    db = sqlite3.connect(
+        ROOT / "data" / "build_registry.db"
+    )
+    db.row_factory = sqlite3.Row
+
+    try:
+        rows = db.execute(
+            """
+            SELECT *
+            FROM elaboration_builds
+            WHERE status = 'PUBLISHED'
+              AND moodle_course_id = ?
+              AND moodle_subsection_section_id = ?
+            ORDER BY id DESC
+            """,
+            (
+                int(moodle_course_id),
+                int(moodle_subsection_section_id),
+            )
+        ).fetchall()
+    finally:
+        db.close()
+
+    # Newest published row wins for duplicate
+    # historical curriculum records.
+    lessons = {}
+
+    for row in rows:
+        record = dict(row)
+
+        code = str(
+            record.get("curriculum_code") or ""
+        ).strip()
+
+        if not code:
+            continue
+
+        if code not in lessons:
+            lessons[code] = record
+
+    return lessons
+
+
+def get_canonical_curriculum_order(
+        curriculum_codes
+):
+    if not curriculum_codes:
+        return []
+
+    params = [
+        ("curriculum_code", code)
+        for code in curriculum_codes
+    ]
+
+    response = requests.get(
+        CURRICULUM_NORMALIZER_INTERNAL_URL
+        + "/canonical-order",
+        params=params,
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    result = response.json()
+
+    if not isinstance(result, list):
+        raise RuntimeError(
+            "Canonical-order service returned "
+            "an invalid response."
+        )
+
+    returned = [
+        str(
+            row.get("curriculum_code") or ""
+        ).strip()
+        for row in result
+        if isinstance(row, dict)
+    ]
+
+    expected = set(curriculum_codes)
+    actual = set(returned)
+
+    if len(returned) != len(actual):
+        raise RuntimeError(
+            "Canonical-order service returned "
+            "duplicate curriculum codes: "
+            + repr(returned)
+        )
+
+    if (
+        expected != actual
+        or len(returned) != len(curriculum_codes)
+    ):
+        raise RuntimeError(
+            "Canonical-order mismatch. Expected "
+            + repr(sorted(expected))
+            + ", received "
+            + repr(sorted(actual))
+        )
+
+    return returned
+
+
+def build_owned_cmid_sequence(
+        ordered_codes,
+        lessons
+):
+    component_columns = (
+        "moodle_content_description_cmid",
+        "moodle_lesson_content_cmid",
+        "moodle_did_you_know_cmid",
+        "moodle_quiz_cmid",
+        "moodle_activities_cmid",
+        "moodle_recap_cmid",
+    )
+
+    cmids = []
+    seen = set()
+
+    for code in ordered_codes:
+        record = lessons[code]
+
+        for column in component_columns:
+            value = record.get(column)
+
+            if value is None:
+                continue
+
+            cmid = int(value)
+
+            if cmid <= 0 or cmid in seen:
+                continue
+
+            seen.add(cmid)
+            cmids.append(cmid)
+
+    return cmids
+
+
+def reconcile_published_subsection(
+        moodle_course_id,
+        moodle_subsection_section_id
+):
+    lessons = get_published_subsection_lessons(
+        moodle_course_id,
+        moodle_subsection_section_id,
+    )
+
+    if len(lessons) <= 1:
+        return {
+            "status": "SKIPPED_SINGLE_LESSON",
+            "lesson_count": len(lessons),
+        }
+
+    ordered_codes = get_canonical_curriculum_order(
+        list(lessons.keys())
+    )
+
+    cmids = build_owned_cmid_sequence(
+        ordered_codes,
+        lessons,
+    )
+
+    if not cmids:
+        raise RuntimeError(
+            "No Moodle CMIDs available for "
+            "order reconciliation."
+        )
+
+    response = requests.post(
+        PUBLISHER_ENGINE_BASE_URL
+        + "/reconcile-order",
+        json={
+            "courseid":
+                int(moodle_course_id),
+
+            "sectionid":
+                int(moodle_subsection_section_id),
+
+            "cmids":
+                cmids,
+
+            "dryrun":
+                False,
+        },
+        timeout=60,
+    )
+
+    response.raise_for_status()
+
+    result = response.json()
+
+    if result.get("status") != "SUCCESS":
+        raise RuntimeError(
+            "Publisher reconciliation did not "
+            "return SUCCESS: "
+            + repr(result)
+        )
+
+    reconciliation = result.get(
+        "reconciliation"
+    )
+
+    if not isinstance(reconciliation, dict):
+        raise RuntimeError(
+            "Publisher reconciliation response "
+            "is missing reconciliation data."
+        )
+
+    if reconciliation.get("changed"):
+        raise RuntimeError(
+            "Moodle order remains incorrect after "
+            "reconciliation."
+        )
+
+    return {
+        "status": "SUCCESS",
+        "lesson_count": len(lessons),
+        "curriculum_codes": ordered_codes,
+        "cmids": cmids,
+        "reconciliation": reconciliation,
+    }
+
+
 def call_moodle(pipeline, item):
     package = item["lesson_package_id"]
 
@@ -186,6 +437,24 @@ def call_moodle(pipeline, item):
     if item["item_status"] == "PUBLISHED":
         return {
             "skip": True,
+            "registry": registry,
+        }
+
+    if (
+        registry.get("status") == "PUBLISHED"
+        and registry.get("moodle_course_id")
+        and registry.get(
+            "moodle_subsection_section_id"
+        )
+    ):
+        print(
+            "ORDER-ONLY RECOVERY:",
+            package
+        )
+
+        return {
+            "skip": False,
+            "order_only": True,
             "registry": registry,
         }
 
@@ -205,7 +474,8 @@ def call_moodle(pipeline, item):
     if registry.get("moodle_course_id"):
         raise RuntimeError(
             package
-            + ": Moodle identity already exists. "
+            + ": Moodle identity already exists but "
+            + "registry is not safely PUBLISHED. "
             + "Refusing duplicate publication."
         )
 
@@ -280,6 +550,50 @@ def finalize_moodle(pipeline, item, call_result):
 
     if call_result["skip"]:
         print("FINALIZE SKIP:", package)
+        return True
+
+    if call_result.get("order_only"):
+        print(
+            "FINALIZE ORDER-ONLY:",
+            package
+        )
+
+        reconciliation = (
+            reconcile_published_subsection(
+                moodle_course_id=registry[
+                    "moodle_course_id"
+                ],
+                moodle_subsection_section_id=registry[
+                    "moodle_subsection_section_id"
+                ],
+            )
+        )
+
+        print(
+            "MOODLE ORDER RECOVERY:",
+            reconciliation.get("status"),
+            "lessons=",
+            reconciliation.get("lesson_count"),
+        )
+
+        pipeline._set_publication_status(
+            item["workbook"],
+            package,
+            "PUBLISHED",
+            "NO"
+        )
+
+        complete_build_request_item(
+            item["item_id"],
+            build_id=item["build_id"],
+            lesson_package_id=package,
+        )
+
+        print(
+            "BATCH CHILD RECOVERED:",
+            package
+        )
+
         return True
 
     moodle = call_result["moodle"]
@@ -364,6 +678,20 @@ def finalize_moodle(pipeline, item, call_result):
             "activitiescmid"
         ),
         moodle_recap_cmid=moodle.get("recapcmid"),
+    )
+
+    reconciliation = reconcile_published_subsection(
+        moodle_course_id=moodle.get("courseid"),
+        moodle_subsection_section_id=moodle.get(
+            "subsectionsectionid"
+        ),
+    )
+
+    print(
+        "MOODLE ORDER RECONCILIATION:",
+        reconciliation.get("status"),
+        "lessons=",
+        reconciliation.get("lesson_count"),
     )
 
     pipeline._set_publication_status(
