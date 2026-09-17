@@ -11,6 +11,26 @@ defined('MOODLE_INTERNAL') || die();
 
 $functions = [
 
+    'local_rono_publisher_reconcile_section_order' => [
+        'classname' =>
+            'local_rono_publisher\\external\\reconcile_section_order',
+
+        'methodname' =>
+            'execute',
+
+        'description' =>
+            'Validates Curriculum Builder module ordering in one Moodle section.',
+
+        'type' =>
+            'write',
+
+        'capabilities' =>
+            'local/rono_publisher:publishlesson',
+
+        'ajax' =>
+            false,
+    ],
+
     'local_rono_publisher_inspect_section_order' => [
         'classname' =>
             'local_rono_publisher\\external\\inspect_section_order',
@@ -197,6 +217,7 @@ $services = [
         'functions' => [
             'local_rono_publisher_ensure_course',
             'local_rono_publisher_inspect_section_order',
+            'local_rono_publisher_reconcile_section_order',
             'local_rono_publisher_publish_lesson',
             'local_rono_publisher_update_component',
             'local_rono_publisher_update_elaboration_banner',
