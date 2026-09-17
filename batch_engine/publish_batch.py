@@ -153,10 +153,9 @@ def build_publish_plan(rid):
                 build_name,
         })
 
-    if len(plan) != 2:
+    if not plan:
         raise RuntimeError(
-            "Expected 2 lessons, found "
-            + str(len(plan))
+            "No lessons available for publication."
         )
 
     return plan

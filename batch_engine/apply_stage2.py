@@ -79,19 +79,21 @@ def validate_batch_files(
 
     actual = set(returned)
 
-    if len(entries) != 8:
+    if not entries:
         raise RuntimeError(
-            "Stage 2 manifest must contain "
-            "exactly 8 entries."
+            "Stage 2 manifest contains no entries."
         )
 
-    if len(output_rows) != 8:
+    if len(output_rows) != len(entries):
         raise RuntimeError(
-            "Stage 2 output must contain "
-            "exactly 8 rows."
+            "Stage 2 output row count mismatch. "
+            "Expected "
+            + str(len(entries))
+            + ", found "
+            + str(len(output_rows))
         )
 
-    if len(actual) != 8:
+    if len(actual) != len(output_rows):
         raise RuntimeError(
             "Stage 2 output contains "
             "duplicate custom IDs."
@@ -103,16 +105,45 @@ def validate_batch_files(
             "identity mismatch."
         )
 
+    lesson_packages = {
+        str(
+            row["lesson_package_id"]
+        ).strip()
+        for row in entries
+    }
+
+    lesson_count = len(lesson_packages)
+
+    if lesson_count <= 0:
+        raise RuntimeError(
+            "Stage 2 manifest contains "
+            "no lesson packages."
+        )
+
+    expected_entry_count = (
+        lesson_count
+        * len(EXPECTED_TYPES)
+    )
+
+    if len(entries) != expected_entry_count:
+        raise RuntimeError(
+            "Stage 2 manifest entry count mismatch. "
+            "Expected "
+            + str(expected_entry_count)
+            + " for "
+            + str(lesson_count)
+            + " lessons; found "
+            + str(len(entries))
+        )
+
     types = Counter(
         row["prompt_type"]
         for row in entries
     )
 
     required = Counter({
-        "QUIZ": 2,
-        "ACTIVITIES": 2,
-        "RECAP": 2,
-        "IMAGE_PROMPT": 2,
+        prompt_type: lesson_count
+        for prompt_type in EXPECTED_TYPES
     })
 
     if types != required:
@@ -120,6 +151,49 @@ def validate_batch_files(
             "Unexpected Stage 2 result types: "
             + str(dict(types))
         )
+
+    types_by_package = {}
+
+    for row in entries:
+        package_id = str(
+            row["lesson_package_id"]
+        ).strip()
+
+        prompt_type = str(
+            row["prompt_type"]
+        ).strip().upper()
+
+        types_by_package.setdefault(
+            package_id,
+            []
+        ).append(prompt_type)
+
+    expected_types = set(
+        EXPECTED_TYPES
+    )
+
+    for package_id, prompt_types in (
+        types_by_package.items()
+    ):
+        if len(prompt_types) != len(EXPECTED_TYPES):
+            raise RuntimeError(
+                package_id
+                + ": Stage 2 prompt count mismatch. "
+                + "Expected "
+                + str(len(EXPECTED_TYPES))
+                + ", found "
+                + str(len(prompt_types))
+            )
+
+        if set(prompt_types) != expected_types:
+            raise RuntimeError(
+                package_id
+                + ": Stage 2 prompt types mismatch. "
+                + "Expected "
+                + repr(sorted(expected_types))
+                + ", found "
+                + repr(sorted(set(prompt_types)))
+            )
 
     return entries
 
@@ -215,11 +289,9 @@ def build_lesson_map(
                 str(workbook_path),
         }
 
-    if len(lessons) != 2:
+    if not lessons:
         raise RuntimeError(
-            "Expected exactly 2 Stage 2 lessons; "
-            "found "
-            + str(len(lessons))
+            "No Stage 2 lessons were prepared."
         )
 
     return lessons
