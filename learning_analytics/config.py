@@ -48,6 +48,18 @@ FEEDBACK_EMAIL_MODE = os.getenv(
     "PREVIEW"
 ).strip().upper()
 
+DASHBOARD_API_SECRET = os.getenv(
+    "ANALYTICS_DASHBOARD_API_SECRET",
+    ""
+).strip()
+
+DASHBOARD_SIGNATURE_MAX_AGE = int(
+    os.getenv(
+        "ANALYTICS_DASHBOARD_SIGNATURE_MAX_AGE",
+        "300"
+    )
+)
+
 
 def validate_moodle_config():
     if not MOODLE_ANALYTICS_URL:

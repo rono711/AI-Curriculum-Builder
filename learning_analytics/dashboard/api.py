@@ -1,6 +1,11 @@
 """Read-only FastAPI routes for Learning Analytics dashboard."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+)
 
 from learning_analytics.dashboard.roles import (
     course_students,
@@ -16,6 +21,10 @@ from learning_analytics.dashboard.parent_topics import (
 from learning_analytics.dashboard.topic_trends import (
     parent_topic_history,
 )
+from learning_analytics.dashboard.security import (
+    authorize_course_staff,
+    verify_dashboard_request,
+)
 
 
 router = APIRouter(
@@ -24,11 +33,28 @@ router = APIRouter(
 )
 
 
+def require_course_staff(
+        course_id: int,
+        auth=Depends(
+            verify_dashboard_request
+        )
+):
+    return authorize_course_staff(
+        course_id=course_id,
+        moodle_user_id=auth[
+            "moodle_user_id"
+        ],
+    )
+
+
 @router.get("/course/{course_id}/overview")
 def course_overview(
         course_id: int,
         date_from: str | None = Query(None),
-        date_to: str | None = Query(None)
+        date_to: str | None = Query(None),
+        authorized_user=Depends(
+            require_course_staff
+        )
 ):
     students = course_students(course_id)
     staff = course_staff(course_id)
@@ -93,7 +119,12 @@ def course_overview(
 
 
 @router.get("/course/{course_id}/students")
-def students(course_id: int):
+def students(
+        course_id: int,
+        authorized_user=Depends(
+            require_course_staff
+        )
+):
     return {
         "course_id":
             int(course_id),
@@ -110,7 +141,10 @@ def students(course_id: int):
 def topics(
         course_id: int,
         date_from: str | None = Query(None),
-        date_to: str | None = Query(None)
+        date_to: str | None = Query(None),
+        authorized_user=Depends(
+            require_course_staff
+        )
 ):
     rows = parent_topic_difficulty(
         course_id,
@@ -145,6 +179,9 @@ def topic_history(
             7,
             ge=1,
             le=365,
+        ),
+        authorized_user=Depends(
+            require_course_staff
         )
 ):
     try:
