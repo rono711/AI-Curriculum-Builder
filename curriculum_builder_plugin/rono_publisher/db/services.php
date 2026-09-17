@@ -131,6 +131,26 @@ $functions = [
             false,
     ],
 
+    'local_rono_publisher_update_shortanswer_question' => [
+        'classname' =>
+            'local_rono_publisher\\external\\update_shortanswer_question',
+
+        'methodname' =>
+            'execute',
+
+        'description' =>
+            'Creates a new version of one existing Moodle SHORTANSWER question.',
+
+        'type' =>
+            'write',
+
+        'capabilities' =>
+            'moodle/question:editall',
+
+        'ajax' =>
+            false,
+    ],
+
     'local_rono_publisher_get_quiz_questions' => [
         'classname' =>
             'local_rono_publisher\external\get_quiz_questions',
@@ -159,6 +179,8 @@ $services = [
             'local_rono_publisher_publish_lesson',
             'local_rono_publisher_update_component',
             'local_rono_publisher_update_elaboration_banner',
+            'local_rono_publisher_get_quiz_questions',
+            'local_rono_publisher_update_shortanswer_question',
             'local_rono_publisher_set_quiz_attempt_limit',
             'local_rono_publisher_clear_quiz_attempt_limit',
         ],

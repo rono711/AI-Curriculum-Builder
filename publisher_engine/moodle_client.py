@@ -168,6 +168,63 @@ class MoodleClient:
         )
 
     # ======================================================
+    # Rono Publisher - Read Quiz Questions
+    # ======================================================
+
+    def get_quiz_questions(
+            self,
+            quizid
+    ):
+
+        """
+        Return authoritative Moodle Question Bank mappings
+        for all slots in one existing Quiz.
+        """
+
+        return self.call(
+            "local_rono_publisher_get_quiz_questions",
+            {
+                "quizid": int(quizid),
+            }
+        )
+
+    # ======================================================
+    # Rono Publisher - Update SHORTANSWER Question
+    # ======================================================
+
+    def update_shortanswer_question(
+            self,
+            quizid,
+            slot,
+            questionid,
+            questionbankentryid,
+            answers
+    ):
+
+        """
+        Create a new Moodle version of one existing
+        SHORTANSWER question.
+        """
+
+        payload = {
+            "quizid": int(quizid),
+            "slot": int(slot),
+            "questionid": int(questionid),
+            "questionbankentryid":
+                int(questionbankentryid),
+        }
+
+        for index, answer in enumerate(answers):
+            payload[
+                f"answers[{index}][answer]"
+            ] = str(answer)
+
+        return self.call(
+            "local_rono_publisher_update_shortanswer_question",
+            payload
+        )
+
+    # ======================================================
     # Rono Publisher - Ensure Course
     # ======================================================
 
@@ -175,8 +232,42 @@ class MoodleClient:
             self,
             school_level,
             subject,
-            year_level
+            year_level,
+            course_description="",
+            course_image_path=None
     ):
+
+        import base64
+
+        course_image_base64 = ""
+
+        if course_image_path:
+
+            image_path = Path(
+                course_image_path
+            )
+
+            if not image_path.is_file():
+                raise FileNotFoundError(
+                    "Course image not found: "
+                    + str(image_path)
+                )
+
+            image_bytes = (
+                image_path.read_bytes()
+            )
+
+            if not image_bytes:
+                raise RuntimeError(
+                    "Course image is empty: "
+                    + str(image_path)
+                )
+
+            course_image_base64 = (
+                base64.b64encode(
+                    image_bytes
+                ).decode("ascii")
+            )
 
         return self.call(
             "local_rono_publisher_ensure_course",
@@ -189,6 +280,14 @@ class MoodleClient:
 
                 "year_level":
                     year_level,
+
+                "course_description":
+                    str(
+                        course_description or ""
+                    ).strip(),
+
+                "course_image_base64":
+                    course_image_base64,
             }
         )
 

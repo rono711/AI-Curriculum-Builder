@@ -680,6 +680,355 @@ ob_start();
     }
 
 	/**
+     * Create a new version of one existing SHORTANSWER question.
+     *
+     * @param int $quizid Moodle Quiz instance ID.
+     * @param int $slot Quiz slot number.
+     * @param int $questionid Current question ID.
+     * @param int $questionbankentryid Question Bank entry ID.
+     * @param array $answers Fully correct accepted answers.
+     * @return array
+     */
+    public function update_shortanswer_question(
+        int $quizid,
+        int $slot,
+        int $questionid,
+        int $questionbankentryid,
+        array $answers
+    ): array {
+        global $CFG, $DB;
+
+        require_once(
+            $CFG->libdir . '/questionlib.php'
+        );
+
+        $quiz = $DB->get_record(
+            'quiz',
+            ['id' => $quizid],
+            'id,course',
+            MUST_EXIST
+        );
+
+        $slotrecord = $DB->get_record(
+            'quiz_slots',
+            [
+                'quizid' => $quizid,
+                'slot' => $slot,
+            ],
+            'id,quizid,slot',
+            MUST_EXIST
+        );
+
+        $reference = $DB->get_record(
+            'question_references',
+            [
+                'component' => 'mod_quiz',
+                'questionarea' => 'slot',
+                'itemid' => (int)$slotrecord->id,
+            ],
+            'id,questionbankentryid,version',
+            MUST_EXIST
+        );
+
+        if (
+            (int)$reference->questionbankentryid
+            !== $questionbankentryid
+        ) {
+            throw new moodle_exception(
+                'Question Bank entry does not match Quiz slot.'
+            );
+        }
+
+        if ($reference->version !== null) {
+            throw new moodle_exception(
+                'Pinned Quiz question versions are not supported.'
+            );
+        }
+
+        $oldversion = $DB->get_record(
+            'question_versions',
+            [
+                'questionid' => $questionid,
+                'questionbankentryid' =>
+                    $questionbankentryid,
+            ],
+            'id,questionbankentryid,questionid,version,status',
+            MUST_EXIST
+        );
+
+        $resolved =
+            $this->get_latest_question_ids(
+                [$questionbankentryid]
+            );
+
+        if (
+            count($resolved) !== 1
+            || (int)$resolved[0] !== $questionid
+        ) {
+            throw new moodle_exception(
+                'Question is not the latest ready version.'
+            );
+        }
+
+        $loaded = question_load_questions(
+            [$questionid],
+            'qbe.idnumber'
+        );
+
+        if (!$loaded) {
+            throw new moodle_exception(
+                'Question could not be loaded.'
+            );
+        }
+
+        $question = reset(
+            $loaded
+        );
+
+        if ($question->qtype !== 'shortanswer') {
+            throw new moodle_exception(
+                'Question is not SHORTANSWER.'
+            );
+        }
+
+        $qbe = get_question_bank_entry(
+            $questionid
+        );
+
+        if (
+            (int)$qbe->id
+            !== $questionbankentryid
+        ) {
+            throw new moodle_exception(
+                'Question Bank entry mismatch.'
+            );
+        }
+
+        $cleananswers = [];
+
+        foreach ($answers as $answer) {
+            $answer = trim(
+                (string)$answer
+            );
+
+            if ($answer === '') {
+                continue;
+            }
+
+            if (
+                !in_array(
+                    $answer,
+                    $cleananswers,
+                    true
+                )
+            ) {
+                $cleananswers[] =
+                    $answer;
+            }
+        }
+
+        if (!$cleananswers) {
+            throw new moodle_exception(
+                'At least one accepted answer is required.'
+            );
+        }
+
+        $category = $DB->get_record(
+            'question_categories',
+            [
+                'id' => (int)$qbe->questioncategoryid,
+            ],
+            'id,contextid',
+            MUST_EXIST
+        );
+
+        $form = new stdClass();
+
+        $form->category =
+            (int)$category->id
+            . ','
+            . (int)$category->contextid;
+
+        $form->name =
+            $question->name;
+
+        $form->questiontext = [
+            'text' =>
+                $question->questiontext,
+            'format' =>
+                $question->questiontextformat,
+            'itemid' => 0,
+        ];
+
+        $form->generalfeedback = [
+            'text' =>
+                $question->generalfeedback,
+            'format' =>
+                $question->generalfeedbackformat,
+            'itemid' => 0,
+        ];
+
+        $form->defaultmark =
+            $question->defaultmark;
+
+        $form->penalty =
+            $question->penalty;
+
+        $form->idnumber =
+            $qbe->idnumber ?? '';
+
+        $form->status =
+            $oldversion->status;
+
+        $form->usecase =
+            $question->options->usecase;
+
+        $form->answer = [];
+        $form->fraction = [];
+        $form->feedback = [];
+
+        foreach ($cleananswers as $answer) {
+            $form->answer[] =
+                $answer;
+
+            $form->fraction[] =
+                1.0;
+
+            $form->feedback[] = [
+                'text' => '',
+                'format' => FORMAT_HTML,
+                'itemid' => 0,
+            ];
+        }
+
+        $form->hint = [];
+        $form->hintclearwrong = [];
+        $form->hintshownumcorrect = [];
+
+        foreach (
+            ($question->hints ?? [])
+            as $hint
+        ) {
+            $form->hint[] = [
+                'text' =>
+                    $hint->hint,
+                'format' =>
+                    $hint->hintformat,
+                'itemid' => 0,
+            ];
+
+            $form->hintclearwrong[] =
+                $hint->clearwrong ?? 0;
+
+            $form->hintshownumcorrect[] =
+                $hint->shownumcorrect ?? 0;
+        }
+
+        $qtype =
+            \question_bank::get_qtype(
+                'shortanswer'
+            );
+
+        $saved =
+            $qtype->save_question(
+                clone $question,
+                $form
+            );
+
+        $newversion = $DB->get_record(
+            'question_versions',
+            [
+                'questionid' =>
+                    (int)$saved->id,
+                'questionbankentryid' =>
+                    $questionbankentryid,
+            ],
+            'id,questionbankentryid,questionid,version,status',
+            MUST_EXIST
+        );
+
+        if (
+            (int)$newversion->questionbankentryid
+            !== $questionbankentryid
+        ) {
+            throw new moodle_exception(
+                'New version changed Question Bank entry.'
+            );
+        }
+
+        if (
+            (int)$newversion->version
+            <= (int)$oldversion->version
+        ) {
+            throw new moodle_exception(
+                'New question version was not created.'
+            );
+        }
+
+        $savedanswers = $DB->get_records(
+            'question_answers',
+            [
+                'question' =>
+                    (int)$saved->id,
+            ],
+            'id ASC',
+            'id,question,answer,fraction'
+        );
+
+        if (
+            count($savedanswers)
+            !== count($cleananswers)
+        ) {
+            throw new moodle_exception(
+                'Saved answer count does not match request.'
+            );
+        }
+
+        foreach ($savedanswers as $savedanswer) {
+            if (
+                (float)$savedanswer->fraction
+                !== 1.0
+            ) {
+                throw new moodle_exception(
+                    'Saved SHORTANSWER fraction is not 100 percent.'
+                );
+            }
+        }
+
+        return [
+            'status' =>
+                'SUCCESS',
+
+            'quizid' =>
+                (int)$quiz->id,
+
+            'slot' =>
+                (int)$slotrecord->slot,
+
+            'questionbankentryid' =>
+                $questionbankentryid,
+
+            'oldquestionid' =>
+                $questionid,
+
+            'newquestionid' =>
+                (int)$saved->id,
+
+            'oldversion' =>
+                (int)$oldversion->version,
+
+            'newversion' =>
+                (int)$newversion->version,
+
+            'answercount' =>
+                count($savedanswers),
+
+            'referenceversion' =>
+                'LATEST',
+        ];
+    }
+
+/**
      * Prepare all questions for one lesson.
      *
      * @param int $courseid Moodle course ID.
