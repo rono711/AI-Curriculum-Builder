@@ -234,6 +234,25 @@ def sub_strands(
 
 
 # ==========================================================
+# Curriculum No / Focus
+# ==========================================================
+
+@app.get("/curriculum-focuses")
+def curriculum_focuses(
+        learning_area: str = Query(...),
+        subject: str = Query(...),
+        year_level: str = Query(...),
+        strand: str = Query(...)
+):
+    return master_db.curriculum_focuses(
+        learning_area,
+        subject,
+        year_level,
+        strand
+    )
+
+
+# ==========================================================
 # Topics
 # ==========================================================
 
@@ -269,6 +288,19 @@ def topics(
 # ==========================================================
 # Lessons
 # ==========================================================
+
+# ==========================================================
+# Canonical Curriculum Order
+# ==========================================================
+
+@app.get("/canonical-order")
+def canonical_order(
+        curriculum_code: list[str] = Query(default=[])
+):
+    return master_db.canonical_order(
+        curriculum_codes=curriculum_code
+    )
+
 
 @app.get("/lessons")
 def lessons(

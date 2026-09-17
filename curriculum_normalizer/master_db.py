@@ -261,6 +261,94 @@ class MasterDB:
         # Curriculum Topics
         # =====================================================
 
+    def curriculum_focuses(
+            self,
+            learning_area,
+            subject,
+            year_level,
+            strand
+    ):
+        df = self.df[
+            (self.df["Learning Area"] == learning_area)
+            &
+            (self.df["Subject"] == subject)
+            &
+            (self.df["Year Level"] == year_level)
+            &
+            (self.df["Strand"] == strand)
+        ].copy()
+
+        df = df.sort_values(
+            "Parent Code"
+        )
+
+        sub_strands = (
+            df["Sub-Strand"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        has_sub_strands = (
+            sub_strands
+            .replace(
+                ["", "nan", "NaN"],
+                pd.NA
+            )
+            .dropna()
+            .shape[0]
+            > 0
+        )
+
+        value_column = (
+            "Sub-Strand"
+            if has_sub_strands
+            else "Content Description"
+        )
+
+        results = []
+        seen = set()
+
+        for _, row in df.iterrows():
+
+            value = str(
+                row.get(value_column, "") or ""
+            ).strip()
+
+            parent_code = str(
+                row.get("Parent Code", "") or ""
+            ).strip()
+
+            if (
+                not value
+                or value in ("nan", "NaN")
+                or not parent_code
+                or parent_code in ("nan", "NaN")
+            ):
+                continue
+
+            key = (
+                parent_code,
+                value
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+
+            results.append({
+                "parent_code": parent_code,
+                "focus": value,
+                "display":
+                    parent_code
+                    + " — "
+                    + value
+            })
+
+        return results
+
+
     def topics(
 
             self,
@@ -362,6 +450,67 @@ class MasterDB:
         # =====================================================
         # Lessons
         # =====================================================
+
+    # =====================================================
+    # Canonical Curriculum Order
+    # =====================================================
+
+    def canonical_order(
+            self,
+            curriculum_codes=None
+    ):
+        """
+        Return curriculum lessons in their original
+        Master_Lesson_DB workbook row order.
+
+        No alphabetical, click-order, or publication-order
+        sorting is applied.
+        """
+
+        df = self.df.copy()
+
+        if curriculum_codes:
+            wanted = {
+                str(value).strip()
+                for value in curriculum_codes
+                if str(value).strip()
+            }
+
+            df = df[
+                df["Curriculum Code"]
+                .astype(str)
+                .str.strip()
+                .isin(wanted)
+            ]
+
+        results = []
+
+        for source_position, (_, row) in enumerate(
+            df.iterrows(),
+            start=1
+        ):
+            results.append({
+                "source_position":
+                    int(source_position),
+
+                "curriculum_code":
+                    str(
+                        row["Curriculum Code"]
+                    ).strip(),
+
+                "parent_code":
+                    str(
+                        row["Parent Code"]
+                    ).strip(),
+
+                "lesson_number":
+                    int(
+                        row["Topic Lesson Number"]
+                    ),
+            })
+
+        return results
+
 
     def lessons(
 
