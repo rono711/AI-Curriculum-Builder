@@ -1,6 +1,10 @@
 """Learning analytics service entry point."""
 
 from fastapi import FastAPI, HTTPException
+
+from learning_analytics.dashboard.api import (
+    router as dashboard_router,
+)
 from pydantic import BaseModel
 
 from learning_analytics.attempt_processor import (
@@ -29,6 +33,9 @@ app = FastAPI(
     title="Rono's School Learning Analytics",
     version="1.0.0",
 )
+
+app.include_router(dashboard_router)
+
 
 
 class ProcessAttemptRequest(BaseModel):
