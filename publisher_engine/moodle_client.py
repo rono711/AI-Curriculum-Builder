@@ -154,6 +154,34 @@ class MoodleClient:
        
 
     # ======================================================
+    # Rono Publisher - Reconcile Section Order
+    # ======================================================
+
+    def reconcile_section_order(
+            self,
+            courseid,
+            sectionid,
+            cmids,
+            dryrun=True
+    ):
+        payload = {
+            "courseid": int(courseid),
+            "sectionid": int(sectionid),
+            "dryrun": 1 if dryrun else 0,
+        }
+
+        for index, cmid in enumerate(cmids):
+            payload[
+                f"cmids[{index}]"
+            ] = int(cmid)
+
+        return self.call(
+            "local_rono_publisher_reconcile_section_order",
+            payload
+        )
+
+
+    # ======================================================
     # Health
     # ======================================================
 

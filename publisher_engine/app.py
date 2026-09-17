@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from builder import PublisherBuilder
+from moodle_client import MoodleClient
 
 # ==========================================================
 # FastAPI
@@ -71,6 +72,17 @@ class PublishRequest(BaseModel):
     build_name: str
 
     lesson_package_id: str
+
+class ReconcileOrderRequest(BaseModel):
+
+    courseid: int
+
+    sectionid: int
+
+    cmids: list[int]
+
+    dryrun: bool = True
+
 
 class UpdatePublishRequest(BaseModel):
 
@@ -206,4 +218,40 @@ def publish_update(
 
             detail=str(e)
 
+        )
+
+# ==========================================================
+# Reconcile Moodle Section Order
+# ==========================================================
+
+@app.post("/reconcile-order")
+def reconcile_order(
+        request: ReconcileOrderRequest
+):
+    try:
+        client = MoodleClient()
+
+        result = client.reconcile_section_order(
+            courseid=request.courseid,
+            sectionid=request.sectionid,
+            cmids=request.cmids,
+            dryrun=request.dryrun,
+        )
+
+        return {
+            "status": "SUCCESS",
+            "reconciliation": result,
+        }
+
+    except Exception as exc:
+        import traceback
+
+        print("=" * 60)
+        print("ORDER RECONCILIATION FAILED")
+        traceback.print_exc()
+        print("=" * 60)
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc)
         )
