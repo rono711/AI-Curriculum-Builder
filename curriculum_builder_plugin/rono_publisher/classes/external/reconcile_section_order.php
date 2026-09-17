@@ -162,18 +162,58 @@ class reconcile_section_order extends external_api {
             $currentowned !== $desired
         );
 
+        //
+        // Preserve every non-owned module in its current slot.
+        // Replace only Curriculum Builder-owned slots with
+        // the desired owned CMID order.
+        //
+        $target = $current;
+        $desiredindex = 0;
+
+        foreach ($target as $index => $cmid) {
+            if (!isset($owned[$cmid])) {
+                continue;
+            }
+
+            $target[$index] = $desired[
+                $desiredindex
+            ];
+
+            $desiredindex++;
+        }
+
+        //
+        // Report the exact positions that differ.
+        //
+        $moves = [];
+
+        foreach ($current as $index => $cmid) {
+            if ($cmid === $target[$index]) {
+                continue;
+            }
+
+            $moves[] = [
+                'position' => $index + 1,
+                'currentcmid' => $cmid,
+                'targetcmid' => $target[$index],
+            ];
+        }
+
         return [
             'courseid' => $course->id,
             'sectionid' => $section->id,
             'dryrun' => (bool)$params['dryrun'],
             'changed' => $changed,
-            'movecount' => $changed ? 1 : 0,
+            'movecount' => count($moves),
             'currentsequence' =>
                 implode(',', $current),
             'currentownedsequence' =>
                 implode(',', $currentowned),
             'desiredownedsequence' =>
                 implode(',', $desired),
+            'targetsequence' =>
+                implode(',', $target),
+            'moves' => $moves,
             'message' => $changed
                 ? 'Owned Moodle modules require reconciliation.'
                 : 'Owned Moodle modules are already in the requested order.',
@@ -228,6 +268,35 @@ class reconcile_section_order extends external_api {
                 new external_value(
                     PARAM_RAW,
                     'Desired owned sequence'
+                ),
+
+            'targetsequence' =>
+                new external_value(
+                    PARAM_RAW,
+                    'Calculated complete target sequence'
+                ),
+
+            'moves' =>
+                new external_multiple_structure(
+                    new external_single_structure([
+                        'position' =>
+                            new external_value(
+                                PARAM_INT,
+                                'Section position'
+                            ),
+
+                        'currentcmid' =>
+                            new external_value(
+                                PARAM_INT,
+                                'Current CMID'
+                            ),
+
+                        'targetcmid' =>
+                            new external_value(
+                                PARAM_INT,
+                                'Target CMID'
+                            ),
+                    ])
                 ),
 
             'message' =>
