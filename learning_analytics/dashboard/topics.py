@@ -245,6 +245,31 @@ def question_difficulty(
             "students_attempted":
                 attempted,
 
+            "latest_students": [
+                {
+                    "moodle_user_id":
+                        user_id,
+
+                    "fullname":
+                        students.get(
+                            user_id,
+                            {}
+                        ).get(
+                            "fullname",
+                            ""
+                        ),
+
+                    "correct":
+                        bool(
+                            latest[user_id][
+                                "correct"
+                            ]
+                        ),
+                }
+                for user_id
+                in sorted(latest)
+            ],
+
             "students_struggling":
                 len(struggling),
 
