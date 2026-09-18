@@ -183,43 +183,16 @@ class PagePublisher:
 
         )
 
-        iframe = ""
+        from publisher_engine.presentation_html import (
+            build_presentation_html
+        )
 
-        import json
-
-        urls = slides_folder / "slides_urls.json"
-
-        if urls.exists():
-
-            data = json.loads(
-
-                urls.read_text(
-
-                    encoding="utf-8"
-
-                )
-
+        presentation_html = (
+            build_presentation_html(
+                build_root,
+                build_name,
             )
-
-            embed = data.get(
-
-                "gamma_embed_url",
-
-                ""
-
-            )
-
-            if embed:
-                iframe = f"""
-
-        <iframe
-        src="{embed}"
-        width="100%"
-        height="720"
-        allowfullscreen>
-        </iframe>
-
-        """
+        )
 
         return self.moodle.publish_page({
 
@@ -255,7 +228,7 @@ class PagePublisher:
 
             "content":
 
-                iframe
+                presentation_html
 
         })
 

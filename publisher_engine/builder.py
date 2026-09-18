@@ -152,72 +152,14 @@ class PublisherBuilder:
             slides
     ):
 
-        slides_folder = (
-            Path(build_root)
-            / "Slides"
-            / build_name
+        from publisher_engine.presentation_html import (
+            build_presentation_html
         )
 
-        urls_file = (
-            slides_folder
-            / "slides_urls.json"
-        )
-
-        embed_url = ""
-
-        #
-        # Prefer the generated Gamma URL file.
-        #
-        if urls_file.exists():
-
-            data = json.loads(
-                urls_file.read_text(
-                    encoding="utf-8"
-                )
-            )
-
-            embed_url = self._text(
-                data.get("gamma_embed_url")
-            )
-
-        #
-        # Workbook URL fallback.
-        #
-        if not embed_url:
-
-            embed_url = self._text(
-                slides.get("gamma_embed_url")
-            )
-
-        #
-        # Complete embed HTML fallback.
-        #
-        if not embed_url:
-
-            embed_html = self._text(
-                slides.get("slides_embed_html")
-            )
-
-            if embed_html:
-                return embed_html
-
-        if not embed_url:
-            return ""
-
-        safe_url = html.escape(
-            embed_url,
-            quote=True
-        )
-
-        return (
-            '<iframe '
-            f'src="{safe_url}" '
-            'width="100%" '
-            'height="720" '
-            'referrerpolicy="no-referrer" '
-            'allow="fullscreen" '
-            'allowfullscreen>'
-            '</iframe>'
+        return build_presentation_html(
+            build_root,
+            build_name,
+            slides=slides,
         )
 
     # ======================================================
@@ -553,10 +495,67 @@ class PublisherBuilder:
         print("Year    :", year_level)
         print("=" * 60)
 
+        # ==================================================
+        # Prepare course-level description and image
+        # ==================================================
+
+        from publisher_engine.course_metadata_client import (
+            CourseMetadataClient
+        )
+
+        course_name = (
+            self._text(subject)
+            + " - "
+            + self._text(year_level)
+        )
+
+        print("=" * 60)
+        print("PREPARING MOODLE COURSE METADATA")
+        print("Course :", course_name)
+        print("=" * 60)
+
+        course_metadata = (
+            CourseMetadataClient().prepare(
+                self._text(subject),
+                self._text(year_level),
+                course_name
+            )
+        )
+
+        print(
+            "Description words :",
+            course_metadata[
+                "description_word_count"
+            ]
+        )
+
+        print(
+            "Course image      :",
+            course_metadata[
+                "course_image_path"
+            ]
+        )
+
+        print(
+            "Visual stage      :",
+            course_metadata.get(
+                "visual_stage",
+                ""
+            )
+        )
+
         result = self.moodle.ensure_course(
             self._text(school_level),
             self._text(subject),
-            self._text(year_level)
+            self._text(year_level),
+            course_description=(
+                course_metadata["description"]
+            ),
+            course_image_path=(
+                course_metadata[
+                    "course_image_path"
+                ]
+            )
         )
 
         if not isinstance(result, dict):
