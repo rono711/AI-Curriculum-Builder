@@ -2754,6 +2754,47 @@ def refresh_build_request_from_items(
 
     with get_connection() as connection:
 
+        parent = connection.execute(
+            """
+            SELECT
+                processing_mode,
+                status
+            FROM build_requests
+            WHERE request_id = ?
+            """,
+            (request_id,)
+        ).fetchone()
+
+        if parent is None:
+            return None
+
+        batch_protected_states = {
+            "PROCESSING",
+            "BATCH_STAGE1_READY",
+            "BATCH_STAGE1_SUBMITTED",
+            "BATCH_STAGE1_DOWNLOADED",
+            "BATCH_STAGE1_APPLIED",
+            "BATCH_STAGE2_READY",
+            "BATCH_STAGE2_SUBMITTED",
+            "BATCH_STAGE2_DOWNLOADED",
+            "BATCH_STAGE2_APPLIED",
+            "EXTERNAL_ASSETS_COMPLETED",
+        }
+
+        if (
+            str(parent["processing_mode"]).strip().upper()
+            == "QUEUE_BATCH"
+            and str(parent["status"]).strip().upper()
+            in batch_protected_states
+        ):
+            return {
+                "request_id": request_id,
+                "status": str(
+                    parent["status"]
+                ).strip().upper(),
+                "preserved": True,
+            }
+
         rows = connection.execute(
             """
             SELECT

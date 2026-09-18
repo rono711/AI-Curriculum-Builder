@@ -122,6 +122,45 @@ def prepare_request(item):
         return False
 
     try:
+        batch_dir = (
+            ROOT / "data" / "batches" / rid
+        )
+
+        prepare_state = (
+            batch_dir / "prepare_state.json"
+        )
+
+        stage1_manifest = (
+            batch_dir / "stage1_manifest.json"
+        )
+
+        stage1_input = (
+            batch_dir / "stage1_input.jsonl"
+        )
+
+        existing_artifacts = [
+            path
+            for path in (
+                prepare_state,
+                stage1_manifest,
+                stage1_input,
+            )
+            if path.exists()
+        ]
+
+        if existing_artifacts:
+            raise RuntimeError(
+                "Batch preparation artifacts already exist "
+                "for request "
+                + rid
+                + ": "
+                + ", ".join(
+                    path.name
+                    for path in existing_artifacts
+                )
+                + ". Refusing duplicate preparation."
+            )
+
         child_items = get_build_request_items(rid)
 
         payload = {
