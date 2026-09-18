@@ -2781,20 +2781,6 @@ def refresh_build_request_from_items(
             "EXTERNAL_ASSETS_COMPLETED",
         }
 
-        if (
-            str(parent["processing_mode"]).strip().upper()
-            == "QUEUE_BATCH"
-            and str(parent["status"]).strip().upper()
-            in batch_protected_states
-        ):
-            return {
-                "request_id": request_id,
-                "status": str(
-                    parent["status"]
-                ).strip().upper(),
-                "preserved": True,
-            }
-
         rows = connection.execute(
             """
             SELECT
@@ -2812,6 +2798,31 @@ def refresh_build_request_from_items(
 
         if not rows:
             return None
+
+        statuses = [
+            str(row["status"]).strip().upper()
+            for row in rows
+        ]
+
+        all_published = all(
+            status == "PUBLISHED"
+            for status in statuses
+        )
+
+        if (
+            str(parent["processing_mode"]).strip().upper()
+            == "QUEUE_BATCH"
+            and str(parent["status"]).strip().upper()
+            in batch_protected_states
+            and not all_published
+        ):
+            return {
+                "request_id": request_id,
+                "status": str(
+                    parent["status"]
+                ).strip().upper(),
+                "preserved": True,
+            }
 
         statuses = [
             str(row["status"]).strip().upper()
