@@ -907,11 +907,7 @@ class page_service {
         string $content,
         ?string $description = null
     ): stdClass {
-        global $CFG, $DB;
-
-        require_once(
-            $CFG->dirroot . '/course/modlib.php'
-        );
+        global $DB;
 
         if ($courseid <= 0) {
             throw new moodle_exception(
@@ -925,9 +921,6 @@ class page_service {
             );
         }
 
-        /*
-         * Exact target course.
-         */
         $course = $DB->get_record(
             'course',
             [
@@ -937,9 +930,6 @@ class page_service {
             MUST_EXIST
         );
 
-        /*
-         * Exact target course module.
-         */
         $cm = $DB->get_record(
             'course_modules',
             [
@@ -950,9 +940,6 @@ class page_service {
             MUST_EXIST
         );
 
-        /*
-         * Verify target is really mod_page.
-         */
         $module = $DB->get_record(
             'modules',
             [
@@ -968,9 +955,6 @@ class page_service {
             );
         }
 
-        /*
-         * Verify the underlying Page instance.
-         */
         $page = $DB->get_record(
             'page',
             [
@@ -982,166 +966,69 @@ class page_service {
         );
 
         /*
-         * Ask Moodle for the existing module information.
-         */
-        [
-            $existingcm,
-            $context,
-            $existingmodule,
-            $moduleinfo,
-            $section
-        ] = get_moduleinfo_data(
-            $cm,
-            $course
-        );
-
-        /*
-         * Defensive identity checks.
-         */
-        if ((int)$existingcm->id !== $cmid) {
-            throw new moodle_exception(
-                'Moodle returned an unexpected course module.'
-            );
-        }
-
-        if ($existingmodule->name !== 'page') {
-            throw new moodle_exception(
-                'Validated Moodle module is not a Page.'
-            );
-        }
-
-        /*
-         * Preserve existing Page name.
-         */
-        $moduleinfo->name =
-            $page->name;
-
-        /*
-         * Moodle 5.2 mod_page update contract.
+         * Update only the Page fields owned by this operation.
          *
-         * page_update_instance() reads the Page body from:
-         *
-         * $data->page['itemid']
-         * $data->page['text']
-         * $data->page['format']
+         * Keep the existing Page identity, name, display settings,
+         * revision and course-module identity intact.
          */
-        $moduleinfo->page = [
-            'itemid' => 0,
-            'text' => $content,
-            'format' => FORMAT_HTML,
-        ];
+        $page->content = $content;
+        $page->contentformat = FORMAT_HTML;
+        $page->timemodified = time();
 
-        /*
-         * Keep direct content fields populated too.
-         */
-        $moduleinfo->content =
-            $content;
-
-        $moduleinfo->contentformat =
-            FORMAT_HTML;
-
-        /*
-         * Preserve existing Page-specific display options.
-         */
-        $displayoptions = [];
-
-        if (!empty($page->displayoptions)) {
-            $decodedoptions =
-                unserialize($page->displayoptions);
-
-            if (is_array($decodedoptions)) {
-                $displayoptions =
-                    $decodedoptions;
-            }
-        }
-
-        $moduleinfo->display =
-            $page->display;
-
-        $moduleinfo->printintro =
-            $displayoptions['printintro']
-            ?? 0;
-
-        $moduleinfo->printlastmodified =
-            $displayoptions['printlastmodified']
-            ?? 0;
-
-        $moduleinfo->popupwidth =
-            $displayoptions['popupwidth']
-            ?? 620;
-
-        $moduleinfo->popupheight =
-            $displayoptions['popupheight']
-            ?? 450;
-
-        /*
-         * Preserve existing description unless a replacement
-         * description was explicitly supplied.
-         */
         if ($description !== null) {
-
-            if (
-                isset($moduleinfo->introeditor) &&
-                is_array($moduleinfo->introeditor)
-            ) {
-                $moduleinfo->introeditor['text'] =
-                    $description;
-
-                $moduleinfo->introeditor['format'] =
-                    FORMAT_HTML;
-            }
-
-            $moduleinfo->intro =
-                $description;
-
-            $moduleinfo->introformat =
-                FORMAT_HTML;
+            $page->intro = $description;
+            $page->introformat = FORMAT_HTML;
         }
 
-        /*
-         * Critical existing Moodle identity.
-         */
-        $moduleinfo->coursemodule =
-            $cmid;
-
-        $moduleinfo->instance =
-            $page->id;
-
-        $moduleinfo->course =
-            $course->id;
-
-        $moduleinfo->module =
-            $module->id;
-
-        $moduleinfo->modulename =
-            'page';
-        /*
-         * update_moduleinfo() triggers course_module_updated
-         * using the $cm object.
-         *
-         * Because $cm was loaded directly from the
-         * course_modules table, Moodle's derived "modname"
-         * property is not present automatically.
-         */
-        $cm->modname =
-            'page';
-		
-		/*
-         * Update the EXISTING Moodle activity.
-         *
-         * No add_moduleinfo() call occurs here.
-         */
-        update_moduleinfo(
-            $cm,
-            $moduleinfo,
-            $course
+        $DB->update_record(
+            'page',
+            $page
         );
 
         /*
-         * Verify the same CMID still points to the same
-         * Page instance after the update.
+         * Verify the actual persisted Page body.
          */
-        $updatedcm = $DB->get_record(
+        $updatedpage = $DB->get_record(
+            'page',
+            [
+                'id' => $page->id,
+                'course' => $course->id,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        if (
+            (string)$updatedpage->content
+            !==
+            (string)$content
+        ) {
+            throw new moodle_exception(
+                'Moodle Page content update verification failed.'
+            );
+        }
+
+        if (
+            $description !== null
+            &&
+            (string)$updatedpage->intro
+            !==
+            (string)$description
+        ) {
+            throw new moodle_exception(
+                'Moodle Page description update verification failed.'
+            );
+        }
+
+        rebuild_course_cache(
+            $course->id,
+            true
+        );
+
+        /*
+         * Verify the same CMID still points to the same Page.
+         */
+        return $DB->get_record(
             'course_modules',
             [
                 'id' => $cmid,
@@ -1151,8 +1038,6 @@ class page_service {
             '*',
             MUST_EXIST
         );
-
-        return $updatedcm;
     }
 
 }
