@@ -672,3 +672,89 @@
     font-size:16px;
 
 }        }
+
+
+
+/* =====================================================
+   Lesson Package Mode
+===================================================== */
+
+.mode-card{
+
+    margin:30px 0;
+
+    padding:24px;
+
+    background:#ffffff;
+
+    border:1px solid #e5e7eb;
+
+    border-radius:16px;
+
+    box-shadow:0 4px 12px rgba(0,0,0,.05);
+
+}
+
+.mode-title{
+
+    font-size:22px;
+
+    font-weight:700;
+
+    color:#0F5B66;
+
+    margin-bottom:18px;
+
+}
+
+.mode-option{
+
+    margin-bottom:18px;
+
+}
+
+.mode-option:last-child{
+
+    margin-bottom:0;
+
+}
+
+.mode-option label{
+
+    display:block;
+
+    cursor:pointer;
+
+}
+
+.mode-option input{
+
+    width:auto;
+
+    margin-right:10px;
+
+}
+
+.mode-option strong{
+
+    display:block;
+
+    font-size:18px;
+
+    color:#222;
+
+}
+
+.mode-option span{
+
+    display:block;
+
+    margin-left:30px;
+
+    margin-top:6px;
+
+    font-size:15px;
+
+    color:#666;
+
+}

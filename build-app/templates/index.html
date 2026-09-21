@@ -304,38 +304,77 @@
 
             </div>
 
-                        <div class="form-group">
-                <label>
-                    Processing
-                </label>
+                        
+<div class="mode-card">
 
-                <label>
-                    <input
-                        type="radio"
-                        name="processing_mode"
-                        value="IMMEDIATE"
-                        checked>
-                    Generate &amp; publish now
-                </label>
+    <div class="mode-title">
 
-                <label>
-                    <input
-                        type="radio"
-                        name="processing_mode"
-                        value="QUEUE_STANDARD">
-                    Queue — standard processing
-                </label>
+        📦 Lesson Package Mode
 
-                <label>
-                    <input
-                        type="radio"
-                        name="processing_mode"
-                        value="QUEUE_BATCH">
-                    Queue — OpenAI Batch processing
-                </label>
-            </div>
+    </div>
 
-            <button
+    <div class="mode-option">
+
+        <label>
+
+            <input
+                type="radio"
+                name="processing_mode"
+                value="IMMEDIATE"
+                checked>
+
+            <strong>Generate &amp; Publish Now</strong>
+
+            <span>
+                Immediate lesson creation and Moodle publication.
+            </span>
+
+        </label>
+
+    </div>
+
+    <div class="mode-option">
+
+        <label>
+
+            <input
+                type="radio"
+                name="processing_mode"
+                value="QUEUE_STANDARD">
+
+            <strong>Queue – Standard Processing</strong>
+
+            <span>
+                Background processing for larger lesson requests.
+            </span>
+
+        </label>
+
+    </div>
+
+    <div class="mode-option">
+
+        <label>
+
+            <input
+                type="radio"
+                name="processing_mode"
+                value="QUEUE_BATCH">
+
+            <strong>Batch Processing</strong>
+
+            <span>
+                Best for large lesson packages.
+            </span>
+
+        </label>
+
+    </div>
+
+</div>
+
+<button
+
                     type="submit"
                     id="buildButton">
 
