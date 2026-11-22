@@ -1,0 +1,100 @@
+<div class="dashboard-card">
+
+    <div class="card-title">
+
+        Active Queue
+
+    </div>
+
+    <div id="queueLiveBadge" class="live-badge" style="display:none;">
+        <span class="live-dot"></span>
+        Live
+    </div>
+
+    <div class="processing-pill">
+
+        {{ processing_mode|default("No active processing") }}
+
+    </div>
+
+    <div class="queue-stage">
+
+        {{ stage|default("No active processing") }}
+
+    </div>
+
+    <div class="progress-bar-wrapper">
+
+        <div
+            class="progress-fill queue-fill"
+            style="width:{{ percent|default(0) }}%;">
+
+        </div>
+
+    </div>
+
+    <div class="current-lesson">
+
+        Current Lesson
+
+        <strong>
+
+            {{ current_lesson|default("No active lesson") }}
+
+        </strong>
+
+    </div>
+
+    <div class="stats-row">
+
+        <div>
+
+            <div class="stat-number">
+
+                {{ completed|default(0) }}
+
+                /
+
+                {{ total|default(0) }}
+
+            </div>
+
+            <div class="stat-label">
+
+                Lessons
+
+            </div>
+
+        </div>
+
+        <div>
+
+            <div class="stat-number">
+
+                {{ eta|default("--") }}
+
+            </div>
+
+            <div class="stat-label">
+
+                Estimated Time
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="mt-4">
+
+        <a
+            href="https://build.ronosschool.com/queue"
+            class="btn btn-outline-primary w-100">
+
+            Open Queue Dashboard
+
+        </a>
+
+    </div>
+
+</div>

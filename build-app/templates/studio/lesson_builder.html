@@ -1,0 +1,245 @@
+{% extends "studio/base.html" %}
+
+{% block title %}
+Build Lesson Package
+{% endblock %}
+
+
+{% block page_title %}Build Lesson Package{% endblock %}
+
+{% block page_subtitle %}
+Create, update and publish complete lesson packages.
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+<div class="row g-4 mb-4">
+
+<div class="col-lg-6">
+{% include "studio/components/teacher_card.html" %}
+</div>
+
+<div class="col-lg-6">
+
+<div class="dashboard-card">
+
+<div class="card-title">
+Lesson Package Mode
+</div>
+
+<p>Select how you want the lesson package to be processed.</p>
+
+<label><input type="radio" name="processing_mode" value="IMMEDIATE" checked>
+Generate &amp; Publish Now</label><br>
+
+<label><input type="radio" name="processing_mode" value="QUEUE_STANDARD">
+Queue Processing</label><br>
+
+<label><input type="radio" name="processing_mode" value="QUEUE_BATCH">
+Batch Processing</label>
+
+</div>
+
+
+
+</div>
+
+</div>
+
+</div>
+
+<div class="dashboard-card mb-4">
+
+<div class="card-title">
+Curriculum Selection
+</div>
+
+<div class="curriculum-grid">
+
+<label>Curriculum Framework
+<select id="curriculum_framework" class="form-select">
+<option value="Australian Curriculum" data-status="active">Australian Curriculum</option>
+<option value="American Curriculum" data-status="planned">American Curriculum</option>
+<option value="Indian Curriculum" data-status="planned">Indian Curriculum</option>
+<option value="Cambridge International Curriculum" data-status="planned">Cambridge International Curriculum</option>
+<option value="English National Curriculum" data-status="planned">English National Curriculum</option>
+<option value="International Baccalaureate" data-status="planned">International Baccalaureate (IB)</option>
+<option value="Common Core State Standards" data-status="planned">Common Core State Standards</option>
+<option value="Next Generation Science Standards" data-status="planned">Next Generation Science Standards (NGSS)</option>
+<option value="Bangladesh National Curriculum" data-status="planned">Bangladesh National Curriculum</option>
+<option value="Singapore Curriculum" data-status="planned">Singapore Curriculum</option>
+<option value="Ontario Curriculum" data-status="planned">Ontario Curriculum</option>
+<option value="UAE Ministry of Education Curriculum" data-status="planned">UAE Ministry of Education Curriculum</option>
+<option value="Saudi National Curriculum" data-status="planned">Saudi National Curriculum</option>
+</select>
+<div id="curriculumFrameworkNotice" class="framework-notice"></div>
+</label>
+
+<label>Learning Area
+<select id="learning_area" class="form-select"></select>
+</label>
+
+<label>Subject
+<select id="subject" class="form-select"></select>
+<div class="bulk-level-actions" data-level="subject" style="display:none;">
+    <button type="button"
+            class="btn btn-sm btn-outline-primary bulk-action"
+            data-scope="subject">
+        Process Whole Subject
+    </button>
+</div>
+</label>
+
+<label>Year Level
+<select id="year_level" class="form-select"></select>
+<div class="bulk-level-actions" data-level="year_level" style="display:none;">
+    <button type="button"
+            class="btn btn-sm btn-outline-primary bulk-action"
+            data-scope="year_level">
+        Process Whole Year Level
+    </button>
+</div>
+</label>
+
+<label>Strand
+<select id="strand" class="form-select"></select>
+<div class="bulk-level-actions" data-level="strand" style="display:none;">
+    <button type="button"
+            class="btn btn-sm btn-outline-primary bulk-action"
+            data-scope="strand">
+        Process Whole Strand
+    </button>
+</div>
+</label>
+
+<label>Sub-strand
+<select id="sub_strand" class="form-select"></select>
+<div class="bulk-level-actions" data-level="sub_strand" style="display:none;">
+    <button type="button"
+            class="btn btn-sm btn-outline-primary bulk-action"
+            data-scope="sub_strand">
+        Process Whole Sub-strand
+    </button>
+</div>
+</label>
+
+<label>Curriculum Topic (Content Description)
+<select id="topic" class="form-select"></select>
+<div class="bulk-level-actions" data-level="topic" style="display:none;">
+    <button type="button"
+            class="btn btn-sm btn-outline-primary bulk-action"
+            data-scope="topic">
+        Process Whole Curriculum Topic
+    </button>
+</div>
+</label>
+
+</div>
+
+</div>
+
+<div id="courseProgressPanel"
+     class="dashboard-card mb-4"
+     style="display:none;">
+
+    <div class="card-title">
+        Continue Course
+    </div>
+
+    <div id="courseProgressContent">
+        Select a Year Level to see course progress.
+    </div>
+
+</div>
+
+<div class="dashboard-card mb-4">
+
+<div class="card-title">
+Lessons
+</div>
+
+<div id="lessons">
+Select a Curriculum Topic to load lessons.
+</div>
+
+</div>
+
+
+<div id="processingBasket"
+     class="dashboard-card mb-4"
+     style="display:none;">
+
+    <div class="card-title">
+        Queue / Batch Selection Basket
+    </div>
+
+    <div id="basketItems">
+        No curriculum scopes added yet.
+    </div>
+
+    <div style="margin-top:16px;">
+        <strong id="basketTotal">0</strong>
+        unique lessons selected
+    </div>
+
+</div>
+
+{% include "studio/components/selection_summary.html" %}
+
+<div id="bulkEstimate" class="dashboard-card" style="display:none;">
+    <div class="card-title">Processing Estimate</div>
+
+    <div>
+        <strong id="estimateCount">0</strong>
+        lessons selected
+    </div>
+
+    <div>
+        Generation:
+        <strong id="estimateGeneration">—</strong>
+    </div>
+
+    <div>
+        Publication:
+        <strong id="estimatePublication">—</strong>
+    </div>
+
+    <div>
+        Total estimated time:
+        <strong id="estimateTotal">—</strong>
+    </div>
+</div>
+
+
+<div class="build-actions">
+
+<button
+id="buildButton"
+class="btn btn-primary build-button">
+
+🚀 Build Lesson Package
+
+</button>
+
+</div>
+
+{% endblock %}
+
+{% block javascript %}
+
+{% include "studio/components/update_rebuild_modal.html" %}
+
+<script src="/static/studio/js/api.js?v=20260922_28"></script>
+<script src="/static/studio/js/course_progress.js?v=20260922_30"></script>
+<script src="/static/studio/js/selection.js?v=20260924_status_1"></script>
+<script src="/static/studio/js/update_rebuild.js?v=20260922_32"></script>
+<script src="/static/studio/js/lesson_builder_bridge.js?v=20260925_scope_1"></script>
+<script src="/static/studio/js/build_submit.js?v=20260925_scope_1"></script>
+
+
+
+
+
+{% endblock %}

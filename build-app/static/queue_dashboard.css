@@ -316,3 +316,91 @@ body {
         padding: 22px 16px;
     }
 }
+
+
+/* All-curriculum lesson build history */
+.history-panel { margin-top:32px; padding:24px; background:#fff; border:1px solid #dce7ea; border-radius:18px; box-shadow:0 8px 28px rgba(23,55,64,.08); }
+.history-heading,.history-footer { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+.history-heading h2 { margin:4px 0 6px; color:#173740; }
+.history-heading p { margin:0; color:#6c858d; }
+.history-eyebrow { color:#0f6972; font-size:12px; font-weight:800; letter-spacing:.08em; }
+.history-summary { display:grid; grid-template-columns:repeat(5,minmax(120px,1fr)); gap:12px; margin:22px 0; }
+.history-summary div { padding:16px; background:#f5f9fa; border:1px solid #e2ecef; border-radius:12px; }
+.history-summary span,.history-table small { display:block; margin-top:4px; color:#789098; font-size:12px; }
+.history-summary strong { display:block; margin-top:5px; color:#173740; font-size:24px; }
+.history-filters { display:grid; grid-template-columns:minmax(240px,2fr) repeat(4,minmax(140px,1fr)) auto; gap:10px; margin-bottom:18px; }
+.history-filters input,.history-filters select { min-height:42px; padding:0 12px; border:1px solid #ccdade; border-radius:9px; background:#fff; color:#173740; }
+.history-table-wrap { overflow-x:auto; border:1px solid #e0eaed; border-radius:12px; }
+.history-table { width:100%; min-width:1250px; border-collapse:collapse; }
+.history-table th { padding:13px 14px; background:#f2f7f8; color:#58737b; font-size:12px; text-align:left; text-transform:uppercase; }
+.history-table td { padding:14px; border-top:1px solid #e7eef0; color:#274850; font-size:13px; vertical-align:top; }
+.history-table tbody tr:hover { background:#f8fbfc; }
+.history-table code { color:#0f6972; font-weight:700; white-space:nowrap; }
+.history-date { width:130px; color:#607980!important; white-space:nowrap; }
+.history-lesson { min-width:320px; max-width:520px; }
+.history-lesson strong { display:block; line-height:1.45; }
+.history-status { display:inline-flex; padding:5px 9px; border-radius:999px; background:#e8f1f3; color:#345d66; font-size:12px; font-weight:800; white-space:nowrap; }
+.history-status.published { background:#e6f7ee; color:#167447; }
+.history-status.updated,.history-status.rebuilt { background:#e8efff; color:#315fba; }
+.history-status.generated,.history-status.update-ready { background:#fff4db; color:#976400; }
+.history-status.failed { background:#fee9e9; color:#b23434; }
+.history-muted { color:#8a9da3; font-size:12px; }
+.history-empty { padding:28px!important; text-align:center; }
+.history-footer { margin-top:16px; color:#6b838a; }
+.history-footer>div { display:flex; align-items:center; gap:10px; }
+.history-footer button:disabled { cursor:not-allowed; opacity:.45; }
+@media(max-width:1100px) { .history-summary { grid-template-columns:repeat(2,1fr); } .history-filters { grid-template-columns:1fr 1fr; } }
+@media(max-width:640px) { .history-panel { padding:16px; } .history-heading,.history-footer { align-items:stretch; flex-direction:column; } .history-summary,.history-filters { grid-template-columns:1fr; } }
+
+
+/* Live queue progress indicator */
+.queue-live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px;
+    border: 1px solid #9fcbd5;
+    border-radius: 999px;
+    background: #eaf7fa;
+    color: #176475;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.queue-live-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #1687a0;
+    box-shadow: 0 0 0 0 rgba(22, 135, 160, .55);
+    animation: queue-live-pulse 1.35s ease-out infinite;
+}
+
+.request-card:has(.queue-live-indicator) .progress-fill {
+    background-image: linear-gradient(
+        90deg,
+        #16758a 0%,
+        #35aec0 50%,
+        #16758a 100%
+    );
+    background-size: 200% 100%;
+    animation: queue-progress-flow 2s linear infinite;
+}
+
+@keyframes queue-live-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(22, 135, 160, .55); opacity: 1; }
+    70% { box-shadow: 0 0 0 9px rgba(22, 135, 160, 0); opacity: .72; }
+    100% { box-shadow: 0 0 0 0 rgba(22, 135, 160, 0); opacity: 1; }
+}
+
+@keyframes queue-progress-flow {
+    from { background-position: 200% 0; }
+    to { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .queue-live-dot,
+    .request-card:has(.queue-live-indicator) .progress-fill {
+        animation: none;
+    }
+}

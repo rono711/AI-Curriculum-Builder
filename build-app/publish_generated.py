@@ -16,6 +16,7 @@ import httpx
 from fastapi import HTTPException
 
 from build_registry import (
+    record_moodle_title,
     get_connection,
     checkpoint_moodle_identity,
     register_quiz_questions,
@@ -244,6 +245,11 @@ async def publish_generated_lesson(payload):
     moodle_result = publisher_result.get(
         "publisher",
         {}
+    )
+
+    record_moodle_title(
+        record_id,
+        moodle_result.get("quiztitle"),
     )
 
     if (

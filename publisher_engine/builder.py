@@ -866,10 +866,15 @@ class PublisherBuilder:
                     metadata.get("strand")
                 ),
 
-            "substrand":
+            "substrand": (
                 self._text(
                     metadata.get("sub_strand")
-                ),
+                )
+                or
+                self._text(
+                    metadata.get("content_description")
+                )
+            ),
 
             "curriculumcode":
                 curriculum_code,
@@ -917,17 +922,12 @@ class PublisherBuilder:
                 ),
 
             "lesson[quiztitle]":
-                self._text(
-                    quiz.get("quiz_title")
-                )
-                or
-                self._text(
-                    descriptions.get(
-                        "quiz_title"
-                    )
-                )
-                or
-                "Checking Your Thinking",
+                (
+                    f"{curriculum_code}-{lesson_title}"
+                    if curriculum_code and lesson_title
+                    else curriculum_code
+                    or lesson_title
+                ),
 
             "lesson[quizdescription]":
                 self._text(
@@ -987,7 +987,6 @@ class PublisherBuilder:
 
         for required in [
             "strand",
-            "substrand",
             "contentdescription",
             "lesson[title]",
         ]:
@@ -1077,6 +1076,11 @@ class PublisherBuilder:
                 "Moodle published the Quiz but "
                 "reported zero Quiz slots."
             )
+
+        # Preserve the exact title sent to Moodle.
+        published["quiztitle"] = payload.get(
+            "lesson[quiztitle]"
+        )
 
         # ==================================================
         # Update Moodle_Publish worksheet

@@ -16,6 +16,8 @@ from build_registry import (
     get_build_request_items,
     get_queued_requests,
     get_connection,
+    start_build,
+
 )
 
 LP_URL = "http://lesson-package-builder:8003/build"
@@ -114,6 +116,131 @@ def prepare_prompt_results(
     return results
 
 
+def register_prepared_lessons(prepared_lessons):
+    """Checkpoint prepared Batch identities in the shared registry.
+
+    This is intentionally idempotent. A retry reuses a matching
+    elaboration_builds row and only fills missing request-item IDs.
+    """
+    registered = 0
+
+    for prepared_lesson in prepared_lessons:
+        item_id = prepared_lesson.get("item_id")
+        lesson_rows = prepared_lesson.get("lesson_rows") or []
+
+        if not lesson_rows:
+            raise RuntimeError(
+                "Prepared lesson has no lesson_rows: "
+                + str(prepared_lesson)
+            )
+
+        for row in lesson_rows:
+            build_id = str(row["build_id"])
+            package = str(row["lesson_package_id"])
+
+            with get_connection() as connection:
+                matches = connection.execute(
+                    """
+                    SELECT id, build_id, lesson_package_id,
+                           elaboration_key, curriculum_code
+                    FROM elaboration_builds
+                    WHERE build_id = ?
+                       OR lesson_package_id = ?
+                    ORDER BY id
+                    """,
+                    (build_id, package),
+                ).fetchall()
+
+            if len(matches) > 1:
+                raise RuntimeError(
+                    "Conflicting registry records for Build "
+                    + build_id + " / " + package
+                )
+
+            if matches:
+                existing = dict(matches[0])
+                if (
+                    str(existing["build_id"]) != build_id
+                    or str(existing["lesson_package_id"]) != package
+                    or str(existing["elaboration_key"])
+                       != str(row["elaboration_key"])
+                    or str(existing["curriculum_code"])
+                       != str(row["curriculum_code"])
+                ):
+                    raise RuntimeError(
+                        "Registry identity collision for Build "
+                        + build_id + " / " + package
+                    )
+            else:
+                start_build(
+                    elaboration_key=row["elaboration_key"],
+                    learning_area=row["learning_area"],
+                    subject=row["subject"],
+                    year_level=row["year_level"],
+                    strand=row["strand"],
+                    sub_strand=row.get("sub_strand") or "",
+                    parent_code=row["parent_code"],
+                    topic_id=row["topic_id"],
+                    curriculum_code=row["curriculum_code"],
+                    content_description=row["content_description"],
+                    elaboration=row["elaboration"],
+                    build_id=build_id,
+                    lesson_package_id=package,
+                    build_mode=row.get("build_mode") or "NEW",
+                    update_components=(
+                        row.get("update_components") or []
+                    ),
+                )
+
+            if item_id is not None:
+                with get_connection() as connection:
+                    item_row = connection.execute(
+                        """
+                        SELECT build_id, lesson_package_id
+                        FROM build_request_items
+                        WHERE id = ?
+                        """,
+                        (int(item_id),),
+                    ).fetchone()
+
+                    if item_row is None:
+                        raise RuntimeError(
+                            "Build request item not found: "
+                            + str(item_id)
+                        )
+
+                    old_build = item_row["build_id"]
+                    old_package = item_row["lesson_package_id"]
+
+                    if old_build not in (None, "", build_id):
+                        raise RuntimeError(
+                            "Request item has conflicting build_id: "
+                            + str(item_id)
+                        )
+
+                    if old_package not in (None, "", package):
+                        raise RuntimeError(
+                            "Request item has conflicting package ID: "
+                            + str(item_id)
+                        )
+
+                    connection.execute(
+                        """
+                        UPDATE build_request_items
+                        SET build_id = ?,
+                            lesson_package_id = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                        """,
+                        (build_id, package, int(item_id)),
+                    )
+                    connection.commit()
+
+            registered += 1
+
+    return registered
+
+
 def prepare_request(item):
     rid = item["request_id"]
 
@@ -162,6 +289,47 @@ def prepare_request(item):
             )
 
         child_items = get_build_request_items(rid)
+
+        #
+        # Resume-safe Batch processing:
+        # only prepare child lessons that are actually QUEUED.
+        #
+        # PUBLISHED lessons must never be regenerated when a
+        # partially completed Batch request is resumed.
+        #
+        if child_items:
+            all_child_items = child_items
+
+            child_items = [
+                child
+                for child in all_child_items
+                if str(
+                    child.get("status") or ""
+                ).strip().upper() == "QUEUED"
+            ]
+
+            skipped_published = [
+                child
+                for child in all_child_items
+                if str(
+                    child.get("status") or ""
+                ).strip().upper() == "PUBLISHED"
+            ]
+
+            print(
+                "BATCH RESUME FILTER:",
+                "TOTAL=",
+                len(all_child_items),
+                "| QUEUED=",
+                len(child_items),
+                "| PUBLISHED/SKIPPED=",
+                len(skipped_published),
+            )
+
+            if not child_items:
+                raise RuntimeError(
+                    "No QUEUED child lessons remain to prepare."
+                )
 
         payload = {
             "requested_by": item["requested_by"],
@@ -248,6 +416,16 @@ def prepare_request(item):
                     "lesson_rows":
                         prepared["lesson_rows"],
                 }]
+
+        registered_count = register_prepared_lessons(
+            prepared_lessons
+        )
+
+        print(
+            "BATCH REGISTRY CHECKPOINT:",
+            registered_count,
+            "lesson(s)"
+        )
 
         batch = Stage1BatchBuilder().build(
             request_id=rid,

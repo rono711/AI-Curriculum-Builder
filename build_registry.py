@@ -163,6 +163,10 @@ def initialize_registry():
             # Selective UPDATE history.
 
             "update_components":
+                "TEXT",
+
+            # Exact human-readable title sent to Moodle.
+            "moodle_title":
                 "TEXT"
 
         }
@@ -626,6 +630,38 @@ def make_elaboration_key(
     ]
 
     return "|".join(parts)
+
+
+# ==========================================================
+# Latest Build State
+# ==========================================================
+
+def get_latest_build(elaboration_key):
+
+    initialize_registry()
+
+    with get_connection() as connection:
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM elaboration_builds
+
+            WHERE elaboration_key = ?
+
+            ORDER BY id DESC
+
+            LIMIT 1
+            """,
+            (
+                elaboration_key,
+            )
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return dict(row)
 
 
 # ==========================================================
@@ -3082,3 +3118,25 @@ def retry_failed_build_request_items(request_id):
         "retried_item_ids": failed_ids,
         "status": "QUEUED",
     }
+
+
+# ==========================================================
+# Record Human-readable Moodle Title
+# ==========================================================
+
+def record_moodle_title(record_id, moodle_title):
+    title = str(moodle_title or "").strip()
+    if not title:
+        return
+    initialize_registry()
+    now = datetime.now(timezone.utc).isoformat()
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE elaboration_builds
+            SET moodle_title = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (title, now, record_id),
+        )
+        connection.commit()

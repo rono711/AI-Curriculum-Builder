@@ -10,7 +10,7 @@
 
     <link
         rel="stylesheet"
-        href="/static/queue_dashboard.css?v=20260917_1"
+        href="/static/queue_dashboard.css?v=20260924_3"
     >
 </head>
 
@@ -114,6 +114,71 @@
         </div>
     </section>
 
+    <section class="history-panel">
+        <div class="history-heading">
+            <div>
+                <span class="history-eyebrow">ALL CURRICULA</span>
+                <h2>Lesson Build History</h2>
+                <p>Every generated, published, updated and rebuilt lesson record.</p>
+            </div>
+            <button class="button secondary" id="exportHistory" type="button">
+                Export CSV
+            </button>
+        </div>
+
+        <div class="history-summary">
+            <div><span>All records</span><strong id="historyTotal">0</strong></div>
+            <div><span>Published</span><strong id="historyPublished">0</strong></div>
+            <div><span>Generated</span><strong id="historyGenerated">0</strong></div>
+            <div><span>Updated</span><strong id="historyUpdated">0</strong></div>
+            <div><span>Rebuilt</span><strong id="historyRebuilt">0</strong></div>
+        </div>
+
+        <div class="history-filters">
+            <input id="historySearch" type="search"
+                   placeholder="Search code, lesson or Moodle title">
+            <select id="historyStatus">
+                <option value="">All statuses</option>
+            </select>
+            <select id="historyCurriculum">
+                <option value="">All curricula</option>
+            </select>
+            <input id="historyFrom" type="date" title="Request date from">
+            <input id="historyTo" type="date" title="Request date to">
+            <button class="button secondary" id="clearHistoryFilters" type="button">
+                Clear
+            </button>
+        </div>
+
+        <div class="history-table-wrap">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Request date</th>
+                        <th>Status</th>
+                        <th>Curriculum</th>
+                        <th>Curriculum code</th>
+                        <th>Elaboration / lesson title</th>
+                        <th>Moodle title</th>
+                        <th>Modified</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr><td colspan="7">Loading all curriculum records...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="history-footer">
+            <span id="historyShowing">0 records</span>
+            <div>
+                <button class="button secondary" id="historyPrevious" type="button">Previous</button>
+                <span id="historyPage">Page 1</span>
+                <button class="button secondary" id="historyNext" type="button">Next</button>
+            </div>
+        </div>
+    </section>
+
 </main>
 
 <div
@@ -149,7 +214,7 @@
 </div>
 
 <script
-    src="/static/queue_dashboard.js?v=20260917_1"
+    src="/static/queue_dashboard.js?v=20260924_3"
 ></script>
 
 </body>

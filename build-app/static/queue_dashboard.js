@@ -132,6 +132,23 @@ function requestCard(request) {
         )
     );
 
+    const liveIndicator = request.live
+
+        ? (
+
+            '<span class="queue-live-indicator" role="status">'
+
+            + '<span class="queue-live-dot"></span>'
+
+            + 'Live processing'
+
+            + '</span>'
+
+        )
+
+        : "";
+
+
     const error = request.error
         ? (
             '<div class="error-box">'
@@ -157,7 +174,8 @@ function requestCard(request) {
                     </div>
 
                     <div class="badges">
-                        <span class="badge ${
+                        ${liveIndicator}
+<span class="badge ${
                             request.processing_mode ===
                             "QUEUE_BATCH"
                                 ? "batch"
@@ -595,3 +613,204 @@ setInterval(function() {
         console.error
     );
 }, 15000);
+
+
+// ==========================================================
+// All-curriculum Lesson Build History
+// ==========================================================
+
+let buildHistory = [];
+let historyPageNumber = 1;
+const historyPageSize = 25;
+
+function historyInput(id) {
+    return document.getElementById(id).value.trim();
+}
+
+function filteredHistory() {
+    const search = historyInput("historySearch").toLowerCase();
+    const status = historyInput("historyStatus");
+    const curriculum = historyInput("historyCurriculum");
+    const from = historyInput("historyFrom");
+    const to = historyInput("historyTo");
+
+    return buildHistory.filter(function(item) {
+        const text = [
+            item.curriculum_code,
+            item.parent_code,
+            item.lesson_title,
+            item.content_description,
+            item.moodle_title,
+            item.subject,
+            item.year_level
+        ].join(" ").toLowerCase();
+        const date = String(item.request_date || "").slice(0, 10);
+
+        return (!search || text.includes(search))
+            && (!status || item.display_status === status)
+            && (!curriculum || item.curriculum === curriculum)
+            && (!from || date >= from)
+            && (!to || date <= to);
+    });
+}
+
+function statusClass(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function moodleTitleCell(item) {
+    if (item.moodle_title) {
+        return escapeHtml(item.moodle_title);
+    }
+    if (item.moodle_quiz_id) {
+        return '<span class="history-muted">Title not historically recorded<br>Quiz ID '
+            + escapeHtml(item.moodle_quiz_id) + "</span>";
+    }
+    return '<span class="history-muted">Not published</span>';
+}
+
+function renderHistorySummary() {
+    function count(label) {
+        return buildHistory.filter(function(item) {
+            return item.display_status === label;
+        }).length;
+    }
+    document.getElementById("historyTotal").textContent = buildHistory.length;
+    document.getElementById("historyPublished").textContent = count("Published");
+    document.getElementById("historyGenerated").textContent =
+        count("Generated") + count("Update ready");
+    document.getElementById("historyUpdated").textContent = count("Updated");
+    document.getElementById("historyRebuilt").textContent = count("Rebuilt");
+}
+
+function populateHistorySelect(id, values, allLabel) {
+    const select = document.getElementById(id);
+    const current = select.value;
+    const unique = Array.from(new Set(values.filter(Boolean))).sort();
+    select.innerHTML = '<option value="">' + escapeHtml(allLabel) + "</option>"
+        + unique.map(function(value) {
+            return '<option value="' + escapeHtml(value) + '">'
+                + escapeHtml(value) + "</option>";
+        }).join("");
+    if (unique.includes(current)) {
+        select.value = current;
+    }
+}
+
+function renderHistory() {
+    const records = filteredHistory();
+    const pages = Math.max(1, Math.ceil(records.length / historyPageSize));
+    historyPageNumber = Math.min(historyPageNumber, pages);
+    const start = (historyPageNumber - 1) * historyPageSize;
+    const visible = records.slice(start, start + historyPageSize);
+    const body = document.getElementById("historyBody");
+
+    if (!visible.length) {
+        body.innerHTML = '<tr><td colspan="7" class="history-empty">'
+            + "No lesson records match these filters.</td></tr>";
+    } else {
+        body.innerHTML = visible.map(function(item) {
+            return "<tr>"
+                + '<td class="history-date">' + escapeHtml(localTime(item.request_date)) + "</td>"
+                + '<td><span class="history-status ' + statusClass(item.display_status) + '">'
+                + escapeHtml(item.display_status) + "</span></td>"
+                + "<td><strong>" + escapeHtml(item.curriculum) + "</strong>"
+                + "<small>" + escapeHtml(item.subject || "") + "</small></td>"
+                + "<td><code>" + escapeHtml(item.curriculum_code || item.parent_code) + "</code></td>"
+                + '<td class="history-lesson"><strong>' + escapeHtml(item.lesson_title || "")
+                + "</strong><small>" + escapeHtml(item.content_description || "") + "</small></td>"
+                + "<td>" + moodleTitleCell(item) + "</td>"
+                + '<td class="history-date">' + escapeHtml(localTime(item.modified_date)) + "</td>"
+                + "</tr>";
+        }).join("");
+    }
+
+    document.getElementById("historyShowing").textContent =
+        records.length + " record" + (records.length === 1 ? "" : "s");
+    document.getElementById("historyPage").textContent =
+        "Page " + historyPageNumber + " of " + pages;
+    document.getElementById("historyPrevious").disabled = historyPageNumber <= 1;
+    document.getElementById("historyNext").disabled = historyPageNumber >= pages;
+}
+
+async function refreshHistory() {
+    const response = await fetch("/api/queue/history", {cache: "no-store"});
+    if (!response.ok) {
+        throw new Error("History API returned HTTP " + response.status);
+    }
+    const data = await response.json();
+    buildHistory = Array.isArray(data.history) ? data.history : [];
+    renderHistorySummary();
+    populateHistorySelect(
+        "historyStatus",
+        buildHistory.map(function(item) { return item.display_status; }),
+        "All statuses"
+    );
+    populateHistorySelect(
+        "historyCurriculum",
+        buildHistory.map(function(item) { return item.curriculum; }),
+        "All curricula"
+    );
+    renderHistory();
+}
+
+function csvCell(value) {
+    return '"' + String(value === null || value === undefined ? "" : value)
+        .replace(/"/g, '""') + '"';
+}
+
+function exportHistory() {
+    const lines = [[
+        "Request date", "Status", "Curriculum", "Curriculum code",
+        "Elaboration / lesson title", "Moodle title", "Modified date",
+        "Moodle course ID", "Moodle quiz ID", "Moodle CMID"
+    ].map(csvCell).join(",")];
+
+    filteredHistory().forEach(function(item) {
+        lines.push([
+            item.request_date, item.display_status, item.curriculum,
+            item.curriculum_code, item.lesson_title, item.moodle_title,
+            item.modified_date, item.moodle_course_id,
+            item.moodle_quiz_id, item.moodle_quiz_cmid
+        ].map(csvCell).join(","));
+    });
+
+    const blob = new Blob([lines.join("\n")], {type: "text/csv;charset=utf-8"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "all-curriculum-lesson-build-history.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+["historySearch", "historyStatus", "historyCurriculum", "historyFrom", "historyTo"]
+    .forEach(function(id) {
+        document.getElementById(id).addEventListener("input", function() {
+            historyPageNumber = 1;
+            renderHistory();
+        });
+    });
+
+document.getElementById("clearHistoryFilters").addEventListener("click", function() {
+    ["historySearch", "historyStatus", "historyCurriculum", "historyFrom", "historyTo"]
+        .forEach(function(id) { document.getElementById(id).value = ""; });
+    historyPageNumber = 1;
+    renderHistory();
+});
+document.getElementById("historyPrevious").addEventListener("click", function() {
+    if (historyPageNumber > 1) { historyPageNumber -= 1; renderHistory(); }
+});
+document.getElementById("historyNext").addEventListener("click", function() {
+    historyPageNumber += 1;
+    renderHistory();
+});
+document.getElementById("exportHistory").addEventListener("click", exportHistory);
+document.getElementById("refreshButton").addEventListener("click", function() {
+    refreshHistory().catch(console.error);
+});
+
+refreshHistory().catch(function(error) {
+    document.getElementById("historyBody").innerHTML =
+        '<tr><td colspan="7" class="history-empty">Unable to load history: '
+        + escapeHtml(error.message) + "</td></tr>";
+});

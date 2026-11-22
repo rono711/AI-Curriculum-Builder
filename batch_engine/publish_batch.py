@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from build_registry import (
+    record_moodle_title,
     get_build_request,
     get_build_request_items,
     checkpoint_moodle_identity,
@@ -535,6 +536,11 @@ def call_moodle(pipeline, item):
             package
             + ": invalid Moodle result."
         )
+
+    record_moodle_title(
+        registry["id"],
+        moodle.get("quiztitle"),
+    )
 
     return {
         "skip": False,

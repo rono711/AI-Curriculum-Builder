@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>
+{% block title %}
+Curriculum Studio
+{% endblock %}
+</title>
+
+<link rel="stylesheet"
+      href="/static/studio/css/curriculum.css?v=20260924_batch_1">
+
+{% block css %}{% endblock %}
+
+</head>
+
+<body>
+
+<div class="app-shell">
+
+{% include "studio/components/sidebar.html" %}
+
+<main class="workspace">
+
+{% include "studio/components/topbar.html" %}
+
+<section class="workspace-content">
+
+{% block content %}
+{% endblock %}
+
+</section>
+
+</main>
+
+</div>
+
+<script src="/static/studio/js/curriculum.js?v=20260924_real_dashboard_data_3"></script>
+
+{% block javascript %}
+{% endblock %}
+
+</body>
+</html>
